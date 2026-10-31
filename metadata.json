@@ -1,0 +1,6 @@
+{
+  "name": "Omini PDF - Free AI PDF Suite | Merge, Split, Compress & Edit PDF Online",
+  "description": "The #1 free online PDF editor & AI document assistant. Merge, split, compress, protect, watermark, convert to images, and summarize PDFs with Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

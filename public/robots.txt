@@ -1,0 +1,28 @@
+# ==========================================
+# Robots.txt for Omini PDF
+# Built by Code Garage | Developed by SM Developer
+# ==========================================
+
+User-agent: *
+Allow: /
+Disallow: /api/admin/
+Disallow: /api/auth/
+
+# Dedicated Crawler Directives
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+User-agent: Bingbot
+Allow: /
+
+User-agent: DuckDuckBot
+Allow: /
+
+User-agent: Applebot
+Allow: /
+
+# Canonical Sitemap Reference
+Sitemap: https://ais-dev-etccqm7e6x3dwl347um3uo-414257327652.asia-southeast1.run.app/sitemap.xml

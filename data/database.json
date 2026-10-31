@@ -1,0 +1,124 @@
+{
+  "users": [
+    {
+      "id": "user_admin_01",
+      "name": "Code Garage Admin",
+      "email": "codegarage1@gmail.com",
+      "passwordHash": "$2b$10$VITo4R/f/rkaZOOmJrb5L.mGZwb.m8zSQPCM/8350ZW44C2dV4NMC",
+      "role": "admin",
+      "plan": "pro",
+      "subscriptionDurationDays": 30,
+      "proSubscribedAt": "2026-10-29T08:43:44.640Z",
+      "proExpiresAt": "2026-11-28T08:43:44.640Z",
+      "subscriptionStatus": "active",
+      "pdfOperationsUsed": 0,
+      "aiQueriesUsed": 0,
+      "createdAt": "2026-10-29T08:43:44.640Z",
+      "updatedAt": "2026-10-30T14:00:00.000Z"
+    },
+    {
+      "id": "user_demo_02",
+      "name": "Alex Rivera",
+      "email": "user@example.com",
+      "passwordHash": "$2b$10$EoCSp.JRpoAge2oLeyZJvOGQCOFevZYzQHJSeEvDwYVpJDzUYFzo2",
+      "role": "user",
+      "plan": "free",
+      "subscriptionStatus": "none",
+      "pdfOperationsUsed": 1,
+      "aiQueriesUsed": 2,
+      "createdAt": "2026-10-28T06:54:33.447Z",
+      "updatedAt": "2026-10-30T14:00:00.000Z"
+    }
+  ],
+  "documents": [
+    {
+      "id": "doc_init_01",
+      "userId": "user_demo_02",
+      "toolName": "Merge PDF",
+      "fileName": "Project_Proposal_Q4.pdf",
+      "fileSize": 1420000,
+      "resultSummary": "Merged 3 documents (12 pages total)",
+      "timestamp": "2026-10-29T06:54:33.447Z",
+      "status": "success"
+    },
+    {
+      "id": "doc_init_02",
+      "userId": "user_demo_02",
+      "toolName": "AI PDF Summarizer",
+      "fileName": "Financial_Report_2026.pdf",
+      "fileSize": 850000,
+      "resultSummary": "Executive Brief generated (5 key takeaways)",
+      "timestamp": "2026-10-29T08:30:00.000Z",
+      "status": "success"
+    },
+    {
+      "id": "doc_init_03",
+      "userId": "user_admin_01",
+      "toolName": "Protect PDF",
+      "fileName": "Board_Confidential.pdf",
+      "fileSize": 2200000,
+      "resultSummary": "Encrypted with 256-bit AES & master password",
+      "timestamp": "2026-10-29T09:15:00.000Z",
+      "status": "success"
+    },
+    {
+      "id": "doc_init_04",
+      "userId": "user_demo_02",
+      "toolName": "Add Watermark",
+      "fileName": "Sample_Audit_Report.pdf",
+      "fileSize": 3375,
+      "resultSummary": "Applied watermark \"APPROVED - OMINI PDF\" with 35% opacity to 3 pages.",
+      "timestamp": "2026-10-29T11:20:00.000Z",
+      "status": "success"
+    }
+  ],
+  "transactions": [
+    {
+      "id": "tx_seed_01",
+      "userId": "user_admin_01",
+      "userEmail": "codegarage1@gmail.com",
+      "amount": 99,
+      "currency": "INR",
+      "plan": "pro",
+      "durationDays": 30,
+      "paymentId": "PAY_PRO_30D_SEED",
+      "paymentMethod": "ZapPay Verified UPI Gateway",
+      "status": "completed",
+      "createdAt": "2026-10-29T08:43:44.640Z"
+    }
+  ],
+  "settings": {
+    "freePdfLimit": 3,
+    "freeAiLimit": 5,
+    "proPriceINR": 99,
+    "subscriptionDays": 30,
+    "geminiModel": "gpt-4o-mini",
+    "aiApiBaseUrl": "https://freemodel.in/v1",
+    "aiApiKey": "",
+    "aiModel": "gpt-4o-mini",
+    "maintenanceMode": false,
+    "zapPayLinkId": "f66a2d52",
+    "announcementText": "⚡ Special Offer: Unlock 30 Days of Unlimited AI PDF Tools for just ₹99 via ZapPay UPI!",
+    "announcementActive": true
+  },
+  "vouchers": [
+    {
+      "id": "vouch_omini99",
+      "code": "OMINI99",
+      "discountPercent": 100,
+      "maxUses": 2500,
+      "currentUses": 0,
+      "active": true,
+      "createdAt": "2026-10-30T00:00:00.000Z"
+    },
+    {
+      "id": "vouch_propass50",
+      "code": "PROPASS50",
+      "discountPercent": 50,
+      "maxUses": 500,
+      "currentUses": 0,
+      "active": true,
+      "createdAt": "2026-10-30T00:00:00.000Z"
+    }
+  ]
+}
