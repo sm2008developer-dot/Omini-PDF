@@ -37,15 +37,16 @@ import {
   X,
   Zap,
 } from 'lucide-react';
-import { User, Transaction, DocumentHistory, api } from '../utils/api.js';
+import { User, Transaction, DocumentHistory, api, PlatformLimits } from '../utils/api.js';
 import { formatINR, formatFileSize } from '../utils/pdfLimits.js';
 
 interface AdminPanelProps {
   currentUser: User;
   onBackToHome: () => void;
+  onSettingsUpdate?: (newLimits: Partial<PlatformLimits>) => void;
 }
 
-export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHome }) => {
+export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHome, onSettingsUpdate }) => {
   const [activeTab, setActiveTab] = useState<
     'overview' | 'users' | 'transactions' | 'vouchers' | 'audit' | 'settings'
   >('overview');
@@ -103,7 +104,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
   const [grantDays, setGrantDays] = useState(30);
   const [grantMsg, setGrantMsg] = useState<string | null>(null);
 
-  // Platform & AI Settings (FreeModel 1 Million Token API)
+  // Platform & AI Settings (FreeModel 1 Million Token API & ZapPay Gateway)
   const [settings, setSettings] = useState({
     freePdfLimit: 3,
     freeAiLimit: 5,
@@ -115,14 +116,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
     aiModel: 'gpt-4o-mini',
     maintenanceMode: false,
     zapPayLinkId: 'f66a2d52',
-    announcementText: '⚡ Special Offer: Unlock 30 Days of Unlimited AI PDF Tools for just ₹99 via ZapPay UPI!',
+    zapPayApiBaseUrl: 'https://zappay-beta.vercel.app',
+    zapPayApiKey: '',
+    upiId: '9734076853@fam',
+    customQrUrl: '',
+    announcementText: '⚡ Special Offer: Unlock 30 Days of Unlimited AI PDF Tools for just ₹99 via UPI!',
     announcementActive: true,
   });
   const [availableModels, setAvailableModels] = useState<Array<{ id: string; name: string; provider: string }>>([]);
   const [customModelInput, setCustomModelInput] = useState('');
   const [showApiKey, setShowApiKey] = useState(false);
+  const [showZapApiKey, setShowZapApiKey] = useState(false);
   const [aiTesting, setAiTesting] = useState(false);
   const [aiTestResult, setAiTestResult] = useState<{ success: boolean; message: string; reply?: string } | null>(null);
+  const [testingZapPay, setTestingZapPay] = useState(false);
+  const [zapTestResult, setZapTestResult] = useState<{ success: boolean; status?: number; message: string } | null>(null);
+  const [isUploadingQr, setIsUploadingQr] = useState(false);
+  const [qrUploadMsg, setQrUploadMsg] = useState<{ success: boolean; message: string } | null>(null);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSavedMsg, setSettingsSavedMsg] = useState(false);
 
@@ -130,10 +140,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
     loadAdminData();
   }, []);
 
-  const loadAdminData = async () => {
+  const loadAdminData = async (allowRetry = true) => {
     try {
       setLoading(true);
       setError(null);
+      if (currentUser?.email) {
+        api.setUserEmail(currentUser.email);
+      }
       const [statsRes, usersRes, settingsRes, vouchersRes, docsRes, aiModelsRes] = await Promise.all([
         api.adminGetStats(),
         api.adminGetUsers(),
@@ -156,7 +169,11 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
         aiModel: s.aiModel || s.geminiModel || 'gpt-4o-mini',
         maintenanceMode: !!s.maintenanceMode,
         zapPayLinkId: s.zapPayLinkId || 'f66a2d52',
-        announcementText: s.announcementText || '⚡ Special Offer: Unlock 30 Days of Unlimited AI PDF Tools for just ₹99 via ZapPay UPI!',
+        zapPayApiBaseUrl: s.zapPayApiBaseUrl || 'https://zappay-beta.vercel.app',
+        zapPayApiKey: s.zapPayApiKey || '',
+        upiId: s.upiId || '9734076853@fam',
+        customQrUrl: s.customQrUrl || '',
+        announcementText: s.announcementText || '⚡ Special Offer: Unlock 30 Days of Unlimited AI PDF Tools for just ₹99 via UPI!',
         announcementActive: s.announcementActive ?? true,
       });
       if (aiModelsRes && aiModelsRes.models) {
@@ -166,6 +183,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       setAuditDocs(docsRes.documents || []);
       setTransactionsList(statsRes.recentTransactions || []);
     } catch (err: unknown) {
+      if (allowRetry && currentUser) {
+        try {
+          await api.syncFirebaseSession(currentUser);
+          return await loadAdminData(false);
+        } catch {
+          // fall through to error handling
+        }
+      }
       const msg = err instanceof Error ? err.message : 'Failed to load administrator data';
       setError(msg);
     } finally {
@@ -334,13 +359,101 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
     e.preventDefault();
     setSavingSettings(true);
     try {
-      await api.adminUpdateSettings(settings);
+      const payload = {
+        ...settings,
+        freePdfLimit: Number(settings.freePdfLimit) > 0 ? Number(settings.freePdfLimit) : 3,
+        freeAiLimit: Number(settings.freeAiLimit) > 0 ? Number(settings.freeAiLimit) : 5,
+        proPriceINR: !isNaN(Number(settings.proPriceINR)) && Number(settings.proPriceINR) >= 0 ? Number(settings.proPriceINR) : 99,
+        subscriptionDays: Number(settings.subscriptionDays) > 0 ? Number(settings.subscriptionDays) : 30,
+        zapPayApiBaseUrl: (settings.zapPayApiBaseUrl || 'https://zappay-beta.vercel.app').trim(),
+        zapPayApiKey: (settings.zapPayApiKey || '').trim(),
+        upiId: (settings.upiId || '9734076853@fam').trim(),
+        customQrUrl: (settings.customQrUrl || '').trim(),
+      };
+      const res = await api.adminUpdateSettings(payload);
+      if (res && res.settings) {
+        onSettingsUpdate?.(res.settings as any);
+      }
       setSettingsSavedMsg(true);
-      setTimeout(() => setSettingsSavedMsg(false), 2500);
+      setTimeout(() => setSettingsSavedMsg(false), 3000);
     } catch (err) {
       console.error('Failed to save settings:', err);
     } finally {
       setSavingSettings(false);
+    }
+  };
+
+  const handleTestZapPay = async () => {
+    try {
+      setTestingZapPay(true);
+      setZapTestResult(null);
+      const res = await api.adminTestZapPay(settings.zapPayApiKey);
+      setZapTestResult(res);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Connection test failed';
+      setZapTestResult({ success: false, message: msg });
+    } finally {
+      setTestingZapPay(false);
+    }
+  };
+
+  const handleCustomQrUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setQrUploadMsg({ success: false, message: 'Please select a valid image file (PNG, JPG, or WebP).' });
+      return;
+    }
+
+    if (file.size > 4 * 1024 * 1024) {
+      setQrUploadMsg({ success: false, message: 'Image size should be under 4MB.' });
+      return;
+    }
+
+    try {
+      setIsUploadingQr(true);
+      setQrUploadMsg(null);
+      const reader = new FileReader();
+      reader.onload = async () => {
+        try {
+          const dataUrl = reader.result as string;
+          const res = await api.adminUploadQr(dataUrl);
+          if (res.success) {
+            setSettings((prev) => ({ ...prev, customQrUrl: res.customQrUrl }));
+            setQrUploadMsg({ success: true, message: '✓ Custom QR Code uploaded & active! Users will see this QR code.' });
+            onSettingsUpdate?.({ customQrUrl: res.customQrUrl, hasCustomQr: true });
+          }
+        } catch (innerErr: unknown) {
+          const msg = innerErr instanceof Error ? innerErr.message : 'Failed to save QR';
+          setQrUploadMsg({ success: false, message: msg });
+        } finally {
+          setIsUploadingQr(false);
+        }
+      };
+      reader.readAsDataURL(file);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Upload failed';
+      setQrUploadMsg({ success: false, message: msg });
+      setIsUploadingQr(false);
+    }
+  };
+
+  const handleRemoveCustomQr = async () => {
+    try {
+      setIsUploadingQr(true);
+      setQrUploadMsg(null);
+      const res = await api.adminRemoveQr();
+      if (res.success) {
+        setSettings((prev) => ({ ...prev, customQrUrl: '' }));
+        setQrUploadMsg({ success: true, message: '✓ Custom QR removed! System will auto-generate dynamic UPI QR codes.' });
+        onSettingsUpdate?.({ customQrUrl: null, hasCustomQr: false });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to reset QR';
+      setQrUploadMsg({ success: false, message: msg });
+    } finally {
+      setIsUploadingQr(false);
     }
   };
 
@@ -367,19 +480,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-200">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-slate-200">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#FFE3EE]">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-purple-600 text-white flex items-center justify-center shadow-md shadow-purple-600/20 shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white flex items-center justify-center shadow-md shadow-[#E83E8C]/25 shrink-0">
             <ShieldAlert className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-black text-slate-900 tracking-tight">Admin Command Center</h1>
-              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 border border-purple-200">
+              <h1 className="text-2xl font-serif font-black italic text-[#24212A] tracking-tight">Admin Command Center</h1>
+              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-serif font-bold italic uppercase tracking-wider bg-[#FFE3EE] text-[#C92B72] border border-[#FDC6DD]">
                 Primary Admin
               </span>
             </div>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[#77717B] font-serif italic mt-0.5">
               Manage platform metrics, users, ZapPay subscriptions, vouchers, audit logs &amp; policies
             </p>
           </div>
@@ -387,16 +500,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
 
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <button
-            onClick={loadAdminData}
-            className="p-2.5 rounded-xl border border-slate-200 text-slate-600 hover:bg-slate-50 cursor-pointer flex items-center gap-1.5 text-xs font-semibold"
+            onClick={() => loadAdminData(true)}
+            className="p-2.5 rounded-xl border border-[#FFE3EE] bg-white text-[#24212A] hover:bg-[#FFF4F8] hover:border-[#E83E8C] cursor-pointer flex items-center gap-1.5 text-xs font-serif font-bold italic transition-colors shadow-2xs"
             title="Refresh All Data"
           >
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-[#E83E8C] ${loading ? 'animate-spin' : ''}`} />
             <span>Sync</span>
           </button>
           <button
             onClick={onBackToHome}
-            className="px-4 py-2.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-xs font-serif font-bold italic text-white bg-gradient-to-r from-[#E83E8C] to-[#C92B72] hover:brightness-105 shadow-xs transition-all cursor-pointer"
           >
             Back to App
           </button>
@@ -404,30 +517,30 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       </div>
 
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-center justify-between gap-2">
+        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-[#D9364F] text-xs font-serif italic flex items-center justify-between gap-2 shadow-xs">
           <div className="flex items-center gap-2">
             <AlertTriangle className="w-4 h-4 shrink-0" />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError(null)} className="text-xs font-bold hover:underline cursor-pointer">
+          <button onClick={() => setError(null)} className="text-xs font-serif font-bold italic hover:underline cursor-pointer">
             Dismiss
           </button>
         </div>
       )}
 
       {grantMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#1FA971] text-xs font-serif font-bold italic flex items-center gap-2 shadow-xs">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{grantMsg}</span>
         </div>
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-2 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-2 border-b border-[#FFE3EE] pb-2 overflow-x-auto scrollbar-none">
         {[
           { id: 'overview', label: 'Platform Analytics', icon: TrendingUp },
           { id: 'users', label: `Users (${usersList.length})`, icon: Users },
-          { id: 'transactions', label: 'ZapPay Ledger (₹99)', icon: CreditCard },
+          { id: 'transactions', label: `ZapPay Ledger (₹${settings.proPriceINR})`, icon: CreditCard },
           { id: 'vouchers', label: `Vouchers (${vouchersList.length})`, icon: Tag },
           { id: 'audit', label: `Activity Audit (${auditDocs.length})`, icon: Activity },
           { id: 'settings', label: 'Platform & Gateway', icon: Sliders },
@@ -437,10 +550,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
-              className={`px-4 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
+              className={`px-4 py-2 rounded-xl text-xs font-serif font-bold italic flex items-center gap-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-purple-600 text-white shadow-xs'
-                  : 'text-slate-600 hover:bg-slate-100'
+                  ? 'bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white shadow-xs'
+                  : 'text-[#77717B] hover:bg-[#FFE3EE]/60 hover:text-[#24212A]'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -1113,7 +1226,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   min={1}
                   max={50}
                   value={settings.freePdfLimit}
-                  onChange={(e) => setSettings({ ...settings, freePdfLimit: parseInt(e.target.value, 10) })}
+                  onChange={(e) => {
+                    const v = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+                    setSettings({ ...settings, freePdfLimit: v as any });
+                  }}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
                 />
               </div>
@@ -1127,7 +1243,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   min={1}
                   max={50}
                   value={settings.freeAiLimit}
-                  onChange={(e) => setSettings({ ...settings, freeAiLimit: parseInt(e.target.value, 10) })}
+                  onChange={(e) => {
+                    const v = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+                    setSettings({ ...settings, freeAiLimit: v as any });
+                  }}
                   className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
                 />
               </div>
@@ -1138,10 +1257,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                 </label>
                 <input
                   type="number"
-                  min={1}
+                  min={0}
                   value={settings.proPriceINR}
-                  onChange={(e) => setSettings({ ...settings, proPriceINR: parseInt(e.target.value, 10) })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+                  onChange={(e) => {
+                    const v = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+                    setSettings({ ...settings, proPriceINR: v as any });
+                  }}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold text-purple-700"
                 />
               </div>
 
@@ -1154,25 +1276,242 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   min={1}
                   max={365}
                   value={settings.subscriptionDays}
-                  onChange={(e) => setSettings({ ...settings, subscriptionDays: parseInt(e.target.value, 10) })}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+                  onChange={(e) => {
+                    const v = e.target.value === '' ? '' : parseInt(e.target.value, 10);
+                    setSettings({ ...settings, subscriptionDays: v as any });
+                  }}
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold"
                 />
               </div>
             </div>
 
-            {/* ZapPay Gateway Link ID */}
-            <div className="p-4 rounded-2xl bg-indigo-50/60 border border-indigo-200 space-y-2">
-              <label className="block text-xs font-bold text-indigo-950">ZapPay Payment Link ID</label>
-              <input
-                type="text"
-                value={settings.zapPayLinkId}
-                onChange={(e) => setSettings({ ...settings, zapPayLinkId: e.target.value })}
-                placeholder="e.g. f66a2d52"
-                className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 bg-white font-mono"
-              />
-              <p className="text-[11px] text-indigo-700">
-                Direct URL: <code>https://panel.zappay.shop/pay.html?id={settings.zapPayLinkId}</code>
-              </p>
+            {/* ZapPay Gateway & ZapAPI Configuration */}
+            <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/70 via-blue-50/40 to-slate-50 border-2 border-indigo-200 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                    <Zap className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                      <span>ZapPay Gateway (UPI & Cards)</span>
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                        Official Gateway
+                      </span>
+                    </h4>
+                    <p className="text-[11px] text-slate-500">
+                      Automated UPI collection and instant order verification via ZapAPI
+                    </p>
+                  </div>
+                </div>
+                <a
+                  href="https://zappay.shop"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-[11px] font-semibold text-indigo-700 hover:underline flex items-center gap-1"
+                >
+                  <span>zappay.shop</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
+              {/* Direct UPI ID for Instant QR code */}
+              <div className="p-3 bg-white rounded-xl border border-indigo-200">
+                <label className="block text-xs font-bold text-slate-800 mb-1">
+                  Direct Merchant UPI ID (for instant QR code & mobile payment)
+                </label>
+                <input
+                  type="text"
+                  value={settings.upiId || '9734076853@fam'}
+                  onChange={(e) => setSettings({ ...settings, upiId: e.target.value })}
+                  placeholder="9734076853@fam"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 font-mono bg-white focus:ring-2 focus:ring-indigo-500 font-bold text-slate-900"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Active UPI ID: <code>9734076853@fam</code>. When users upgrade, this UPI ID is embedded into the QR code and payment intent.
+                </p>
+              </div>
+
+              {/* ZapPay API Base URL */}
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  ZapPay API Base URL
+                </label>
+                <input
+                  type="text"
+                  value={settings.zapPayApiBaseUrl}
+                  onChange={(e) => setSettings({ ...settings, zapPayApiBaseUrl: e.target.value })}
+                  placeholder="https://zappay-beta.vercel.app"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 font-mono bg-white focus:ring-2 focus:ring-indigo-500"
+                />
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Default: <code>https://zappay-beta.vercel.app</code> (ZapAPI Vercel Backend)
+                </p>
+              </div>
+
+              {/* ZapPay API Key (zap_api / X-ZapAPI-Key) */}
+              <div>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="text-xs font-semibold text-slate-700">
+                    ZapAPI Key (<code className="font-mono text-[10px] text-indigo-700">X-ZapAPI-Key</code> / <code className="font-mono text-[10px] text-indigo-700">zap_api</code>)
+                  </label>
+                  <span className="text-[10px] font-medium text-slate-500">
+                    {settings.zapPayApiKey ? (
+                      <span className="text-emerald-600 font-bold">✓ Key Configured</span>
+                    ) : (
+                      <span className="text-amber-600 font-bold">Paste Key Below</span>
+                    )}
+                  </span>
+                </div>
+                <div className="relative">
+                  <input
+                    type={showZapApiKey ? 'text' : 'password'}
+                    value={settings.zapPayApiKey}
+                    onChange={(e) => setSettings({ ...settings, zapPayApiKey: e.target.value })}
+                    placeholder="Paste your 32-character ZapAPI key here..."
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 font-mono bg-white pr-24 focus:ring-2 focus:ring-indigo-500"
+                  />
+                  <div className="absolute right-2 top-2 flex items-center gap-1.5">
+                    <button
+                      type="button"
+                      onClick={() => setShowZapApiKey(!showZapApiKey)}
+                      className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      title={showZapApiKey ? "Hide Key" : "Show Key"}
+                    >
+                      {showZapApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleTestZapPay}
+                      disabled={testingZapPay}
+                      className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                    >
+                      {testingZapPay ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                      <span>Test Key</span>
+                    </button>
+                  </div>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Get your ZapAPI key from ZapPay Dashboard -&gt; Developer Portal -&gt; Zap API.
+                </p>
+
+                {zapTestResult && (
+                  <div
+                    className={`mt-2 p-2.5 rounded-xl text-xs flex items-center justify-between border ${
+                      zapTestResult.success
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                    }`}
+                  >
+                    <div className="flex items-center gap-2">
+                      {zapTestResult.success ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                      )}
+                      <span className="font-medium text-[11px]">{zapTestResult.message}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setZapTestResult(null)}
+                      className="text-slate-400 hover:text-slate-600"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
+
+              {/* Payment QR Code Manager (Admin Upload OR Auto-Generate) */}
+              <div className="p-4 bg-white rounded-2xl border-2 border-indigo-200 shadow-xs space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                      <CreditCard className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <h5 className="text-xs font-bold text-slate-900">Payment QR Scanner Mode</h5>
+                      <p className="text-[10px] text-slate-500">
+                        Scanner appears ONLY if uploaded by admin. If empty, users pay via UPI ID and mobile app.
+                      </p>
+                    </div>
+                  </div>
+                  <span
+                    className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                      settings.customQrUrl
+                        ? 'bg-purple-100 text-purple-800 border-purple-200'
+                        : 'bg-slate-100 text-slate-700 border-slate-200'
+                    }`}
+                  >
+                    {settings.customQrUrl ? 'Scanner Active' : 'No Scanner (UPI ID Only)'}
+                  </span>
+                </div>
+
+                {settings.customQrUrl ? (
+                  <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200 flex items-center justify-between gap-3">
+                    <div className="flex items-center gap-3">
+                      <img
+                        src={settings.customQrUrl}
+                        alt="Custom Merchant QR"
+                        className="w-14 h-14 rounded-lg object-contain bg-white border border-purple-200 p-0.5 shadow-xs"
+                      />
+                      <div>
+                        <div className="text-xs font-bold text-purple-900">Merchant QR Scanner is Active</div>
+                        <div className="text-[10px] text-purple-700">
+                          Users will scan this exact QR code in the upgrade modal.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleRemoveCustomQr}
+                      disabled={isUploadingQr}
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 transition shrink-0 cursor-pointer"
+                    >
+                      Remove Scanner
+                    </button>
+                  </div>
+                ) : (
+                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600">
+                    <span className="font-semibold text-slate-800">Scanner Hidden:</span> No QR scanner will be shown to users. Users will pay directly to UPI ID <code>{settings.upiId || '9734076853@fam'}</code> or tap the mobile UPI button. Upload an image below whenever you want a QR scanner to appear.
+                  </div>
+                )}
+
+                {/* Upload or Change Custom QR */}
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
+                  <label className="flex-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-indigo-700 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition">
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{settings.customQrUrl ? 'Replace Custom QR Image' : 'Upload Custom Merchant QR Code'}</span>
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                      onChange={handleCustomQrUpload}
+                      disabled={isUploadingQr}
+                      className="hidden"
+                    />
+                  </label>
+                  {isUploadingQr && (
+                    <span className="text-xs text-indigo-600 font-medium flex items-center gap-1 justify-center">
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving QR...
+                    </span>
+                  )}
+                </div>
+
+                {qrUploadMsg && (
+                  <div
+                    className={`p-2 rounded-xl text-[11px] font-medium flex items-center justify-between border ${
+                      qrUploadMsg.success
+                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
+                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                    }`}
+                  >
+                    <span>{qrUploadMsg.message}</span>
+                    <button type="button" onClick={() => setQrUploadMsg(null)} className="text-slate-400">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* FreeModel AI Engine (1 Million Free Tokens API) */}

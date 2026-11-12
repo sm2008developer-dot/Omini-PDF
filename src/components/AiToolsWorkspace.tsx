@@ -23,6 +23,8 @@ import {
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { User, PlatformLimits, api } from '../utils/api.js';
 import { extractTextFromPdf } from '../utils/pdfEngine.js';
+import { AdSenseBanner } from './AdSenseBanner.js';
+import { incrementAiUsageInFirestore } from '../lib/firebaseService.js';
 
 interface AiToolsWorkspaceProps {
   toolId: ToolId;
@@ -159,6 +161,7 @@ Acme Corporation demonstrated strong resilience throughout fiscal 2026, deliveri
         summaryType,
       });
       setSummaryResult(res.summary);
+      if (user?.id) incrementAiUsageInFirestore(user.id).catch(() => {});
       onUserUpdate(res.user);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Failed to generate summary';
@@ -192,6 +195,7 @@ Acme Corporation demonstrated strong resilience throughout fiscal 2026, deliveri
         chatHistory: chatMessages,
       });
       setChatMessages([...newMessages, { role: 'assistant', content: res.answer }]);
+      if (user?.id) incrementAiUsageInFirestore(user.id).catch(() => {});
       onUserUpdate(res.user);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Chat query failed';
@@ -217,6 +221,7 @@ Acme Corporation demonstrated strong resilience throughout fiscal 2026, deliveri
         fileName: file?.name || 'document.pdf',
       });
       setKeypointsResult(res.keypoints);
+      if (user?.id) incrementAiUsageInFirestore(user.id).catch(() => {});
       onUserUpdate(res.user);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Key points extraction failed';
@@ -243,6 +248,7 @@ Acme Corporation demonstrated strong resilience throughout fiscal 2026, deliveri
         question: customQuestion.trim() ? customQuestion : undefined,
       });
       setQaResult(res.result);
+      if (user?.id) incrementAiUsageInFirestore(user.id).catch(() => {});
       onUserUpdate(res.user);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Q&A generation failed';
@@ -634,6 +640,14 @@ Acme Corporation demonstrated strong resilience throughout fiscal 2026, deliveri
           )}
         </div>
       )}
+
+      {/* In-Article Google AdSense Unit (Slot: 7477499834) - Automatically hidden for Pro users */}
+      <AdSenseBanner
+        slotId="7477499834"
+        user={user}
+        onOpenUpgrade={() => onRequireUpgrade('Upgrade to Pro to remove all ads and unlock unlimited AI queries')}
+        layout="in-article"
+      />
     </div>
   );
 };

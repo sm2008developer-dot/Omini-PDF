@@ -27,11 +27,16 @@ import {
   ChevronDown,
   Star,
   Users,
-  Shield,
   Clock,
+  FileEdit,
+  RotateCw,
+  Hash,
+  Trash2,
 } from 'lucide-react';
 import { ToolId, ToolDefinition, TOOLS_CONFIG } from '../types.js';
+import { TOOL_PATH_MAP } from '../utils/seoRouter.js';
 import { User, PlatformLimits } from '../utils/api.js';
+import { AdSenseBanner } from './AdSenseBanner.js';
 
 interface LandingViewProps {
   user: User | null;
@@ -78,6 +83,14 @@ export const LandingView: React.FC<LandingViewProps> = ({
         return <FileImage className="w-5 h-5 text-rose-600" />;
       case 'pdf-to-image':
         return <ImageDown className="w-5 h-5 text-rose-600" />;
+      case 'edit-metadata':
+        return <FileEdit className="w-5 h-5 text-rose-600" />;
+      case 'rotate-pdf':
+        return <RotateCw className="w-5 h-5 text-rose-600" />;
+      case 'page-numbers':
+        return <Hash className="w-5 h-5 text-rose-600" />;
+      case 'remove-pages':
+        return <Trash2 className="w-5 h-5 text-rose-600" />;
       case 'ai-summarizer':
         return <Sparkles className="w-5 h-5 text-purple-600" />;
       case 'ai-chat':
@@ -93,8 +106,8 @@ export const LandingView: React.FC<LandingViewProps> = ({
 
   const faqs = [
     {
-      q: 'How does the ₹99 Pro plan payment and activation work?',
-      a: 'The Pro plan is a 30-day (1 Month) subscription for ₹99 processed securely via our official ZapPay gateway (supporting all UPI apps, Google Pay, PhonePe, Paytm, Cards, and Net Banking). Once your payment is verified, your account instantly unlocks unlimited PDF operations and priority Gemini AI queries for 30 full days.',
+      q: `How does the ₹${limits.proPriceINR ?? 99} Pro plan payment and activation work?`,
+      a: `The Pro plan is a ${limits.subscriptionDays ?? 30}-day subscription for ₹${limits.proPriceINR ?? 99} processed securely via our official ZapPay gateway (supporting all UPI apps, Google Pay, PhonePe, Paytm, Cards, and Net Banking). Once your payment is verified, your account instantly unlocks unlimited PDF operations and priority AI queries for ${limits.subscriptionDays ?? 30} full days.`,
     },
     {
       q: 'Are my PDF documents safe and private?',
@@ -121,31 +134,31 @@ export const LandingView: React.FC<LandingViewProps> = ({
         <div className="absolute inset-0 bg-[radial-gradient(#e11d48_1px,transparent_1px)] [background-size:24px_24px] opacity-[0.06] pointer-events-none"></div>
 
         <div className="max-w-5xl mx-auto px-4 sm:px-6 text-center relative z-10">
-          <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-rose-100/80 text-rose-700 text-xs font-bold uppercase tracking-wider mb-6 border border-rose-200">
-            <Sparkles className="w-3.5 h-3.5" />
-            <span>Next-Gen Document Infrastructure &amp; AI Intelligence</span>
+          <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#FFE3EE] text-[#C92B72] text-xs font-bold uppercase tracking-wider mb-6 border border-[#FDC6DD] shadow-2xs">
+            <Sparkles className="w-3.5 h-3.5 text-[#E83E8C]" />
+            <span className="font-serif font-bold italic">Next-Gen Document Infrastructure &amp; AI Intelligence</span>
           </div>
 
-          <h1 className="text-4xl sm:text-6xl font-black text-slate-900 tracking-tight leading-[1.15]">
+          <h1 className="text-4xl sm:text-6xl font-black italic tracking-tight leading-[1.18] text-[#24212A]">
             Every PDF Tool You Need. <br className="hidden sm:inline" />
-            <span className="bg-gradient-to-r from-rose-600 via-rose-500 to-amber-500 bg-clip-text text-transparent">
+            <span className="bg-gradient-to-r from-[#E83E8C] via-[#FF2E93] to-[#C92B72] bg-clip-text text-transparent">
               Supercharged with Gemini AI.
             </span>
           </h1>
 
-          <p className="mt-5 text-base sm:text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
+          <p className="mt-5 text-base sm:text-lg text-[#77717B] max-w-2xl mx-auto leading-relaxed font-serif italic">
             Merge, split, compress, protect, and convert PDFs with sub-second speeds.
             Chat with documents, generate executive summaries, and extract key points using AI.
           </p>
 
-          {/* Hero CTAs */}
-          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+          {/* Hero CTAs - 100% matched to Logo palette */}
+          <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3.5">
             <button
               onClick={() => {
                 const el = document.getElementById('tools-grid');
                 el?.scrollIntoView({ behavior: 'smooth' });
               }}
-              className="w-full sm:w-auto px-7 py-3.5 rounded-2xl font-bold text-sm text-white bg-slate-900 hover:bg-slate-800 shadow-lg shadow-slate-900/15 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              className="w-full sm:w-auto px-8 py-3.5 rounded-2xl font-serif font-bold italic text-sm text-white bg-gradient-to-r from-[#E83E8C] via-[#D8327E] to-[#C92B72] hover:brightness-105 shadow-lg shadow-[#E83E8C]/25 transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
             >
               <span>Explore All 11 Tools</span>
               <ArrowRight className="w-4 h-4" />
@@ -154,92 +167,116 @@ export const LandingView: React.FC<LandingViewProps> = ({
             {user?.plan !== 'pro' ? (
               <button
                 onClick={onOpenUpgrade}
-                className="w-full sm:w-auto px-6 py-3.5 rounded-2xl font-bold text-sm text-slate-900 bg-linear-to-r from-amber-400/90 to-amber-300 hover:brightness-105 border border-amber-300 shadow-md transition-all flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full sm:w-auto px-7 py-3.5 rounded-2xl font-serif font-bold italic text-sm text-[#24212A] bg-white hover:bg-[#FFF4F8] border-2 border-[#FFE3EE] hover:border-[#E83E8C] shadow-sm transition-all flex items-center justify-center gap-2 cursor-pointer active:scale-[0.98]"
               >
-                <Zap className="w-4 h-4 fill-slate-900" />
-                <span>Get Pro for ₹99</span>
+                <Zap className="w-4 h-4 text-[#E83E8C] fill-[#E83E8C]" />
+                <span>Get Pro for ₹{limits.proPriceINR ?? 99}</span>
               </button>
             ) : (
-              <div className="px-5 py-3 rounded-2xl bg-amber-50 border border-amber-200 text-amber-800 text-xs font-bold flex items-center gap-2">
-                <Crown className="w-4 h-4 fill-amber-700" />
+              <div className="px-5 py-3 rounded-2xl bg-[#FFE3EE] border border-[#FDC6DD] text-[#C92B72] text-xs font-serif font-bold italic flex items-center gap-2 shadow-2xs">
+                <Crown className="w-4 h-4 fill-[#C92B72]" />
                 <span>Pro Member Active</span>
               </div>
             )}
           </div>
 
           {/* Social Proof Bar */}
-          <div className="mt-12 pt-8 border-t border-slate-200/60 flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-semibold text-slate-500">
+          <div className="mt-12 pt-8 border-t border-[#FFE3EE] flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-serif font-semibold italic text-[#77717B]">
             <div className="flex items-center gap-1.5">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
+              <ShieldCheck className="w-4 h-4 text-[#1FA971]" />
               <span>Strict Privacy &amp; AES-256</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Zap className="w-4 h-4 text-amber-500" />
+              <Zap className="w-4 h-4 text-[#E83E8C] fill-[#E83E8C]" />
               <span>Zero-Wait Instant Processing</span>
             </div>
             <div className="flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-rose-500" />
+              <Sparkles className="w-4 h-4 text-[#C92B72]" />
               <span>Gemini 3.8 Flash Powered</span>
             </div>
           </div>
+
+          {/* Primary Hero Showcase Image (High Priority for LCP Optimization) */}
+          <div className="mt-10 max-w-4xl mx-auto rounded-3xl overflow-hidden shadow-2xl border border-slate-200/80 bg-slate-900 group">
+            <img
+              src="/assets/omini-hero-showcase.svg"
+              alt="Omini PDF Online Suite & Gemini AI Workspace Preview"
+              width={1200}
+              height={630}
+              fetchPriority="high"
+              loading="eager"
+              decoding="async"
+              className="w-full h-auto object-cover rounded-3xl transition-transform duration-500 group-hover:scale-[1.01]"
+            />
+          </div>
         </div>
       </section>
+
+      {/* AdSense Responsive Banner Unit (Slot: 5477575344) - Automatically hidden for Pro users */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <AdSenseBanner
+          slotId="5477575344"
+          user={user}
+          onOpenUpgrade={onOpenUpgrade}
+          layout="responsive"
+        />
+      </div>
 
       {/* Tools Section */}
       <section id="tools-grid" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-serif font-extrabold italic text-[#24212A] tracking-tight">
               Powerful Document Tools
             </h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            <p className="text-xs sm:text-sm text-[#77717B] mt-1 font-serif italic">
               Select any tool below to process your PDF or explore document intelligence.
             </p>
           </div>
 
           {/* Filter Bar & Search */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
-            <div className="flex p-1 bg-slate-100 rounded-2xl text-xs font-semibold">
+            <div className="flex p-1 bg-[#FFE3EE]/70 border border-[#FDC6DD] rounded-2xl text-xs font-serif font-semibold italic">
               <button
                 onClick={() => setSelectedCategory('all')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                   selectedCategory === 'all'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white font-bold shadow-xs'
+                    : 'text-[#77717B] hover:text-[#24212A]'
                 }`}
               >
-                All (11)
+                All ({TOOLS_CONFIG.length})
               </button>
               <button
                 onClick={() => setSelectedCategory('pdf')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                   selectedCategory === 'pdf'
-                    ? 'bg-white text-slate-900 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white font-bold shadow-xs'
+                    : 'text-[#77717B] hover:text-[#24212A]'
                 }`}
               >
-                PDF Tools (7)
+                PDF Tools ({TOOLS_CONFIG.filter((t) => t.category === 'pdf').length})
               </button>
               <button
                 onClick={() => setSelectedCategory('ai')}
-                className={`px-3 py-1.5 rounded-xl transition-all cursor-pointer ${
+                className={`px-3.5 py-1.5 rounded-xl transition-all cursor-pointer ${
                   selectedCategory === 'ai'
-                    ? 'bg-white text-rose-600 shadow-xs'
-                    : 'text-slate-600 hover:text-slate-900'
+                    ? 'bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white font-bold shadow-xs'
+                    : 'text-[#77717B] hover:text-[#24212A]'
                 }`}
               >
-                AI Suite (4)
+                AI Suite ({TOOLS_CONFIG.filter((t) => t.category === 'ai').length})
               </button>
             </div>
 
             <div className="relative">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+              <Search className="w-4 h-4 text-[#C92B72] absolute left-3 top-2.5" />
               <input
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search tools..."
-                className="w-full sm:w-48 pl-9 pr-3 py-1.5 text-xs rounded-2xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                className="w-full sm:w-48 pl-9 pr-3 py-1.5 text-xs rounded-2xl border-2 border-[#FFE3EE] bg-white text-[#24212A] focus:outline-hidden focus:border-[#E83E8C] font-serif italic"
               />
             </div>
           </div>
@@ -248,35 +285,33 @@ export const LandingView: React.FC<LandingViewProps> = ({
         {/* Tools Grid */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
           {filteredTools.map((tool) => (
-            <div
+            <a
               key={tool.id}
-              onClick={() => onSelectTool(tool.id)}
-              className="bg-white rounded-3xl p-6 border border-slate-200/80 hover:border-rose-400/80 shadow-xs hover:shadow-xl hover:-translate-y-1 transition-all duration-200 flex flex-col justify-between group cursor-pointer relative overflow-hidden"
+              href={TOOL_PATH_MAP[tool.id] || '/'}
+              onClick={(e) => {
+                e.preventDefault();
+                onSelectTool(tool.id);
+              }}
+              className="bg-white rounded-3xl p-6 border-2 border-[#FFE3EE] hover:border-[#E83E8C] shadow-xs hover:shadow-xl hover:shadow-[#E83E8C]/15 hover:-translate-y-1.5 transition-all duration-300 flex flex-col justify-between group cursor-pointer relative overflow-hidden text-left no-underline block"
             >
-              {tool.category === 'ai' && (
-                <div className="absolute top-0 right-0 w-24 h-24 bg-gradient-to-br from-rose-500/10 to-purple-500/10 rounded-bl-full pointer-events-none"></div>
-              )}
+              <div className="absolute top-0 right-0 w-28 h-28 bg-gradient-to-bl from-[#FFE3EE]/70 to-transparent rounded-bl-full pointer-events-none transition-opacity group-hover:opacity-100"></div>
 
               <div>
                 <div className="flex items-center justify-between mb-4">
                   <div
-                    className={`w-12 h-12 rounded-2xl flex items-center justify-center transition-transform group-hover:scale-110 ${
-                      tool.category === 'ai'
-                        ? 'bg-purple-50 text-purple-600'
-                        : 'bg-rose-50 text-rose-600'
-                    }`}
+                    className="w-12 h-12 rounded-2xl flex items-center justify-center transition-all duration-300 group-hover:scale-110 shadow-2xs bg-gradient-to-br from-[#FFE3EE] to-[#FFF4F8] border border-[#FDC6DD] text-[#E83E8C] group-hover:bg-gradient-to-r group-hover:from-[#E83E8C] group-hover:to-[#C92B72] group-hover:text-white"
                   >
                     {getToolIcon(tool.id)}
                   </div>
 
                   {tool.badge && (
                     <span
-                      className={`text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full ${
+                      className={`text-[10px] font-serif font-bold italic uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
                         tool.badge === 'AI'
-                          ? 'bg-purple-100 text-purple-800 border border-purple-200'
+                          ? 'bg-[#FFE3EE] text-[#C92B72] border border-[#FDC6DD]'
                           : tool.badge === 'Popular'
-                          ? 'bg-rose-100 text-rose-800'
-                          : 'bg-slate-100 text-slate-700'
+                          ? 'bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white shadow-2xs'
+                          : 'bg-[#FFF4F8] text-[#77717B] border border-[#FFE3EE]'
                       }`}
                     >
                       {tool.badge}
@@ -284,44 +319,51 @@ export const LandingView: React.FC<LandingViewProps> = ({
                   )}
                 </div>
 
-                <h3 className="text-base font-bold text-slate-900 group-hover:text-rose-600 transition-colors">
+                <h3 className="text-base font-serif font-extrabold italic text-[#24212A] group-hover:text-[#E83E8C] transition-colors">
                   {tool.name}
                 </h3>
-                <p className="text-xs text-slate-500 mt-1 leading-relaxed">{tool.description}</p>
+                <p className="text-xs text-[#77717B] mt-1.5 leading-relaxed font-serif italic">{tool.description}</p>
               </div>
 
-              <div className="mt-6 pt-4 border-t border-slate-100 flex items-center justify-between text-xs font-semibold text-rose-600 group-hover:translate-x-1 transition-transform">
+              <div className="mt-6 pt-4 border-t border-[#FFE3EE] flex items-center justify-between text-xs font-serif font-bold italic text-[#E83E8C] group-hover:translate-x-1 transition-transform">
                 <span>Launch Tool</span>
                 <ChevronRight className="w-4 h-4" />
               </div>
-            </div>
+            </a>
           ))}
         </div>
       </section>
 
       {/* Pro Callout Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="bg-gradient-to-r from-slate-900 via-rose-950 to-slate-900 rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden shadow-2xl">
+        <div className="bg-gradient-to-br from-[#24212A] via-[#3B1226] to-[#550B2E] border border-[#C92B72]/40 rounded-3xl p-8 sm:p-12 text-white relative overflow-hidden shadow-2xl">
           <div className="relative z-10 max-w-2xl">
-            <span className="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-400 text-amber-950 inline-block mb-3">
+            <span className="px-3.5 py-1 rounded-full text-xs font-serif font-bold italic uppercase tracking-wider bg-[#FFE3EE] text-[#C92B72] border border-[#FDC6DD] inline-block mb-3.5 shadow-2xs">
               1-Month (30 Days) Access Pass
             </span>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight leading-tight">
+            <h2 className="text-3xl sm:text-4xl font-serif font-extrabold italic tracking-tight leading-tight">
               Unlock Unlimited PDF Processing &amp; Gemini AI
             </h2>
-            <p className="mt-3 text-slate-300 text-xs sm:text-sm leading-relaxed">
-              Pay ₹99 for a full 30-day Pro subscription. Enjoy unlimited document operations,
-              high-speed batch downloads, and priority Gemini 3.8 Flash analysis.
+            <p className="mt-3 text-rose-100/90 text-xs sm:text-sm leading-relaxed font-serif italic">
+              Pay ₹{limits.proPriceINR ?? 99} for a full {limits.subscriptionDays ?? 30}-day Pro subscription. Enjoy unlimited document operations,
+              high-speed batch downloads, and priority AI analysis.
             </p>
 
             <div className="mt-6 flex flex-wrap items-center gap-4">
-              <button
-                onClick={onOpenUpgrade}
-                className="px-6 py-3 rounded-xl font-bold text-sm text-slate-950 bg-amber-400 hover:bg-amber-300 shadow-lg shadow-amber-400/20 transition-all flex items-center gap-2 cursor-pointer"
-              >
-                <Crown className="w-4 h-4 fill-slate-950" />
-                <span>Upgrade to Pro Now (₹99 / 30 Days)</span>
-              </button>
+              {user?.plan === 'pro' ? (
+                <div className="inline-flex items-center gap-2 px-6 py-3 rounded-2xl font-serif font-bold italic text-sm text-[#C92B72] bg-[#FFE3EE] border border-[#FDC6DD] shadow-lg">
+                  <ShieldCheck className="w-5 h-5 text-[#1FA971]" />
+                  <span>Pro Active — Unlimited PDF Operations &amp; Gemini AI Unlocked</span>
+                </div>
+              ) : (
+                <button
+                  onClick={onOpenUpgrade}
+                  className="px-7 py-3.5 rounded-2xl font-serif font-bold italic text-sm text-white bg-gradient-to-r from-[#E83E8C] via-[#FF2E93] to-[#C92B72] hover:brightness-105 shadow-xl shadow-[#E83E8C]/30 transition-all flex items-center gap-2 cursor-pointer active:scale-[0.98]"
+                >
+                  <Crown className="w-4 h-4 fill-white" />
+                  <span>Upgrade to Pro Now (₹{limits.proPriceINR ?? 99} / {limits.subscriptionDays ?? 30} Days)</span>
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -330,56 +372,56 @@ export const LandingView: React.FC<LandingViewProps> = ({
       {/* Pricing Comparison Section */}
       <section id="pricing" className="max-w-5xl mx-auto px-4 sm:px-6">
         <div className="text-center max-w-xl mx-auto mb-12">
-          <span className="text-xs font-bold text-rose-600 uppercase tracking-wider">
+          <span className="text-xs font-serif font-bold italic uppercase tracking-wider text-[#C92B72] bg-[#FFE3EE] border border-[#FDC6DD] px-3 py-1 rounded-full">
             Clear, Transparent Pricing
           </span>
-          <h2 className="text-3xl font-extrabold text-slate-900 tracking-tight mt-1">
+          <h2 className="text-3xl font-serif font-extrabold italic text-[#24212A] tracking-tight mt-3">
             Free Starter or Pro Monthly
           </h2>
-          <p className="text-xs sm:text-sm text-slate-500 mt-2">
-            Start with our generous free plan, or get full unlimited access for a 30-day ₹99 subscription pass.
+          <p className="text-xs sm:text-sm text-[#77717B] mt-2 font-serif italic">
+            Start with our generous free plan, or get full unlimited access for a {limits.subscriptionDays ?? 30}-day ₹{limits.proPriceINR ?? 99} subscription pass.
           </p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-stretch">
           {/* Free Tier */}
-          <div className="bg-white rounded-3xl p-8 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+          <div className="bg-white rounded-3xl p-8 border-2 border-[#FFE3EE] shadow-xs flex flex-col justify-between">
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-slate-700 uppercase tracking-wider">
+                <span className="text-sm font-serif font-bold italic text-[#24212A] uppercase tracking-wider">
                   Free Starter
                 </span>
-                <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-600">
+                <span className="px-2.5 py-0.5 rounded-full text-xs font-serif font-semibold italic bg-[#FFF4F8] text-[#77717B] border border-[#FFE3EE]">
                   Default
                 </span>
               </div>
               <div className="mt-4 flex items-baseline gap-1">
-                <span className="text-4xl font-black text-slate-900">₹0</span>
-                <span className="text-xs text-slate-400 font-medium">/ Standard</span>
+                <span className="text-4xl font-serif font-black italic text-[#24212A]">₹0</span>
+                <span className="text-xs text-[#77717B] font-serif italic">/ Standard</span>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
+              <p className="text-xs text-[#77717B] mt-2 font-serif italic">
                 Ideal for quick, occasional document edits and testing our Gemini AI tools.
               </p>
 
-              <div className="mt-6 space-y-3 text-xs text-slate-700">
+              <div className="mt-6 space-y-3 text-xs font-serif italic text-[#24212A]">
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <Check className="w-4 h-4 text-[#1FA971] shrink-0" />
                   <span>
                     <strong>3 PDF Operations</strong> (Merge, Split, Watermark, etc.)
                   </span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <Check className="w-4 h-4 text-[#1FA971] shrink-0" />
                   <span>
                     <strong>5 AI Document Queries</strong> (Summary, Chat, Key Points)
                   </span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <Check className="w-4 h-4 text-[#1FA971] shrink-0" />
                   <span>Standard Processing Speeds</span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <Check className="w-4 h-4 text-[#1FA971] shrink-0" />
                   <span>Up to 25MB File Size</span>
                 </div>
               </div>
@@ -393,74 +435,97 @@ export const LandingView: React.FC<LandingViewProps> = ({
                   el?.scrollIntoView({ behavior: 'smooth' });
                 }
               }}
-              className="mt-8 w-full py-3 rounded-xl font-bold text-xs sm:text-sm text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+              className="mt-8 w-full py-3.5 rounded-2xl font-serif font-bold italic text-xs sm:text-sm text-[#24212A] bg-[#FFF4F8] hover:bg-[#FFE3EE] border border-[#FFE3EE] transition-colors cursor-pointer"
             >
               {user ? 'Explore Tools' : 'Create Free Account'}
             </button>
           </div>
 
           {/* Pro Tier */}
-          <div className="bg-gradient-to-b from-rose-50/50 via-white to-white rounded-3xl p-8 border-2 border-rose-500 shadow-xl relative flex flex-col justify-between">
-            <div className="absolute -top-3.5 right-8 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wider bg-rose-600 text-white shadow-md">
+          <div className="bg-gradient-to-b from-[#FFF4F8] via-white to-white rounded-3xl p-8 border-2 border-[#E83E8C] shadow-xl shadow-[#E83E8C]/10 relative flex flex-col justify-between">
+            <div className="absolute -top-3.5 right-8 px-3.5 py-1 rounded-full text-xs font-serif font-bold italic uppercase tracking-wider bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white shadow-md">
               Most Popular
             </div>
 
             <div>
               <div className="flex items-center justify-between">
-                <span className="text-sm font-bold text-rose-600 uppercase tracking-wider flex items-center gap-1.5">
-                  <Crown className="w-4 h-4 fill-rose-600" />
-                  Pro 30-Day Pass
+                <span className="text-sm font-serif font-bold italic text-[#C92B72] uppercase tracking-wider flex items-center gap-1.5">
+                  <Crown className="w-4 h-4 fill-[#C92B72]" />
+                  Pro {limits.subscriptionDays ?? 30}-Day Pass
                 </span>
               </div>
               <div className="mt-4 flex items-baseline gap-2">
-                <span className="text-4xl font-black text-slate-900">₹99</span>
-                <span className="text-sm text-slate-400 line-through">₹499</span>
-                <span className="text-xs text-rose-600 font-bold bg-rose-100 px-2 py-0.5 rounded-full">
-                  / 30 Days Access
+                <span className="text-4xl font-serif font-black italic text-[#24212A]">₹{limits.proPriceINR ?? 99}</span>
+                <span className="text-sm text-[#77717B] line-through font-serif italic">₹499</span>
+                <span className="text-xs text-[#C92B72] font-serif font-bold italic bg-[#FFE3EE] px-2.5 py-0.5 rounded-full border border-[#FDC6DD]">
+                  / {limits.subscriptionDays ?? 30} Days Access
                 </span>
               </div>
-              <p className="text-xs text-slate-500 mt-2">
-                1-Month subscription pass. Unlocks unlimited operations and priority AI queries for 30 full days.
+              <p className="text-xs text-[#77717B] mt-2 font-serif italic">
+                Subscription pass unlocks unlimited operations and priority AI queries for {limits.subscriptionDays ?? 30} full days.
               </p>
 
-              <div className="mt-6 space-y-3 text-xs text-slate-700">
+              <div className="mt-6 space-y-3 text-xs font-serif italic text-[#24212A]">
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-rose-600 shrink-0" />
+                  <Check className="w-4 h-4 text-[#1FA971] shrink-0" />
                   <span>
-                    <strong>Unlimited PDF Operations</strong> for 30 days
+                    <strong>100% Ad-Free Experience</strong> (No advertisements)
                   </span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-rose-600 shrink-0" />
+                  <Check className="w-4 h-4 text-[#E83E8C] shrink-0" />
                   <span>
-                    <strong>Unlimited Gemini AI Queries</strong> &amp; Chat
+                    <strong>Unlimited PDF Operations</strong> for {limits.subscriptionDays ?? 30} days
                   </span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-rose-600 shrink-0" />
-                  <span>Priority Queue with Gemini 3.8 Flash</span>
+                  <Check className="w-4 h-4 text-[#E83E8C] shrink-0" />
+                  <span>
+                    <strong>Unlimited AI Queries</strong> &amp; Chat
+                  </span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-rose-600 shrink-0" />
+                  <Check className="w-4 h-4 text-[#E83E8C] shrink-0" />
+                  <span>Priority High-Speed AI Processing</span>
+                </div>
+                <div className="flex items-center gap-2.5">
+                  <Check className="w-4 h-4 text-[#E83E8C] shrink-0" />
                   <span>Multi-file Batch Merging &amp; ZIP Archive Downloads</span>
                 </div>
                 <div className="flex items-center gap-2.5">
-                  <Check className="w-4 h-4 text-rose-600 shrink-0" />
+                  <Check className="w-4 h-4 text-[#E83E8C] shrink-0" />
                   <span>100MB File Size &amp; 24/7 Security</span>
                 </div>
               </div>
             </div>
 
-            <button
-              onClick={onOpenUpgrade}
-              className="mt-8 w-full py-3.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-amber-500 via-rose-500 to-rose-600 hover:brightness-105 shadow-md shadow-rose-500/25 transition-all cursor-pointer flex items-center justify-center gap-2"
-            >
-              <Zap className="w-4 h-4 fill-white" />
-              <span>Upgrade to Pro (₹99 / 30 Days)</span>
-            </button>
+            {user?.plan === 'pro' ? (
+              <div className="mt-8 w-full py-3.5 rounded-2xl font-serif font-bold italic text-xs sm:text-sm text-[#1FA971] bg-[#1FA971]/10 border border-[#1FA971]/30 flex items-center justify-center gap-2">
+                <Check className="w-5 h-5 text-[#1FA971] stroke-[3]" />
+                <span>Active Pro Plan (Unlimited Access)</span>
+              </div>
+            ) : (
+              <button
+                onClick={onOpenUpgrade}
+                className="mt-8 w-full py-3.5 rounded-2xl font-serif font-bold italic text-xs sm:text-sm text-white bg-gradient-to-r from-[#E83E8C] via-[#FF2E93] to-[#C92B72] hover:brightness-105 shadow-lg shadow-[#E83E8C]/25 transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-[0.98]"
+              >
+                <Zap className="w-4 h-4 fill-white" />
+                <span>Upgrade to Pro (₹{limits.proPriceINR ?? 99} / {limits.subscriptionDays ?? 30} Days)</span>
+              </button>
+            )}
           </div>
         </div>
       </section>
+
+      {/* AdSense Feature/Bottom Banner Unit (Slot: 9309009142) - Automatically hidden for Pro users */}
+      <div className="max-w-4xl mx-auto px-4 sm:px-6">
+        <AdSenseBanner
+          slotId="9309009142"
+          user={user}
+          onOpenUpgrade={onOpenUpgrade}
+          layout="responsive"
+        />
+      </div>
 
       {/* Interactive FAQ Section */}
       <section id="faqs" className="max-w-4xl mx-auto px-4 sm:px-6">
@@ -504,11 +569,17 @@ export const LandingView: React.FC<LandingViewProps> = ({
       <footer className="border-t border-slate-200 pt-12 pb-16 text-xs text-slate-500">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-tr from-rose-600 to-amber-500 flex items-center justify-center text-white font-bold">
-              <FileText className="w-4 h-4" />
-            </div>
-            <span className="font-extrabold text-slate-900 text-sm">
-              Omini<span className="text-rose-600">PDF</span>
+            <img
+              src="/logo.png"
+              alt="Omini PDF Logo"
+              width={32}
+              height={32}
+              loading="lazy"
+              decoding="async"
+              className="w-8 h-8 rounded-lg shadow-xs object-contain"
+            />
+            <span className="font-extrabold text-[#24212A] text-sm">
+              Omini<span className="text-[#E83E8C]">PDF</span>
             </span>
             <span className="text-slate-400">• All-In-One AI PDF SaaS Platform</span>
           </div>
@@ -582,7 +653,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                   </p>
                   <h4 className="font-bold text-slate-900 mt-3">1. Subscription & Pro Pass</h4>
                   <p>
-                    The Pro plan is a 30-day access pass priced at ₹99, securely verified through official ZapPay payment gateways. Subscriptions unlock unlimited PDF operations and priority Gemini AI queries.
+                    The Pro plan is a {limits.subscriptionDays ?? 30}-day access pass priced at ₹{limits.proPriceINR ?? 99}, securely verified through official ZapPay payment gateways. Subscriptions unlock unlimited PDF operations and priority AI queries.
                   </p>
                   <h4 className="font-bold text-slate-900 mt-3">2. Acceptable Use</h4>
                   <p>

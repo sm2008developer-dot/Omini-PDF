@@ -4,8 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { X, Lock, Mail, User as UserIcon, ArrowRight, ShieldCheck, Sparkles, CheckCircle2, Eye, EyeOff } from 'lucide-react';
-import { api, User } from '../utils/api.js';
+import {
+  X,
+  ShieldCheck,
+  Sparkles,
+  CheckCircle2,
+  AlertCircle,
+  Zap,
+} from 'lucide-react';
+import { User, api } from '../utils/api.js';
+import { loginWithGoogle } from '../lib/firebaseService.js';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -19,55 +27,57 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
-  initialMode = 'login',
   redirectReason,
 }) => {
-  const [mode, setMode] = useState<'login' | 'register'>(initialMode);
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const mapFirebaseError = (err: any): string => {
+    const code = err?.code || '';
+    if (code === 'auth/popup-closed-by-user') {
+      return 'Google sign-in was cancelled. Please try again.';
+    }
+    if (code === 'auth/network-request-failed') {
+      return 'Network connection issue. Please check your internet connection.';
+    }
+    if (code === 'auth/popup-blocked') {
+      return 'Sign-in popup was blocked by your browser. Please allow popups for this site.';
+    }
+    return err?.message || 'Authentication error. Please try again with Google.';
+  };
+
+  const handleGoogleSignIn = async () => {
     setError(null);
     setLoading(true);
-
     try {
-      const cleanEmail = email.trim();
-      if (mode === 'login') {
-        const res = await api.login(cleanEmail, password);
-        onSuccess(res.user);
-        onClose();
-      } else {
-        if (!name.trim()) {
-          throw new Error('Please enter your full name.');
+      const res = await loginWithGoogle();
+      // Synchronize with server to obtain a genuine signed JWT token
+      try {
+        const sessionRes = await api.syncFirebaseSession(res.user);
+        if (sessionRes?.user) {
+          onSuccess(sessionRes.user);
+        } else {
+          onSuccess(res.user);
         }
-        const res = await api.register(name.trim(), cleanEmail, password);
+      } catch (syncErr) {
+        console.warn('Backend session sync notice:', syncErr);
+        api.setUserEmail(res.user.email);
         onSuccess(res.user);
-        onClose();
       }
-    } catch (err: unknown) {
-      const msg = err instanceof Error ? err.message : 'Authentication failed';
-      setError(msg);
+      onClose();
+    } catch (err: any) {
+      console.warn('Google sign-in error:', err);
+      setError(mapFirebaseError(err));
     } finally {
       setLoading(false);
     }
   };
 
-  const fillQuickAccount = (demoEmail: string, demoPass: string) => {
-    setEmail(demoEmail);
-    setPassword(demoPass);
-    setError(null);
-  };
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md max-h-[92vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-slate-100">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/65 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md overflow-hidden bg-white rounded-3xl shadow-2xl border border-slate-100">
         {/* Close Button */}
         <button
           onClick={onClose}
@@ -78,167 +88,87 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </button>
 
         {/* Header Banner */}
-        <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-rose-950 p-6 text-white text-center">
-          <div className="inline-flex items-center justify-center w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/40 text-rose-400 mb-3 shadow-inner">
-            <Lock className="w-6 h-6 stroke-[2.2]" />
+        <div className="bg-gradient-to-br from-slate-950 via-[#24212A] to-[#550B2E] p-6 text-white text-center">
+          <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/20 mb-3 shadow-lg p-1.5 backdrop-blur-xs">
+            <img src="/logo.png" alt="Omini PDF Logo" className="w-full h-full object-contain rounded-xl" />
           </div>
-          <h2 className="text-xl font-bold tracking-tight">
-            {mode === 'login' ? 'Sign In to Omini PDF' : 'Create Free Account'}
+          <h2 className="text-xl font-black tracking-tight text-white">
+            Sign In to Omini PDF
           </h2>
-          <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto">
-            {redirectReason || 'Access powerful PDF tools, secure cloud processing, and Gemini AI analysis.'}
+          <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto leading-relaxed">
+            {redirectReason || 'Instant 1-click access to PDF tools, saved history, and Gemini AI analysis.'}
           </p>
         </div>
 
-        {/* Quick Demo User Fill (For testing standard free account) */}
-        {mode === 'login' && (
-          <div className="bg-slate-50 border-b border-slate-100 px-6 py-2.5 flex items-center justify-between text-xs">
-            <span className="text-slate-500 font-medium">Quick Test:</span>
-            <button
-              type="button"
-              onClick={() => fillQuickAccount('user@example.com', 'user123')}
-              className="text-xs font-semibold text-rose-600 hover:underline cursor-pointer"
-            >
-              Fill Demo User (Free Tier)
-            </button>
-          </div>
-        )}
-
-        {/* Main Form */}
+        {/* Main Content */}
         <div className="p-6">
           {error && (
-            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-start gap-2">
-              <span className="font-bold">Error:</span>
+            <div className="mb-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-start gap-2 animate-in fade-in">
+              <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#D9364F]" />
               <span>{error}</span>
             </div>
           )}
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {mode === 'register' && (
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Full Name</label>
-                <div className="relative">
-                  <UserIcon className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                  <input
-                    type="text"
-                    required
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                    placeholder="e.g. Sanjib Mukherjee"
-                    className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition-all"
-                  />
-                </div>
-              </div>
-            )}
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-700 mb-1">Email Address</label>
-              <div className="relative">
-                <Mail className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type="email"
-                  required
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="name@example.com"
-                  className="w-full pl-9 pr-3 py-2 text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition-all"
-                />
-              </div>
-            </div>
-
-            <div>
-              <div className="flex items-center justify-between mb-1">
-                <label className="block text-xs font-semibold text-slate-700">Password</label>
-                {mode === 'login' && (
-                  <span className="text-[11px] text-slate-400">Min 6 characters</span>
-                )}
-              </div>
-              <div className="relative">
-                <Lock className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  minLength={6}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-9 pr-10 py-2 text-sm rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500 focus:border-rose-500 transition-all"
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 p-1 text-slate-400 hover:text-slate-700 focus:outline-hidden cursor-pointer"
-                  title={showPassword ? 'Hide password' : 'Show password'}
-                  aria-label={showPassword ? 'Hide password' : 'Show password'}
-                >
-                  {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-
+          <div className="space-y-4">
+            {/* Google Sign In Button */}
             <button
-              type="submit"
+              type="button"
+              onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full py-2.5 px-4 rounded-xl text-sm font-bold text-white bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 shadow-md shadow-rose-600/20 focus:outline-hidden focus:ring-2 focus:ring-rose-500 focus:ring-offset-2 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-2xl text-sm font-bold text-slate-800 bg-white hover:bg-slate-50 border-2 border-slate-200 shadow-md hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 active:scale-[0.99]"
             >
               {loading ? (
-                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                <div className="w-5 h-5 border-2 border-[#E83E8C] border-t-transparent rounded-full animate-spin"></div>
               ) : (
                 <>
-                  <span>{mode === 'login' ? 'Sign In' : 'Create Free Account'}</span>
-                  <ArrowRight className="w-4 h-4" />
+                  <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
+                    <path
+                      fill="#4285F4"
+                      d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                    />
+                    <path
+                      fill="#34A853"
+                      d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
+                    />
+                    <path
+                      fill="#FBBC05"
+                      d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"
+                    />
+                    <path
+                      fill="#EA4335"
+                      d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"
+                    />
+                  </svg>
+                  <span>Continue with Google</span>
                 </>
               )}
             </button>
-          </form>
 
-          {/* Toggle Login / Register */}
-          <div className="mt-5 text-center text-xs text-slate-500">
-            {mode === 'login' ? (
-              <p>
-                Don&apos;t have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('register');
-                    setError(null);
-                  }}
-                  className="font-semibold text-rose-600 hover:underline cursor-pointer"
-                >
-                  Create one for free
-                </button>
+            <div className="p-3.5 rounded-2xl bg-[#FFF4F8] border border-[#FFE3EE] text-xs text-[#77717B] space-y-1.5">
+              <div className="flex items-center gap-2 font-semibold text-[#24212A]">
+                <Zap className="w-4 h-4 text-[#E83E8C]" />
+                <span>Fast &amp; Passwordless</span>
+              </div>
+              <p className="text-[11px] leading-relaxed">
+                No email or password needed. Simply sign in with your Google account to automatically sync your processed files and Pro status.
               </p>
-            ) : (
-              <p>
-                Already have an account?{' '}
-                <button
-                  type="button"
-                  onClick={() => {
-                    setMode('login');
-                    setError(null);
-                  }}
-                  className="font-semibold text-rose-600 hover:underline cursor-pointer"
-                >
-                  Sign in here
-                </button>
-              </p>
-            )}
+            </div>
           </div>
         </div>
 
         {/* Benefits Footer */}
-        <div className="bg-slate-50/70 p-4 border-t border-slate-100 flex items-center justify-around text-[11px] text-slate-500">
+        <div className="bg-[#FFF4F8] p-4 border-t border-[#FFE3EE] flex items-center justify-around text-[11px] text-[#77717B]">
           <div className="flex items-center gap-1">
-            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-[#1FA971]" />
             <span>3 Free PDF Ops</span>
           </div>
           <div className="flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+            <Sparkles className="w-3.5 h-3.5 text-[#E83E8C]" />
             <span>5 AI Queries</span>
           </div>
           <div className="flex items-center gap-1">
             <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-            <span>Private &amp; Secure</span>
+            <span>Firebase Cloud</span>
           </div>
         </div>
       </div>

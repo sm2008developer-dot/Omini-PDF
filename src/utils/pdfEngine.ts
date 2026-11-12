@@ -21,7 +21,7 @@ export interface ProcessedPdfResult {
   fileSize: number;
   pageCount?: number;
   summary: string;
-  extraFiles?: { name: string; url: string; size: number }[];
+  extraFiles?: { name: string; url: string; size: number; blob?: Blob }[];
 }
 
 /**
@@ -605,3 +605,140 @@ export async function editPdfMetadata(
   };
 }
 
+/**
+ * 10. ROTATE PDF PAGES (90, 180, 270 degrees)
+ */
+export async function rotatePdfFile(
+  file: File,
+  angle: 90 | 180 | 270 = 90,
+  pageRange = ''
+): Promise<ProcessedPdfResult> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const totalPages = pdfDoc.getPageCount();
+
+  const targetPages = pageRange && pageRange.trim()
+    ? parsePageRanges(pageRange, totalPages)
+    : Array.from({ length: totalPages }, (_, i) => i + 1);
+
+  targetPages.forEach((pageNum) => {
+    const idx = pageNum - 1;
+    if (idx >= 0 && idx < totalPages) {
+      const page = pdfDoc.getPage(idx);
+      const currentAngle = page.getRotation().angle;
+      page.setRotation(degrees((currentAngle + angle) % 360));
+    }
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+  const downloadUrl = URL.createObjectURL(blob);
+
+  return {
+    blob,
+    downloadUrl,
+    fileName: `rotated_${file.name}`,
+    fileSize: blob.size,
+    pageCount: totalPages,
+    summary: `Rotated ${targetPages.length} page(s) by ${angle}° clockwise.`,
+  };
+}
+
+/**
+ * 11. ADD PAGE NUMBERS TO PDF
+ */
+export async function addPageNumbersToPdf(
+  file: File,
+  options: {
+    position: 'bottom-center' | 'bottom-right' | 'top-right';
+    format: 'page-of-total' | 'simple';
+    fontSize?: number;
+  }
+): Promise<ProcessedPdfResult> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+  const totalPages = pdfDoc.getPageCount();
+  const fontSize = options.fontSize || 10;
+
+  for (let i = 0; i < totalPages; i++) {
+    const page = pdfDoc.getPage(i);
+    const { width, height } = page.getSize();
+    const pageNum = i + 1;
+    const text = options.format === 'page-of-total' ? `Page ${pageNum} of ${totalPages}` : `${pageNum}`;
+    const textWidth = font.widthOfTextAtSize(text, fontSize);
+
+    let x = (width - textWidth) / 2;
+    let y = 20;
+
+    if (options.position === 'bottom-right') {
+      x = width - textWidth - 36;
+      y = 20;
+    } else if (options.position === 'top-right') {
+      x = width - textWidth - 36;
+      y = height - 30;
+    }
+
+    page.drawText(text, {
+      x,
+      y,
+      size: fontSize,
+      font,
+      color: rgb(0.35, 0.35, 0.35),
+    });
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+  const downloadUrl = URL.createObjectURL(blob);
+
+  return {
+    blob,
+    downloadUrl,
+    fileName: `numbered_${file.name}`,
+    fileSize: blob.size,
+    pageCount: totalPages,
+    summary: `Numbered ${totalPages} page(s) (${options.position.replace('-', ' ')}).`,
+  };
+}
+
+/**
+ * 12. REMOVE / DELETE PAGES FROM PDF
+ */
+export async function removePagesFromPdf(
+  file: File,
+  pagesToRemove: string
+): Promise<ProcessedPdfResult> {
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const totalPages = pdfDoc.getPageCount();
+
+  const removePageNumbers = parsePageRanges(pagesToRemove, totalPages);
+  if (removePageNumbers.length === 0) {
+    throw new Error('Please enter valid page numbers to delete (e.g. 1, 3-5).');
+  }
+  if (removePageNumbers.length >= totalPages) {
+    throw new Error('Cannot delete all pages. At least one page must remain in the document.');
+  }
+
+  // Convert to 0-based indices and remove in descending order
+  const sortedDesc = removePageNumbers.map((p) => p - 1).sort((a, b) => b - a);
+  for (const idx of sortedDesc) {
+    if (idx >= 0 && idx < pdfDoc.getPageCount()) {
+      pdfDoc.removePage(idx);
+    }
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+  const downloadUrl = URL.createObjectURL(blob);
+
+  return {
+    blob,
+    downloadUrl,
+    fileName: `trimmed_${file.name}`,
+    fileSize: blob.size,
+    pageCount: pdfDoc.getPageCount(),
+    summary: `Removed ${sortedDesc.length} page(s). Document now contains ${pdfDoc.getPageCount()} page(s).`,
+  };
+}

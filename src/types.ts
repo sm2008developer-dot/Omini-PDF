@@ -10,6 +10,9 @@ export type ToolId =
   | 'protect-pdf'
   | 'watermark-pdf'
   | 'edit-metadata'
+  | 'rotate-pdf'
+  | 'page-numbers'
+  | 'remove-pages'
   | 'image-to-pdf'
   | 'pdf-to-image'
   | 'ai-summarizer'
@@ -81,7 +84,34 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     tagline: 'View and modify PDF title, author, subject, and keywords',
     description: 'Update document metadata properties instantly with secure client-side processing.',
     iconName: 'FileEdit',
+    badge: 'Essential',
+  },
+  {
+    id: 'rotate-pdf',
+    name: 'Rotate PDF',
+    category: 'pdf',
+    tagline: 'Rotate PDF pages permanently by 90°, 180°, or 270°',
+    description: 'Fix upside-down scans and orientation issues on all or selected pages.',
+    iconName: 'RotateCw',
+    badge: 'Popular',
+  },
+  {
+    id: 'page-numbers',
+    name: 'Page Numbers',
+    category: 'pdf',
+    tagline: 'Add custom page numbers to headers or footers',
+    description: 'Insert crisp page numbers ("Page 1 of N" or "1") into your PDF with custom positioning.',
+    iconName: 'Hash',
     badge: 'New',
+  },
+  {
+    id: 'remove-pages',
+    name: 'Remove Pages',
+    category: 'pdf',
+    tagline: 'Delete unwanted or blank pages from your PDF',
+    description: 'Instantly strip specific pages or page ranges from your document with zero quality loss.',
+    iconName: 'Trash2',
+    badge: 'Essential',
   },
   {
     id: 'image-to-pdf',

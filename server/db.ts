@@ -45,7 +45,7 @@ export interface TransactionRecord {
   durationDays: number;
   paymentId: string;
   paymentMethod: string;
-  status: 'completed' | 'failed';
+  status: 'completed' | 'failed' | 'pending';
   createdAt: string;
 }
 
@@ -70,6 +70,10 @@ export interface PlatformSettings {
   aiModel?: string;
   maintenanceMode: boolean;
   zapPayLinkId: string;
+  zapPayApiBaseUrl?: string;
+  zapPayApiKey?: string;
+  upiId?: string;
+  customQrUrl?: string;
   announcementText?: string;
   announcementActive?: boolean;
 }
@@ -85,7 +89,31 @@ export interface DatabaseSchema {
 const DATA_DIR = path.resolve(process.cwd(), 'data');
 const DB_FILE = path.resolve(DATA_DIR, 'database.json');
 
-export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'codegarage1@gmail.com').trim().toLowerCase();
+export const DEFAULT_ADMIN_EMAILS = [
+  'mukherjeesanjib60250@gmail.com',
+  'codegarage1@gmail.com',
+  'admin@ominipdf.com',
+];
+
+export function getAdminEmails(): string[] {
+  const envEmail = process.env.ADMIN_EMAIL;
+  const list = [...DEFAULT_ADMIN_EMAILS];
+  if (envEmail) {
+    const parts = envEmail.split(',').map((e) => e.trim().toLowerCase());
+    for (const p of parts) {
+      if (p && !list.includes(p)) list.push(p);
+    }
+  }
+  return list;
+}
+
+export function isAdminEmail(email?: string): boolean {
+  if (!email) return false;
+  const normalized = email.trim().toLowerCase();
+  return getAdminEmails().includes(normalized);
+}
+
+export const ADMIN_EMAIL = (process.env.ADMIN_EMAIL || 'mukherjeesanjib60250@gmail.com').trim().toLowerCase();
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 
 const INITIAL_SETTINGS: PlatformSettings = {
@@ -99,7 +127,11 @@ const INITIAL_SETTINGS: PlatformSettings = {
   aiModel: 'gpt-4o-mini',
   maintenanceMode: false,
   zapPayLinkId: 'f66a2d52',
-  announcementText: '⚡ Special Offer: Unlock 30 Days of Unlimited AI PDF Tools for just ₹99 via ZapPay UPI!',
+  zapPayApiBaseUrl: 'https://zappay-beta.vercel.app',
+  zapPayApiKey: '',
+  upiId: '9734076853@fam',
+  customQrUrl: '',
+  announcementText: '⚡ Special Offer: Unlock 30 Days of Unlimited AI PDF Tools for just ₹99 via UPI!',
   announcementActive: true,
 };
 
@@ -257,45 +289,56 @@ class JsonDatabase {
   }
 
   private ensureAdminUser() {
-    const existing = this.data.users.find(
-      (u) => u.email.toLowerCase() === ADMIN_EMAIL
-    );
-    if (!existing) {
-      const salt = bcrypt.genSaltSync(10);
-      const adminHash = bcrypt.hashSync(ADMIN_PASSWORD, salt);
-      const adminExpiry = new Date(Date.now() + 30 * 86400000).toISOString();
-      const newAdmin: UserRecord = {
-        id: `user_admin_${Date.now()}`,
-        name: 'Code Garage Admin',
-        email: ADMIN_EMAIL,
-        passwordHash: adminHash,
-        role: 'admin',
-        plan: 'pro',
-        subscriptionDurationDays: 30,
-        proSubscribedAt: new Date().toISOString(),
-        proExpiresAt: adminExpiry,
-        subscriptionStatus: 'active',
-        pdfOperationsUsed: 0,
-        aiQueriesUsed: 0,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
-      this.data.users.unshift(newAdmin);
+    const adminEmails = getAdminEmails();
+    const salt = bcrypt.genSaltSync(10);
+    const adminHash = bcrypt.hashSync(ADMIN_PASSWORD, salt);
+    const adminExpiry = new Date(Date.now() + 365 * 86400000).toISOString();
+    let modified = false;
+
+    for (const email of adminEmails) {
+      const existing = this.data.users.find(
+        (u) => u.email.toLowerCase() === email.toLowerCase()
+      );
+
+      if (!existing) {
+        const displayName = email.includes('sanjib') ? 'Sanjib Mukherjee (Admin)' : 'Code Garage Admin';
+        const newAdmin: UserRecord = {
+          id: `user_admin_${email.replace(/[^a-zA-Z0-9]/g, '_')}`,
+          name: displayName,
+          email: email.toLowerCase(),
+          passwordHash: adminHash,
+          role: 'admin',
+          plan: 'pro',
+          subscriptionDurationDays: 365,
+          proSubscribedAt: new Date().toISOString(),
+          proExpiresAt: adminExpiry,
+          subscriptionStatus: 'active',
+          pdfOperationsUsed: 0,
+          aiQueriesUsed: 0,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        this.data.users.unshift(newAdmin);
+        modified = true;
+      } else {
+        if (existing.role !== 'admin') {
+          existing.role = 'admin';
+          modified = true;
+        }
+        if (existing.plan !== 'pro') {
+          existing.plan = 'pro';
+          modified = true;
+        }
+        if (!existing.proExpiresAt || new Date(existing.proExpiresAt).getTime() < Date.now()) {
+          existing.proExpiresAt = adminExpiry;
+          existing.subscriptionStatus = 'active';
+          modified = true;
+        }
+      }
+    }
+
+    if (modified) {
       this.save();
-    } else {
-      // Ensure role is admin
-      let modified = false;
-      if (existing.role !== 'admin') {
-        existing.role = 'admin';
-        modified = true;
-      }
-      if (existing.plan !== 'pro') {
-        existing.plan = 'pro';
-        modified = true;
-      }
-      if (modified) {
-        this.save();
-      }
     }
   }
 

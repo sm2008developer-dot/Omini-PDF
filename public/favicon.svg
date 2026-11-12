@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Brand Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#f43f5e"/>
+      <stop offset="50%" stop-color="#e11d48"/>
+      <stop offset="100%" stop-color="#be123c"/>
+    </linearGradient>
+    <linearGradient id="amberGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="foldGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#cbd5e1"/>
+      <stop offset="100%" stop-color="#94a3b8"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="125%" height="125%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#881337" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- Circular Base Badge (Favicon & Search Result Standard) -->
+  <circle cx="256" cy="256" r="248" fill="url(#bgGrad)"/>
+  <circle cx="256" cy="256" r="244" fill="none" stroke="#ffffff" stroke-width="8" stroke-opacity="0.25"/>
+
+  <!-- PDF Document Sheet -->
+  <g filter="url(#shadow)">
+    <!-- Document Body with Folded Top-Right Corner -->
+    <path d="M156 108 C144 108 136 116 136 128 L136 384 C136 396 144 404 156 404 L356 404 C368 404 376 396 376 384 L376 188 L296 108 Z" fill="#ffffff"/>
+    <!-- Folded Corner Flap -->
+    <path d="M296 108 L376 188 L296 188 Z" fill="url(#foldGrad)"/>
+    <path d="M296 108 L296 188 L376 188 Z" fill="#e2e8f0" opacity="0.9"/>
+  </g>
+
+  <!-- Red Accent Badge across the bottom with "PDF" -->
+  <rect x="136" y="278" width="240" height="92" rx="14" fill="#e11d48"/>
+  <text x="256" y="344" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif" font-size="64" font-weight="900" fill="#ffffff" text-anchor="middle" letter-spacing="4">PDF</text>
+
+  <!-- Document Line Accents -->
+  <rect x="176" y="172" width="96" height="18" rx="9" fill="#e11d48" opacity="0.85"/>
+  <rect x="176" y="212" width="160" height="16" rx="8" fill="#94a3b8" opacity="0.55"/>
+
+  <!-- AI Sparkle Icon on top-left of document (representing AI Document Intelligence) -->
+  <path d="M136 96 C136 96 146 128 178 138 C146 148 136 180 136 180 C136 180 126 148 94 138 C126 128 136 96 136 96 Z" fill="url(#amberGrad)"/>
+  <circle cx="204" cy="94" r="10" fill="#fbbf24"/>
+</svg>

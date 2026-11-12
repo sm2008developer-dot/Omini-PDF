@@ -122,13 +122,14 @@ test('extractZapOrderId extracts order IDs from plain text, lowercase, and full 
   // Lowercase zp string
   assert.equal(extractZapOrderId('zp1738294719'), 'ZP1738294719');
   // Full URL with query param ?order_id=ZP...
+  // Full URL with query param ?zp_order=ZP... (ZapPay redirect landing)
   assert.equal(
-    extractZapOrderId('https://panel.zappay.shop/check.html?order_id=ZP99887766'),
+    extractZapOrderId('https://ominipdf.ai.studio/payment-return?zp_order=ZP99887766&zp_result=success'),
     'ZP99887766'
   );
   // Full URL with query param ?order=ZP...
   assert.equal(
-    extractZapOrderId('https://zappay.shop/pay.html?order=zp33445566&status=ok'),
+    extractZapOrderId('https://zappay-beta.vercel.app/pay?order=zp33445566&status=ok'),
     'ZP33445566'
   );
   // String with whitespace

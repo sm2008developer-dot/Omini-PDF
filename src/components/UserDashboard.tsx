@@ -22,6 +22,8 @@ import {
 import { User, PlatformLimits, DocumentHistory, api } from '../utils/api.js';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { getRemainingSubscriptionDays } from '../utils/pdfLimits.js';
+import { AdSenseBanner } from './AdSenseBanner.js';
+import { getUserHistoryFromFirestore } from '../lib/firebaseService.js';
 
 interface UserDashboardProps {
   user: User;
@@ -47,15 +49,23 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
   useEffect(() => {
     loadHistory();
-  }, []);
+  }, [user.id]);
 
   const loadHistory = async () => {
     try {
       setLoading(true);
+      if (user?.id) {
+        const firestoreDocs = await getUserHistoryFromFirestore(user.id);
+        if (firestoreDocs && firestoreDocs.length > 0) {
+          setHistory(firestoreDocs);
+          setLoading(false);
+          return;
+        }
+      }
       const res = await api.getHistory();
       setHistory(res.history);
     } catch (err) {
-      console.error('Failed to load history:', err);
+      console.warn('History load notice:', err);
     } finally {
       setLoading(false);
     }
@@ -173,7 +183,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-amber-500 to-rose-600 hover:brightness-105 shadow-md shadow-rose-600/30 transition-all flex items-center gap-2 cursor-pointer"
               >
                 <Zap className="w-4 h-4 fill-white" />
-                <span>Upgrade to Pro (₹99 / 30 Days)</span>
+                <span>Upgrade to Pro (₹{limits.proPriceINR ?? 99} / {limits.subscriptionDays ?? 30} Days)</span>
               </button>
             ) : (
               <div className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-semibold flex items-center gap-1.5">
@@ -307,20 +317,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               onClick={onOpenUpgrade}
               className="mt-4 text-xs font-bold text-rose-600 hover:underline flex items-center gap-1 cursor-pointer"
             >
-              <span>Unlock 30 Days Unlimited for ₹99</span>
+              <span>Unlock {limits.subscriptionDays ?? 30} Days Unlimited for ₹{limits.proPriceINR ?? 99}</span>
               <ExternalLink className="w-3.5 h-3.5" />
             </button>
           ) : (
-            <div className="mt-4 flex items-center justify-between text-xs text-amber-900 bg-amber-50 rounded-xl p-2.5 border border-amber-200">
+            <div className="mt-4 flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50 rounded-xl p-2.5 border border-emerald-200">
+              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
               <span className="font-semibold">
-                Status: {user.subscriptionStatus === 'expired' ? 'Expired' : 'Active (Auto-downgrade protected)'}
+                Status: {user.subscriptionStatus === 'expired' ? 'Expired' : 'Active (Unlimited Operations & AI Priority)'}
               </span>
-              <button
-                onClick={onOpenUpgrade}
-                className="text-[11px] font-bold text-rose-600 hover:underline cursor-pointer"
-              >
-                Extend (+30d)
-              </button>
             </div>
           )}
         </div>
@@ -346,6 +351,15 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
           ))}
         </div>
       </div>
+
+      {/* Google AdSense In-feed Native Ad (Slot: 1446830999) - Automatically hidden for Pro users */}
+      <AdSenseBanner
+        slotId="1446830999"
+        layout="in-feed"
+        layoutKey="-f9+4w+7x-eg+3a"
+        user={user}
+        onOpenUpgrade={onOpenUpgrade}
+      />
 
       {/* Document Processing History */}
       <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">

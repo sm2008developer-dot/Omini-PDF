@@ -185,8 +185,8 @@ export function extractZapOrderId(input?: string): string | null {
   const trimmed = String(input).trim();
   if (!trimmed) return null;
 
-  // 1. URL queries like ?order_id=ZP... or &order=ZP...
-  const urlParamMatch = trimmed.match(/[?&](?:order_id|order)=([A-Za-z0-9_-]+)/i);
+  // 1. URL queries like ?order_id=ZP... or ?zp_order=ZP... or &order=ZP...
+  const urlParamMatch = trimmed.match(/[?&](?:order_id|order|zp_order)=([A-Za-z0-9_-]+)/i);
   if (urlParamMatch && urlParamMatch[1]) {
     return urlParamMatch[1].toUpperCase();
   }

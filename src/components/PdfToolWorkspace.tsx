@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   ArrowLeft,
   Upload,
@@ -18,6 +18,7 @@ import {
   Eye,
   EyeOff,
   Minimize2,
+  Maximize2,
   Combine,
   Split,
   Stamp,
@@ -28,9 +29,14 @@ import {
   FileCheck,
   FolderArchive,
   Layers,
+  FileEdit,
+  RotateCw,
+  Hash,
 } from 'lucide-react';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { User, PlatformLimits, api } from '../utils/api.js';
+import { AdSenseBanner } from './AdSenseBanner.js';
+import { logPdfOperationInFirestore } from '../lib/firebaseService.js';
 import {
   mergePdfFiles,
   splitPdfFile,
@@ -39,8 +45,14 @@ import {
   addWatermarkToPdf,
   imagesToPdf,
   pdfToImages,
+  getPdfMetadata,
+  editPdfMetadata,
+  rotatePdfFile,
+  addPageNumbersToPdf,
+  removePagesFromPdf,
   ProcessedPdfResult,
 } from '../utils/pdfEngine.js';
+import { PdfPreviewModal } from './PdfPreviewModal.js';
 
 interface PdfToolWorkspaceProps {
   toolId: ToolId;
@@ -69,6 +81,13 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProcessedPdfResult | null>(null);
+  const [previewTarget, setPreviewTarget] = useState<{
+    file?: File | Blob | null;
+    fileUrl?: string;
+    name: string;
+    downloadUrl?: string;
+  } | null>(null);
+  const [showResultInlinePreview, setShowResultInlinePreview] = useState(true);
 
   // Tool-specific configurations
   // 1. Split
@@ -100,6 +119,52 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   // 6. PDF to Image
   const [imageFormat, setImageFormat] = useState<'png' | 'jpeg'>('png');
   const [imageScale, setImageScale] = useState(1.5);
+
+  // 7. Edit Metadata
+  const [metaTitle, setMetaTitle] = useState('');
+  const [metaAuthor, setMetaAuthor] = useState('');
+  const [metaSubject, setMetaSubject] = useState('');
+  const [metaKeywords, setMetaKeywords] = useState('');
+  const [metaCreator, setMetaCreator] = useState('Omini PDF');
+  const [isLoadingMetadata, setIsLoadingMetadata] = useState(false);
+
+  // 8. Rotate PDF
+  const [rotateAngle, setRotateAngle] = useState<90 | 180 | 270>(90);
+  const [rotateRange, setRotateRange] = useState('');
+
+  // 9. Page Numbers
+  const [pageNumberPos, setPageNumberPos] = useState<'bottom-center' | 'bottom-right' | 'top-right'>('bottom-center');
+  const [pageNumberFormat, setPageNumberFormat] = useState<'page-of-total' | 'simple'>('page-of-total');
+  const [pageNumberFontSize, setPageNumberFontSize] = useState(10);
+
+  // 10. Remove Pages
+  const [pagesToRemove, setPagesToRemove] = useState('1');
+
+  // Automatically read and pre-fill document metadata when a PDF is selected in edit-metadata mode
+  useEffect(() => {
+    if (toolId === 'edit-metadata' && files.length > 0) {
+      let isMounted = true;
+      setIsLoadingMetadata(true);
+      getPdfMetadata(files[0])
+        .then((data) => {
+          if (!isMounted) return;
+          setMetaTitle(data.title || files[0].name.replace(/\.pdf$/i, ''));
+          setMetaAuthor(data.author || (user?.name || ''));
+          setMetaSubject(data.subject || '');
+          setMetaKeywords(data.keywords || '');
+          setMetaCreator(data.creator || 'Omini PDF');
+        })
+        .catch((err) => {
+          console.warn('Failed reading metadata:', err);
+        })
+        .finally(() => {
+          if (isMounted) setIsLoadingMetadata(false);
+        });
+      return () => {
+        isMounted = false;
+      };
+    }
+  }, [files, toolId, user]);
 
   const isMultiple = toolId === 'merge-pdf' || toolId === 'image-to-pdf';
   const acceptedTypes = toolId === 'image-to-pdf' ? 'image/png,image/jpeg,image/webp' : '.pdf,application/pdf';
@@ -283,21 +348,63 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
           output = await pdfToImages(files[0], imageFormat, imageScale);
           break;
 
+        case 'edit-metadata':
+          output = await editPdfMetadata(files[0], {
+            title: metaTitle,
+            author: metaAuthor,
+            subject: metaSubject,
+            keywords: metaKeywords,
+            creator: metaCreator,
+          });
+          break;
+
+        case 'rotate-pdf':
+          output = await rotatePdfFile(files[0], rotateAngle, rotateRange);
+          break;
+
+        case 'page-numbers':
+          output = await addPageNumbersToPdf(files[0], {
+            position: pageNumberPos,
+            format: pageNumberFormat,
+            fontSize: pageNumberFontSize,
+          });
+          break;
+
+        case 'remove-pages':
+          output = await removePagesFromPdf(files[0], pagesToRemove);
+          break;
+
         default:
           throw new Error('Unsupported tool operation.');
       }
 
       setResult(output);
 
-      // Log operation on backend to record user history and decrement free quota
+      // 1. Sync operation to Firebase Firestore
+      if (user?.id) {
+        logPdfOperationInFirestore(user.id, {
+          toolName: tool?.name || 'PDF Operation',
+          fileName: files[0].name,
+          fileSize: output.fileSize,
+          resultSummary: output.summary,
+        }).then((fRes) => {
+          if (fRes?.user) onUserUpdate(fRes.user);
+        }).catch((err) => {
+          console.warn('Firestore log notice:', err);
+        });
+      }
+
+      // 2. Also log operation on backend to record user history and decrement free quota
       const logRes = await api.logPdfOperation({
         toolName: tool?.name || 'PDF Operation',
         fileName: files[0].name,
         fileSize: output.fileSize,
         resultSummary: output.summary,
-      });
+      }).catch(() => null);
 
-      onUserUpdate(logRes.user);
+      if (logRes?.user) {
+        onUserUpdate(logRes.user);
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Processing failed. Please verify the PDF format.';
       setError(msg);
@@ -322,6 +429,14 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
         return <FileImage className="w-6 h-6 text-rose-600" />;
       case 'pdf-to-image':
         return <ImageDown className="w-6 h-6 text-rose-600" />;
+      case 'edit-metadata':
+        return <FileEdit className="w-6 h-6 text-rose-600" />;
+      case 'rotate-pdf':
+        return <RotateCw className="w-6 h-6 text-rose-600" />;
+      case 'page-numbers':
+        return <Hash className="w-6 h-6 text-rose-600" />;
+      case 'remove-pages':
+        return <Trash2 className="w-6 h-6 text-rose-600" />;
       default:
         return <FileText className="w-6 h-6 text-rose-600" />;
     }
@@ -486,6 +601,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                           </button>
                         </>
                       )}
+                      <button
+                        type="button"
+                        onClick={() => setPreviewTarget({ file, name: file.name })}
+                        className="p-1 rounded-md text-slate-400 hover:text-[#E83E8C] hover:bg-[#FFE3EE] cursor-pointer"
+                        title="Preview Document"
+                        aria-label="Preview document"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
                       <button
                         type="button"
                         onClick={() => removeFile(idx)}
@@ -853,6 +977,216 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               </div>
             )}
 
+            {/* Edit Metadata Settings */}
+            {toolId === 'edit-metadata' && (
+              <div className="space-y-3.5">
+                {isLoadingMetadata && (
+                  <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                    <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                    <span>Reading current PDF metadata properties...</span>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Document Title</label>
+                  <input
+                    type="text"
+                    value={metaTitle}
+                    onChange={(e) => setMetaTitle(e.target.value)}
+                    placeholder="e.g. Official Annual Report 2026"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Author / Organization</label>
+                  <input
+                    type="text"
+                    value={metaAuthor}
+                    onChange={(e) => setMetaAuthor(e.target.value)}
+                    placeholder="e.g. Sanjib Mukherjee"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Subject / Description</label>
+                  <input
+                    type="text"
+                    value={metaSubject}
+                    onChange={(e) => setMetaSubject(e.target.value)}
+                    placeholder="e.g. Academic Exam Result / Marks Verification"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Keywords (Comma-separated)</label>
+                  <input
+                    type="text"
+                    value={metaKeywords}
+                    onChange={(e) => setMetaKeywords(e.target.value)}
+                    placeholder="e.g. result, exam, 2026, verification"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">Creator Application</label>
+                  <input
+                    type="text"
+                    value={metaCreator}
+                    onChange={(e) => setMetaCreator(e.target.value)}
+                    placeholder="e.g. Omini PDF AI Suite"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+                <div className="flex items-center gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setMetaTitle('');
+                      setMetaAuthor('');
+                      setMetaSubject('');
+                      setMetaKeywords('');
+                      setMetaCreator('Omini PDF');
+                    }}
+                    className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
+                  >
+                    Clear All Fields
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Rotate PDF Settings */}
+            {toolId === 'rotate-pdf' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">Rotation Angle</label>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    {[
+                      { deg: 90 as const, label: '90° Clockwise' },
+                      { deg: 180 as const, label: '180° Flip' },
+                      { deg: 270 as const, label: '270° (90° CCW)' },
+                    ].map((item) => (
+                      <button
+                        key={item.deg}
+                        type="button"
+                        onClick={() => setRotateAngle(item.deg)}
+                        className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
+                          rotateAngle === item.deg
+                            ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Pages to Rotate (Leave empty for All Pages)
+                  </label>
+                  <input
+                    type="text"
+                    value={rotateRange}
+                    onChange={(e) => setRotateRange(e.target.value)}
+                    placeholder="e.g. 1, 3-5 or leave empty for all"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Page Numbers Settings */}
+            {toolId === 'page-numbers' && (
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">Position</label>
+                  <div className="grid grid-cols-3 gap-2 text-xs">
+                    {[
+                      { pos: 'bottom-center' as const, label: 'Bottom Center' },
+                      { pos: 'bottom-right' as const, label: 'Bottom Right' },
+                      { pos: 'top-right' as const, label: 'Top Right' },
+                    ].map((item) => (
+                      <button
+                        key={item.pos}
+                        type="button"
+                        onClick={() => setPageNumberPos(item.pos)}
+                        className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                          pageNumberPos === item.pos
+                            ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
+                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                        }`}
+                      >
+                        {item.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-2">Format</label>
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setPageNumberFormat('page-of-total')}
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                        pageNumberFormat === 'page-of-total'
+                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      "Page 1 of N"
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setPageNumberFormat('simple')}
+                      className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
+                        pageNumberFormat === 'simple'
+                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      "1" (Number only)
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    Font Size: {pageNumberFontSize}px
+                  </label>
+                  <input
+                    type="range"
+                    min="8"
+                    max="14"
+                    step="1"
+                    value={pageNumberFontSize}
+                    onChange={(e) => setPageNumberFontSize(parseInt(e.target.value, 10))}
+                    className="w-full accent-rose-600"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Remove Pages Settings */}
+            {toolId === 'remove-pages' && (
+              <div className="space-y-3">
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Pages to Delete (e.g. 1, 3-5)
+                </label>
+                <input
+                  type="text"
+                  value={pagesToRemove}
+                  onChange={(e) => setPagesToRemove(e.target.value)}
+                  placeholder="e.g. 1, 3-5"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                />
+                <p className="text-[11px] text-slate-500">
+                  Specify 1-based page numbers or intervals to permanently remove from the document.
+                </p>
+              </div>
+            )}
+
             {/* Error banner */}
             {error && (
               <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
@@ -886,54 +1220,134 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
           {/* Results Card */}
           {result && (
-            <div className="bg-emerald-50/70 border border-emerald-200 rounded-3xl p-6 text-center animate-in zoom-in-95 duration-200">
-              <div className="w-12 h-12 rounded-full bg-emerald-100 text-emerald-600 mx-auto flex items-center justify-center mb-3">
+            <div className="bg-[#FFF4F8] border-2 border-[#FFE3EE] rounded-3xl p-6 text-center animate-in zoom-in-95 duration-200 shadow-lg">
+              <div className="w-12 h-12 rounded-full bg-[#FFE3EE] text-[#1FA971] mx-auto flex items-center justify-center mb-3 shadow-xs">
                 <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
               </div>
-              <h4 className="text-base font-bold text-emerald-900">Processing Completed!</h4>
-              <p className="text-xs text-emerald-800 mt-1">{result.summary}</p>
+              <h4 className="text-base font-black text-[#24212A]">Processing Completed!</h4>
+              <p className="text-xs text-[#77717B] mt-1">{result.summary}</p>
 
-              {/* Primary Download Button */}
-              <a
-                href={result.downloadUrl}
-                download={result.fileName}
-                className="mt-4 inline-flex items-center justify-center gap-2 w-full py-3 px-6 rounded-xl font-bold text-sm text-white bg-emerald-600 hover:bg-emerald-700 shadow-md shadow-emerald-600/20 transition-colors"
-              >
-                <Download className="w-4 h-4" />
-                <span>Download {result.fileName}</span>
-              </a>
+              {/* Action Buttons: Live Preview & Download */}
+              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setPreviewTarget({
+                      file: result.blob,
+                      name: result.fileName,
+                      downloadUrl: result.downloadUrl,
+                    })
+                  }
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-[#24212A] bg-white border-2 border-[#E83E8C] hover:bg-[#FFE3EE] shadow-xs transition-all cursor-pointer"
+                >
+                  <Eye className="w-4 h-4 text-[#E83E8C]" />
+                  <span>Live Preview Updated PDF</span>
+                </button>
+
+                <a
+                  href={result.downloadUrl}
+                  download={result.fileName}
+                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#1FA971] hover:bg-[#168a5c] shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download {result.fileName}</span>
+                </a>
+              </div>
+
+              {/* Embedded Interactive Live Preview Container */}
+              <div className="mt-6 border border-[#FFE3EE] rounded-2xl bg-white p-4 shadow-xs text-left">
+                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#1FA971] animate-pulse"></span>
+                    <span className="font-extrabold text-xs text-[#24212A]">Live Updated Document</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72]">
+                      Verify Updates
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setShowResultInlinePreview(!showResultInlinePreview)}
+                      className="text-xs text-[#77717B] hover:text-[#24212A] font-semibold cursor-pointer"
+                    >
+                      {showResultInlinePreview ? 'Hide View' : 'Show View'}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setPreviewTarget({
+                          file: result.blob,
+                          name: result.fileName,
+                          downloadUrl: result.downloadUrl,
+                        })
+                      }
+                      className="text-xs font-bold text-[#E83E8C] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <span>Full Screen</span>
+                      <Maximize2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                </div>
+
+                {showResultInlinePreview && (
+                  <div className="mt-3 w-full h-[400px] rounded-xl overflow-hidden border border-slate-200 bg-slate-50 relative">
+                    <iframe
+                      src={result.downloadUrl}
+                      title="Live Updated PDF Preview"
+                      className="w-full h-full border-0 rounded-xl bg-white"
+                    />
+                  </div>
+                )}
+              </div>
 
               {/* Multi-file list if split or pdf-to-image */}
               {result.extraFiles && result.extraFiles.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-emerald-200/60 text-left">
+                <div className="mt-4 pt-4 border-t border-[#FFE3EE] text-left">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-emerald-900 uppercase">
-                      Individual Pages ({result.extraFiles.length})
+                    <span className="text-[11px] font-bold text-[#24212A] uppercase">
+                      Individual Pages / Files ({result.extraFiles.length})
                     </span>
                     <a
                       href={result.downloadUrl}
                       download={result.fileName}
-                      className="text-[11px] font-semibold text-emerald-700 hover:underline flex items-center gap-1"
+                      className="text-[11px] font-semibold text-[#E83E8C] hover:underline flex items-center gap-1"
                     >
                       <FolderArchive className="w-3 h-3" />
                       Download ZIP
                     </a>
                   </div>
-                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                  <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                     {result.extraFiles.map((f, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between p-2 rounded-lg bg-white/80 border border-emerald-100 text-xs"
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#FFE3EE] text-xs shadow-2xs"
                       >
                         <span className="truncate max-w-[160px] font-medium text-slate-700">{f.name}</span>
-                        <a
-                          href={f.url}
-                          download={f.name}
-                          className="text-[11px] font-bold text-emerald-600 hover:underline flex items-center gap-1"
-                        >
-                          <Download className="w-3 h-3" />
-                          Save
-                        </a>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreviewTarget({
+                                file: f.blob || null,
+                                fileUrl: f.url,
+                                name: f.name,
+                                downloadUrl: f.url,
+                              })
+                            }
+                            className="text-[11px] font-bold text-[#E83E8C] hover:bg-[#FFE3EE] px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                          >
+                            <Eye className="w-3 h-3" />
+                            Preview
+                          </button>
+                          <a
+                            href={f.url}
+                            download={f.name}
+                            className="text-[11px] font-bold text-[#1FA971] hover:underline flex items-center gap-1"
+                          >
+                            <Download className="w-3 h-3" />
+                            Save
+                          </a>
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -941,8 +1355,26 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               )}
             </div>
           )}
+
+          {/* In-Article Google AdSense Unit (Slot: 7477499834) - Automatically hidden for Pro users */}
+          <AdSenseBanner
+            slotId="7477499834"
+            user={user}
+            onOpenUpgrade={() => onRequireUpgrade('Upgrade to Pro to remove all ads and enjoy an ad-free experience')}
+            layout="in-article"
+          />
         </div>
       </div>
+
+      {/* Full-Screen PDF Preview Modal */}
+      <PdfPreviewModal
+        isOpen={!!previewTarget}
+        file={previewTarget?.file || null}
+        fileUrl={previewTarget?.fileUrl}
+        fileName={previewTarget?.name}
+        downloadUrl={previewTarget?.downloadUrl}
+        onClose={() => setPreviewTarget(null)}
+      />
     </div>
   );
 };

@@ -40,7 +40,7 @@ export interface Transaction {
   durationDays?: number;
   paymentId: string;
   paymentMethod: string;
-  status: 'completed' | 'failed';
+  status: 'completed' | 'failed' | 'pending';
   createdAt: string;
 }
 
@@ -50,6 +50,12 @@ export interface PlatformLimits {
   proPriceINR: number;
   subscriptionDays: number;
   zapPayLinkId?: string;
+  zapPayApiBaseUrl?: string;
+  zapPayApiKey?: string;
+  upiId?: string;
+  customQrUrl?: string | null;
+  hasCustomQr?: boolean;
+  hasZapApiKey?: boolean;
   announcementText?: string;
   announcementActive?: boolean;
   maintenanceMode?: boolean;
@@ -57,13 +63,28 @@ export interface PlatformLimits {
 
 class ApiService {
   private token: string | null = null;
+  private currentUserEmail: string | null = null;
 
   constructor() {
     this.token = localStorage.getItem('omini_auth_token');
+    this.currentUserEmail = localStorage.getItem('omini_user_email');
   }
 
   getToken(): string | null {
     return this.token;
+  }
+
+  getUserEmail(): string | null {
+    return this.currentUserEmail;
+  }
+
+  setUserEmail(email: string | null) {
+    this.currentUserEmail = email;
+    if (email) {
+      localStorage.setItem('omini_user_email', email);
+    } else {
+      localStorage.removeItem('omini_user_email');
+    }
   }
 
   setToken(token: string | null) {
@@ -85,6 +106,10 @@ class ApiService {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
+    if (this.currentUserEmail) {
+      headers['x-user-email'] = this.currentUserEmail;
+    }
+
     const response = await fetch(endpoint, {
       ...options,
       headers,
@@ -103,8 +128,29 @@ class ApiService {
     return data as T;
   }
 
-  // Auth
+  // Auth & Session Synchronization
+  async syncFirebaseSession(user: Partial<User> & { email?: string; id?: string; name?: string }): Promise<{ token: string; user: User }> {
+    if (user.email) {
+      this.setUserEmail(user.email);
+    }
+    const res = await this.request<{ token: string; user: User }>('/api/auth/firebase-session', {
+      method: 'POST',
+      body: JSON.stringify({
+        uid: user.id,
+        email: user.email,
+        name: user.name,
+        role: user.role,
+        plan: user.plan,
+      }),
+    });
+    if (res.token) {
+      this.setToken(res.token);
+    }
+    return res;
+  }
+
   async login(email: string, password: string): Promise<{ token: string; user: User }> {
+    this.setUserEmail(email);
     const res = await this.request<{ token: string; user: User }>('/api/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
@@ -168,19 +214,27 @@ class ApiService {
     );
   }
 
-  // Payment
-  async createPaymentOrder(voucherCode?: string): Promise<{
+  async createPaymentOrder(voucherCode?: string, customerMobile?: string): Promise<{
     orderId: string;
     zapOrderId?: string;
     paymentUrl?: string;
+    qrCode?: string;
+    upiUrl?: string;
+    upiId?: string;
+    qrString?: string;
     amount: number;
     currency: string;
     planName: string;
-    user: { id: string; name: string; email: string };
+    isCustomQr?: boolean;
+    gateway?: string;
+    mode?: string;
+    hasApiKey?: boolean;
+    apiKeyNotice?: string;
+    user?: { id: string; name: string; email: string };
   }> {
     return this.request('/api/payment/create-order', {
       method: 'POST',
-      body: JSON.stringify({ voucherCode }),
+      body: JSON.stringify({ voucherCode, customerMobile }),
     });
   }
 
@@ -407,6 +461,26 @@ class ApiService {
     return this.request('/api/admin/ai-test', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  }
+
+  async adminUploadQr(qrImage: string): Promise<{ success: boolean; message: string; customQrUrl: string }> {
+    return this.request('/api/admin/upload-qr', {
+      method: 'POST',
+      body: JSON.stringify({ qrImage }),
+    });
+  }
+
+  async adminRemoveQr(): Promise<{ success: boolean; message: string; customQrUrl: string }> {
+    return this.request('/api/admin/remove-qr', {
+      method: 'POST',
+    });
+  }
+
+  async adminTestZapPay(apiKey?: string): Promise<{ success: boolean; status: number; message: string }> {
+    return this.request('/api/admin/test-zappay', {
+      method: 'POST',
+      body: JSON.stringify({ apiKey }),
     });
   }
 }

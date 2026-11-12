@@ -1,14 +1,25 @@
 # ==========================================
 # Robots.txt for Omini PDF
+# Official Website: https://ominipdf.ai.studio/
 # Built by Code Garage | Developed by SM Developer
 # ==========================================
 
 User-agent: *
 Allow: /
+Allow: /ads.txt
+Allow: /app-ads.txt
 Disallow: /api/admin/
 Disallow: /api/auth/
 
-# Dedicated Crawler Directives
+# Dedicated Google AdSense & ads.txt Crawlers
+User-agent: Mediapartners-Google
+Allow: /
+
+User-agent: Google-adstxt
+Allow: /
+Allow: /ads.txt
+Allow: /app-ads.txt
+
 User-agent: Googlebot
 Allow: /
 
@@ -25,4 +36,4 @@ User-agent: Applebot
 Allow: /
 
 # Canonical Sitemap Reference
-Sitemap: https://ais-dev-etccqm7e6x3dwl347um3uo-414257327652.asia-southeast1.run.app/sitemap.xml
+Sitemap: https://ominipdf.ai.studio/sitemap.xml
