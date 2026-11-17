@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { ToolId, TOOLS_CONFIG } from '../types.js';
+import { ToolId } from '../types.js';
 
 export const CANONICAL_BASE = 'https://ominipdf.ai.studio';
 
@@ -26,10 +26,6 @@ export const TOOL_PATH_MAP: Record<ToolId, string> = {
   'remove-pages': '/remove-pages',
   'image-to-pdf': '/image-to-pdf',
   'pdf-to-image': '/pdf-to-image',
-  'ai-summarizer': '/ai-summarizer',
-  'ai-chat': '/ai-chat',
-  'ai-keypoints': '/ai-extract',
-  'ai-qa': '/ai-qa',
 };
 
 export const PATH_TO_TOOL_MAP: Record<string, ToolId> = {
@@ -45,133 +41,112 @@ export const PATH_TO_TOOL_MAP: Record<string, ToolId> = {
   '/remove-pages': 'remove-pages',
   '/image-to-pdf': 'image-to-pdf',
   '/pdf-to-image': 'pdf-to-image',
-  '/ai-summarizer': 'ai-summarizer',
-  '/ai-chat': 'ai-chat',
-  '/ai-extract': 'ai-keypoints',
-  '/ai-keypoints': 'ai-keypoints',
-  '/ai-qa': 'ai-qa',
 };
 
 export const SEO_METADATA_REGISTRY: Record<string, RouteMeta> = {
   '/': {
-    title: 'Omini PDF - Free AI PDF Suite | Merge, Split, Compress & Edit PDF Online',
-    description: 'The #1 free online PDF editor & AI document assistant. Merge, split, compress, protect, watermark, convert to images, and summarize PDFs with Gemini AI.',
+    title: 'Omini PDF - 100% Free Online PDF Suite | Merge, Split, Compress & Edit PDF',
+    description: '100% free, unlimited online PDF editor. Merge, split, compress to 100KB, protect, watermark, rotate, add page numbers, and convert PDFs right in your browser.',
     canonicalPath: '/',
-    keywords: 'online pdf editor, free pdf tools, merge pdf free, split pdf, compress pdf online, add watermark to pdf, protect pdf password, image to pdf, pdf to jpg, ai pdf summarizer, chat with pdf',
+    keywords: 'free online pdf editor, free pdf tools, merge pdf free, split pdf online, compress pdf to 100kb, protect pdf password, watermark pdf free, rotate pdf, page numbers pdf, remove pdf pages, image to pdf, pdf to jpg, omini pdf',
   },
   '/merge-pdf': {
-    title: 'Merge PDF - Omini PDF',
+    title: 'Merge PDF Free Online - Omini PDF',
     description: 'Merge and combine multiple PDF documents into one single file online for free. Fast, client-side secure processing with no file limits and zero watermarks.',
     canonicalPath: '/merge-pdf',
     keywords: 'merge pdf, combine pdf online, free pdf merger, join pdf files, merge pdf no watermark',
   },
   '/split-pdf': {
-    title: 'Split PDF - Omini PDF',
+    title: 'Split PDF Free Online - Omini PDF',
     description: 'Split PDF files by custom page ranges or extract all pages into separate PDF documents in a single ZIP archive. 100% free and client-side secure.',
     canonicalPath: '/split-pdf',
     keywords: 'split pdf, extract pdf pages, separate pdf pages online free, cut pdf pages',
   },
   '/compress-pdf': {
-    title: 'Compress PDF - Omini PDF',
-    description: 'Compress PDF files online while maintaining crisp quality. Reduce PDF file weight to 100KB, 200KB, or 500KB with zero file watermarks.',
+    title: 'Compress PDF Free Online - Omini PDF',
+    description: 'Compress PDF files online while maintaining crisp quality. Reduce PDF file weight to 100KB, 200KB, or 500KB with zero file watermarks — 100% free.',
     canonicalPath: '/compress-pdf',
     keywords: 'compress pdf, reduce pdf size, compress pdf to 100kb, free pdf compressor, shrink pdf online',
   },
   '/protect-pdf': {
-    title: 'Protect PDF - Omini PDF',
-    description: 'Lock and protect PDF files with military-grade 256-bit AES encryption. Set custom master and user passwords to prevent unauthorized viewing.',
+    title: 'Protect PDF Password Online Free - Omini PDF',
+    description: 'Lock and protect PDF files with military-grade 256-bit AES encryption for free. Set custom passwords to prevent unauthorized viewing.',
     canonicalPath: '/protect-pdf',
-    keywords: 'protect pdf, password protect pdf online, encrypt pdf, lock pdf document',
+    keywords: 'protect pdf, password protect pdf online, encrypt pdf free, lock pdf document',
   },
   '/watermark-pdf': {
-    title: 'Watermark PDF - Omini PDF',
+    title: 'Watermark PDF Free Online - Omini PDF',
     description: 'Overlay custom text watermarks, confidential stamps, and copyright labels across PDF pages with customizable opacity, rotation, and color.',
     canonicalPath: '/watermark-pdf',
     keywords: 'add watermark to pdf, stamp pdf online, watermark pdf free, draft watermark pdf',
   },
   '/edit-pdf-metadata': {
-    title: 'Edit PDF Metadata - Omini PDF',
+    title: 'Edit PDF Metadata Free - Omini PDF',
     description: 'View and update PDF document properties including Title, Author, Subject, and Keywords instantly in your browser with complete privacy.',
     canonicalPath: '/edit-pdf-metadata',
     keywords: 'edit pdf metadata, change pdf author, update pdf title, pdf metadata viewer, edit pdf properties',
   },
   '/rotate-pdf': {
-    title: 'Rotate PDF Online - Omini PDF',
-    description: 'Rotate PDF pages 90, 180, or 270 degrees clockwise or counterclockwise. Permanently save rotated PDF documents for free.',
+    title: 'Rotate PDF Online Free - Omini PDF',
+    description: 'Rotate PDF pages 90, 180, or 270 degrees clockwise or counterclockwise. Permanently save rotated PDF documents 100% free.',
     canonicalPath: '/rotate-pdf',
     keywords: 'rotate pdf, rotate pdf online free, turn pdf pages, permanently rotate pdf, change pdf orientation',
   },
   '/page-numbers': {
-    title: 'Add Page Numbers to PDF - Omini PDF',
-    description: 'Insert customizable page numbers, header/footer labels, and Roman/Arabic numeration into PDF files online for free.',
+    title: 'Add Page Numbers to PDF Free - Omini PDF',
+    description: 'Insert customizable page numbers and footer labels into PDF files online for free with live document preview.',
     canonicalPath: '/page-numbers',
     keywords: 'add page numbers to pdf, number pdf pages online, insert page number pdf, paginate pdf free',
   },
   '/remove-pages': {
-    title: 'Remove Pages from PDF - Omini PDF',
-    description: 'Delete unwanted pages from PDF documents easily. Select page numbers to remove and download your clean PDF instantly.',
+    title: 'Remove Pages from PDF Free - Omini PDF',
+    description: 'Delete unwanted pages from PDF documents easily and for free. Select page numbers to remove and download your clean PDF instantly.',
     canonicalPath: '/remove-pages',
     keywords: 'remove pages from pdf, delete pdf pages, delete pages from pdf free, cut pages from pdf online',
   },
   '/image-to-pdf': {
-    title: 'Image to PDF - Omini PDF',
-    description: 'Convert JPG, PNG, and WebP images into clean, multi-page PDF documents. Arrange photos, adjust page margins, and download instantly.',
+    title: 'Image to PDF Converter Free - Omini PDF',
+    description: 'Convert JPG, PNG, and WebP images into clean, multi-page PDF documents for free. Arrange photos, adjust page margins, and download instantly.',
     canonicalPath: '/image-to-pdf',
     keywords: 'image to pdf, jpg to pdf, png to pdf, convert photos to pdf online free',
   },
   '/pdf-to-image': {
-    title: 'PDF to Image - Omini PDF',
-    description: 'Convert PDF pages into high-resolution PNG or JPEG images. Download individual page images or all pages bundled in a single ZIP file.',
+    title: 'PDF to Image Converter Free - Omini PDF',
+    description: 'Convert PDF pages into high-resolution PNG or JPEG images for free. Download individual page images or all pages bundled in a ZIP file.',
     canonicalPath: '/pdf-to-image',
     keywords: 'pdf to image, pdf to png, pdf to jpg converter online, extract pdf pages as image',
   },
-  '/ai-summarizer': {
-    title: 'AI Summarizer - Omini PDF',
-    description: 'Summarize lengthy PDF reports, academic papers, and legal agreements in seconds. Powered by Gemini 3.8 Flash and FreeModel AI.',
-    canonicalPath: '/ai-summarizer',
-    keywords: 'ai pdf summarizer, summarize pdf with ai, gemini ai pdf summary, chatgpt for pdf',
-  },
-  '/ai-chat': {
-    title: 'AI Chat - Omini PDF',
-    description: 'Converse directly with any PDF document. Ask questions, clarify clauses, and extract citations with context-grounded AI intelligence.',
-    canonicalPath: '/ai-chat',
-    keywords: 'chat with pdf, talk to pdf, ask pdf questions, ai document assistant',
-  },
-  '/ai-extract': {
-    title: 'AI Extract - Omini PDF',
-    description: 'Instantly extract core deliverables, key metrics, dates, and actionable findings from PDF documents using deep AI analysis.',
-    canonicalPath: '/ai-extract',
-    keywords: 'extract key points from pdf, ai document extraction, pdf data points, pdf insights',
-  },
-  '/ai-qa': {
-    title: 'AI QA - Omini PDF',
-    description: 'Generate comprehensive study questions, exams, and detailed answers from textbooks and reports with AI document intelligence.',
-    canonicalPath: '/ai-qa',
-    keywords: 'pdf question answer generator, ai study questions from pdf, test generator from pdf',
-  },
-  '/pricing': {
-    title: 'Pricing - Omini PDF',
-    description: 'Unlock 30 days of unlimited PDF operations and Gemini AI document queries for just ₹99 via ZapPay UPI. Free starter plan available.',
-    canonicalPath: '/pricing',
-    keywords: 'omini pdf pricing, free pdf plan, unlimited pdf pass, zappay upi pdf',
-  },
   '/faqs': {
-    title: 'FAQs - Omini PDF',
-    description: 'Find answers to common questions about Omini PDF tools, privacy standards, ZapPay payment verification, and FreeModel AI tokens.',
+    title: 'FAQs - Omini PDF (100% Free PDF Tools)',
+    description: 'Find answers to common questions about Omini PDF free tools, browser privacy standards, and client-side PDF processing.',
     canonicalPath: '/faqs',
     keywords: 'omini pdf faqs, is omini pdf free, is omini pdf safe, pdf privacy faqs',
   },
+  '/history': {
+    title: 'PDF Processing History - Omini PDF',
+    description: 'View your processed PDF documents, operation logs, and quick re-downloads on Omini PDF.',
+    canonicalPath: '/history',
+    keywords: 'pdf history, recent pdf operations, processed pdf downloads, omini pdf history',
+  },
   '/dashboard': {
-    title: 'Dashboard - Omini PDF',
-    description: 'View your processed PDF documents, active 30-day Pro subscription status, and download history on Omini PDF.',
+    title: 'Dashboard & History - Omini PDF',
+    description: 'View your processed PDF documents and download history on Omini PDF.',
     canonicalPath: '/dashboard',
+    keywords: 'omini pdf dashboard, pdf processing log, saved pdf history',
   },
   '/admin': {
     title: 'Admin - Omini PDF',
-    description: 'Omini PDF administrative dashboard for managing quotas, FreeModel AI engines, ZapPay gateways, and coupon vouchers.',
+    description: 'Omini PDF administrative console.',
     canonicalPath: '/admin',
   },
 };
+
+function getOrigin(): string {
+  if (typeof window !== 'undefined' && window.location?.origin) {
+    return window.location.origin;
+  }
+  return CANONICAL_BASE;
+}
 
 /**
  * Resolves current route from window.location path and hash
@@ -199,20 +174,20 @@ export function resolveCurrentRoute(): {
   }
 
   // 2. Direct path matching for specific views
+  if (pathname === '/history') {
+    return { view: 'dashboard', toolId: null, path: '/history' };
+  }
   if (pathname === '/dashboard') {
     return { view: 'dashboard', toolId: null, path: '/dashboard' };
   }
   if (pathname === '/admin') {
     return { view: 'admin', toolId: null, path: '/admin' };
   }
-  if (pathname === '/pricing') {
-    return { view: 'home', toolId: null, scrollToSection: 'pricing', path: '/pricing' };
-  }
   if (pathname === '/faqs') {
     return { view: 'home', toolId: null, scrollToSection: 'faqs', path: '/faqs' };
   }
 
-  // 3. Backward compatibility for legacy hash links (#merge-pdf, #pricing, etc.)
+  // 3. Backward compatibility for legacy hash links (#merge-pdf, #faqs, etc.)
   if (hash) {
     const hashAsPath = '/' + hash;
     if (PATH_TO_TOOL_MAP[hashAsPath]) {
@@ -222,11 +197,11 @@ export function resolveCurrentRoute(): {
         path: TOOL_PATH_MAP[PATH_TO_TOOL_MAP[hashAsPath]],
       };
     }
-    if (hash === 'pricing' || hash === 'faqs') {
-      return { view: 'home', toolId: null, scrollToSection: hash, path: '/' + hash };
+    if (hash === 'faqs') {
+      return { view: 'home', toolId: null, scrollToSection: 'faqs', path: '/faqs' };
     }
-    if (hash === 'tools') {
-      return { view: 'home', toolId: null, scrollToSection: 'tools', path: '/' };
+    if (hash === 'tools' || hash === 'tools-grid') {
+      return { view: 'home', toolId: null, scrollToSection: 'tools-grid', path: '/' };
     }
   }
 
@@ -236,12 +211,14 @@ export function resolveCurrentRoute(): {
 /**
  * Updates DOM title, meta description, canonical, and OpenGraph tags dynamically per-page
  */
-export function updateDocumentSeo(path?: string): void {
+export function updateDocumentSeo(
+  path?: string,
+  overrides?: { title?: string; description?: string; keywords?: string }
+): void {
   if (typeof document === 'undefined') return;
 
   const currentPath = path || (typeof window !== 'undefined' ? window.location.pathname : '/');
 
-  // Strip origin, hash, and query params if passed full URL
   let clean = currentPath.split('#')[0].split('?')[0].trim();
   if (clean.startsWith('http')) {
     try {
@@ -251,13 +228,11 @@ export function updateDocumentSeo(path?: string): void {
     }
   }
 
-  // Handle bare paths like 'merge-pdf' -> '/merge-pdf'
   if (!clean.startsWith('/')) {
     clean = '/' + clean;
   }
   clean = clean.replace(/\/$/, '') || '/';
 
-  // Support ToolId lookup directly if path was a toolId
   if (!SEO_METADATA_REGISTRY[clean]) {
     const matchedTool = Object.entries(TOOL_PATH_MAP).find(
       ([tId, p]) => tId === clean.slice(1) || p === clean
@@ -267,10 +242,18 @@ export function updateDocumentSeo(path?: string): void {
     }
   }
 
-  const meta = SEO_METADATA_REGISTRY[clean] || SEO_METADATA_REGISTRY['/'];
-  const fullCanonical = `${CANONICAL_BASE}${meta.canonicalPath === '/' ? '/' : meta.canonicalPath}`;
+  const baseMeta = SEO_METADATA_REGISTRY[clean] || SEO_METADATA_REGISTRY['/'];
+  const meta: RouteMeta = {
+    ...baseMeta,
+    title: overrides?.title || baseMeta.title,
+    description: overrides?.description || baseMeta.description,
+    keywords: overrides?.keywords || baseMeta.keywords,
+  };
 
-  // 1. Title - dynamically update document.title & <title> tag
+  const activeOrigin = getOrigin();
+  const fullCanonical = `${activeOrigin}${meta.canonicalPath === '/' ? '/' : meta.canonicalPath}`;
+  const socialImage = `${activeOrigin}/og-image.png`;
+
   document.title = meta.title;
   let titleEl = document.querySelector('title');
   if (!titleEl) {
@@ -279,12 +262,11 @@ export function updateDocumentSeo(path?: string): void {
   }
   titleEl.textContent = meta.title;
 
-  let metaTitleTag = document.querySelector('meta[name="title"]');
+  const metaTitleTag = document.querySelector('meta[name="title"]');
   if (metaTitleTag) {
     metaTitleTag.setAttribute('content', meta.title);
   }
 
-  // 2. Meta Description
   let descTag = document.querySelector('meta[name="description"]');
   if (!descTag) {
     descTag = document.createElement('meta');
@@ -293,7 +275,6 @@ export function updateDocumentSeo(path?: string): void {
   }
   descTag.setAttribute('content', meta.description);
 
-  // 2b. Meta Keywords
   if (meta.keywords) {
     let kwTag = document.querySelector('meta[name="keywords"]');
     if (!kwTag) {
@@ -304,7 +285,6 @@ export function updateDocumentSeo(path?: string): void {
     kwTag.setAttribute('content', meta.keywords);
   }
 
-  // 3. Canonical URL
   let canTag = document.querySelector('link[rel="canonical"]');
   if (!canTag) {
     canTag = document.createElement('link');
@@ -313,7 +293,6 @@ export function updateDocumentSeo(path?: string): void {
   }
   canTag.setAttribute('href', fullCanonical);
 
-  // 4. OpenGraph Tags
   const ogTitle = document.querySelector('meta[property="og:title"]');
   if (ogTitle) ogTitle.setAttribute('content', meta.title);
 
@@ -324,9 +303,11 @@ export function updateDocumentSeo(path?: string): void {
   if (ogUrl) ogUrl.setAttribute('content', fullCanonical);
 
   const ogImg = document.querySelector('meta[property="og:image"]');
-  if (ogImg) ogImg.setAttribute('content', `${CANONICAL_BASE}/og-image.png`);
+  if (ogImg) ogImg.setAttribute('content', socialImage);
 
-  // 5. Twitter Tags
+  const ogSecureImg = document.querySelector('meta[property="og:image:secure_url"]');
+  if (ogSecureImg) ogSecureImg.setAttribute('content', socialImage);
+
   const twTitle = document.querySelector('meta[name="twitter:title"]');
   if (twTitle) twTitle.setAttribute('content', meta.title);
 
@@ -334,7 +315,29 @@ export function updateDocumentSeo(path?: string): void {
   if (twDesc) twDesc.setAttribute('content', meta.description);
 
   const twImg = document.querySelector('meta[name="twitter:image"]');
-  if (twImg) twImg.setAttribute('content', `${CANONICAL_BASE}/og-image.png`);
+  if (twImg) twImg.setAttribute('content', socialImage);
+
+  // Maintain dynamic JSON-LD WebPage schema for tool & route clarity
+  let ldScript = document.getElementById('omini-dynamic-jsonld') as HTMLScriptElement | null;
+  if (!ldScript) {
+    ldScript = document.createElement('script');
+    ldScript.id = 'omini-dynamic-jsonld';
+    ldScript.type = 'application/ld+json';
+    document.head.appendChild(ldScript);
+  }
+  ldScript.textContent = JSON.stringify({
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    name: meta.title,
+    description: meta.description,
+    url: fullCanonical,
+    keywords: meta.keywords || '',
+    isPartOf: {
+      '@type': 'WebSite',
+      name: 'Omini PDF',
+      url: activeOrigin,
+    },
+  });
 }
 
 /**

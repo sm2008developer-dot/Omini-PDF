@@ -86,3 +86,9 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(201, 43, 114, 0.6);
 }
+
+/* Skip off-screen layout/paint cost on initial load */
+.cv-auto {
+  content-visibility: auto;
+  contain-intrinsic-size: 1px 520px;
+}

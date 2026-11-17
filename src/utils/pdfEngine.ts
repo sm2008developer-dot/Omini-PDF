@@ -486,9 +486,9 @@ export async function pdfToImages(
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
     await (page as any).render({
-      canvasContext: ctx,
-      viewport,
       canvas,
+      viewport,
+      background: '#ffffff',
     }).promise;
 
     const mime = format === 'jpeg' ? 'image/jpeg' : 'image/png';

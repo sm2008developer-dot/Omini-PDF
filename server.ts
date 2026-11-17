@@ -11,6 +11,7 @@ import jwt from 'jsonwebtoken';
 import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'fs';
+import zlib from 'zlib';
 import { GoogleGenAI } from '@google/genai';
 import QRCode from 'qrcode';
 import { db, sanitizeUser, UserRecord, VoucherRecord, isAdminEmail, getAdminEmails } from './server/db.js';
@@ -134,25 +135,28 @@ function authenticateToken(req: AuthenticatedRequest, res: Response, next: NextF
         return next();
       }
     } catch {
-      // JWT failed verification or expired
-      // If client provided a trusted admin email header (e.g. from authenticated Google session)
-      if (userEmailHeader && isAdminEmail(userEmailHeader)) {
-        let adminUser = db.getUserByEmail(userEmailHeader);
-        if (!adminUser) {
-          adminUser = db.createUser({
-            name: 'Admin',
+      // JWT failed verification or expired - auto-recover if client has active authenticated email
+      if (userEmailHeader) {
+        let user = db.getUserByEmail(userEmailHeader);
+        if (!user) {
+          const isAdmin = isAdminEmail(userEmailHeader);
+          user = db.createUser({
+            name: isAdmin ? 'Admin' : userEmailHeader.split('@')[0],
             email: userEmailHeader,
             passwordHash: '',
-            role: 'admin',
-            plan: 'pro',
-            subscriptionDurationDays: 365,
-            subscriptionStatus: 'active',
-            proExpiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+            role: isAdmin ? 'admin' : 'user',
+            plan: isAdmin ? 'pro' : 'free',
+            subscriptionDurationDays: isAdmin ? 365 : 30,
+            subscriptionStatus: isAdmin ? 'active' : 'none',
+            proExpiresAt: isAdmin ? new Date(Date.now() + 365 * 86400000).toISOString() : null,
             pdfOperationsUsed: 0,
             aiQueriesUsed: 0,
           });
         }
-        req.user = adminUser;
+        if (isAdminEmail(user.email) && user.role !== 'admin') {
+          user = db.updateUser(user.id, { role: 'admin', plan: 'pro', subscriptionStatus: 'active' });
+        }
+        req.user = user;
         return next();
       }
       res.status(403).json({ error: 'Invalid or expired session token. Please log in again.' });
@@ -424,25 +428,11 @@ app.post('/api/user/reset-demo', authenticateToken, (req: AuthenticatedRequest, 
 app.post('/api/pdf/log-operation', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   const { toolName, fileName, fileSize, resultSummary } = req.body;
   const user = req.user!;
-  const settings = db.getSettings();
 
-  // Enforce limit if free
-  if (user.plan === 'free' && user.pdfOperationsUsed >= settings.freePdfLimit) {
-    return res.status(403).json({
-      error: `Free plan limit of ${settings.freePdfLimit} PDF operations reached. Upgrade to Pro for unlimited operations!`,
-      limitReached: true,
-      currentUsed: user.pdfOperationsUsed,
-      limit: settings.freePdfLimit,
-    });
-  }
-
-  // Update operation count if on free plan
-  let updatedUser = user;
-  if (user.plan === 'free') {
-    updatedUser = db.updateUser(user.id, {
-      pdfOperationsUsed: user.pdfOperationsUsed + 1,
-    })!;
-  }
+  // All PDF operations are 100% free and unlimited — simply increment completed count
+  const updatedUser = db.updateUser(user.id, {
+    pdfOperationsUsed: user.pdfOperationsUsed + 1,
+  }) || user;
 
   // Record history
   const historyRecord = db.addDocumentHistory({
@@ -1913,22 +1903,22 @@ Sitemap: ${CANONICAL_DOMAIN}/sitemap.xml
 app.get('/sitemap.xml', (req: Request, res: Response) => {
   res.type('application/xml');
   const now = new Date().toISOString().split('T')[0];
+  const activeOrigin = getResolvedOrigin(req);
   const pages = [
-    { loc: `${CANONICAL_DOMAIN}/`, priority: '1.0', changefreq: 'daily' },
-    { loc: `${CANONICAL_DOMAIN}/merge-pdf`, priority: '0.9', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/split-pdf`, priority: '0.9', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/compress-pdf`, priority: '0.9', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/protect-pdf`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/watermark-pdf`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/edit-pdf-metadata`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/image-to-pdf`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/pdf-to-image`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/ai-summarizer`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/ai-chat`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/ai-extract`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/ai-qa`, priority: '0.8', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/pricing`, priority: '0.9', changefreq: 'weekly' },
-    { loc: `${CANONICAL_DOMAIN}/faqs`, priority: '0.7', changefreq: 'monthly' },
+    { loc: `${activeOrigin}/`, priority: '1.0', changefreq: 'daily' },
+    { loc: `${activeOrigin}/merge-pdf`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/split-pdf`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/compress-pdf`, priority: '0.9', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/protect-pdf`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/watermark-pdf`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/edit-pdf-metadata`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/rotate-pdf`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/page-numbers`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/remove-pages`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/image-to-pdf`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/pdf-to-image`, priority: '0.8', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/history`, priority: '0.7', changefreq: 'weekly' },
+    { loc: `${activeOrigin}/faqs`, priority: '0.7', changefreq: 'monthly' },
   ];
 
   const xml = `<?xml version="1.0" encoding="UTF-8"?>
@@ -1947,12 +1937,44 @@ ${pages
   res.send(xml);
 });
 
+function getResolvedOrigin(req: Request): string {
+  if (process.env.APP_URL) {
+    return process.env.APP_URL.replace(/\/$/, '');
+  }
+  const host = req.get('x-forwarded-host') || req.get('host');
+  if (host && !host.includes('localhost') && !host.includes('127.0.0.1') && !host.includes('0.0.0.0')) {
+    const proto = (req.get('x-forwarded-proto') || req.protocol || 'https').split(',')[0].trim();
+    return `${proto}://${host}`;
+  }
+  return CANONICAL_DOMAIN;
+}
+
+function injectDynamicOriginMeta(html: string, req: Request): string {
+  const origin = getResolvedOrigin(req);
+  if (!origin || origin === CANONICAL_DOMAIN) return html;
+  return html.replaceAll(CANONICAL_DOMAIN, origin);
+}
+
 // Auto-handle any Google Search Console HTML verification file request
 app.get(/^\/google([a-zA-Z0-9_\-]+)\.html$/, (req: Request, res: Response) => {
   const filename = req.path.replace(/^\//, '');
   res.type('text/html');
   res.send(`google-site-verification: ${filename}`);
 });
+
+function sendOptimizedHtml(req: Request, res: Response, html: string): void {
+  const output = injectDynamicOriginMeta(html, req);
+  res.setHeader('Content-Type', 'text/html; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache');
+  const acceptEncoding = String(req.headers['accept-encoding'] || '');
+  if (acceptEncoding.includes('gzip')) {
+    res.setHeader('Content-Encoding', 'gzip');
+    res.setHeader('Vary', 'Accept-Encoding');
+    res.status(200).end(zlib.gzipSync(output));
+    return;
+  }
+  res.status(200).end(output);
+}
 
 // ----------------- Vite Setup -----------------
 
@@ -1965,13 +1987,66 @@ async function startServer() {
       server: { middlewareMode: true },
       appType: 'spa',
     });
+
+    // Ensure social crawlers & HTML page requests get dynamic origin-aware og:image URLs
+    app.use(async (req: Request, res: Response, next: NextFunction) => {
+      if (
+        req.method === 'GET' &&
+        req.headers.accept?.includes('text/html') &&
+        !req.url.startsWith('/api/')
+      ) {
+        try {
+          const rawHtml = fs.readFileSync(path.resolve(process.cwd(), 'index.html'), 'utf-8');
+          const transformed = await vite.transformIndexHtml(req.originalUrl, rawHtml);
+          sendOptimizedHtml(req, res, transformed);
+          return;
+        } catch (err) {
+          next(err);
+          return;
+        }
+      }
+      next();
+    });
+
     app.use(vite.middlewares);
   } else {
     const distPath = path.resolve(process.cwd(), 'dist');
     if (fs.existsSync(distPath)) {
-      app.use(express.static(distPath));
+      // Serve gzip-compressed JS/CSS/SVG assets in production for ultra-fast load
+      app.get(/\.(js|css|svg|json|xml|txt)$/i, (req: Request, res: Response, next: NextFunction) => {
+        const acceptEncoding = String(req.headers['accept-encoding'] || '');
+        if (!acceptEncoding.includes('gzip')) {
+          return next();
+        }
+        const safeRel = req.path.replace(/^\/+/, '');
+        const filePath = path.resolve(distPath, safeRel);
+        if (!filePath.startsWith(distPath) || !fs.existsSync(filePath) || fs.statSync(filePath).isDirectory()) {
+          return next();
+        }
+        const ext = path.extname(filePath).toLowerCase();
+        const mimeMap: Record<string, string> = {
+          '.js': 'application/javascript; charset=utf-8',
+          '.css': 'text/css; charset=utf-8',
+          '.svg': 'image/svg+xml; charset=utf-8',
+          '.json': 'application/json; charset=utf-8',
+          '.xml': 'application/xml; charset=utf-8',
+          '.txt': 'text/plain; charset=utf-8',
+        };
+        res.setHeader('Content-Type', mimeMap[ext] || 'application/octet-stream');
+        res.setHeader('Content-Encoding', 'gzip');
+        res.setHeader('Vary', 'Accept-Encoding');
+        if (req.path.startsWith('/assets/')) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+        const raw = fs.readFileSync(filePath);
+        return res.status(200).end(zlib.gzipSync(raw));
+      });
+
+      app.use(express.static(distPath, { maxAge: '1y', index: false }));
       app.get('*', (req: Request, res: Response) => {
-        res.sendFile(path.resolve(distPath, 'index.html'));
+        const htmlPath = path.resolve(distPath, 'index.html');
+        const html = fs.readFileSync(htmlPath, 'utf-8');
+        sendOptimizedHtml(req, res, html);
       });
     }
   }

@@ -7,10 +7,10 @@ import React, { useState } from 'react';
 import {
   X,
   ShieldCheck,
-  Sparkles,
   CheckCircle2,
   AlertCircle,
   Zap,
+  Infinity as InfinityIcon,
 } from 'lucide-react';
 import { User, api } from '../utils/api.js';
 import { loginWithGoogle } from '../lib/firebaseService.js';
@@ -53,7 +53,6 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setLoading(true);
     try {
       const res = await loginWithGoogle();
-      // Synchronize with server to obtain a genuine signed JWT token
       try {
         const sessionRes = await api.syncFirebaseSession(res.user);
         if (sessionRes?.user) {
@@ -77,9 +76,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/65 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md overflow-hidden bg-white rounded-3xl shadow-2xl border border-slate-100">
-        {/* Close Button */}
+      <div className="relative w-full max-w-md overflow-hidden bg-white rounded-3xl shadow-2xl border border-[#FFE3EE]">
         <button
+          type="button"
           onClick={onClose}
           className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors z-10 cursor-pointer"
           aria-label="Close dialog"
@@ -88,15 +87,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         </button>
 
         {/* Header Banner */}
-        <div className="bg-gradient-to-br from-slate-950 via-[#24212A] to-[#550B2E] p-6 text-white text-center">
+        <div className="bg-gradient-to-br from-[#24212A] via-[#3B1226] to-[#550B2E] p-6 text-white text-center">
           <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-white/10 border border-white/20 mb-3 shadow-lg p-1.5 backdrop-blur-xs">
             <img src="/logo.png" alt="Omini PDF Logo" className="w-full h-full object-contain rounded-xl" />
           </div>
           <h2 className="text-xl font-black tracking-tight text-white">
             Sign In to Omini PDF
           </h2>
-          <p className="text-xs text-slate-300 mt-1 max-w-xs mx-auto leading-relaxed">
-            {redirectReason || 'Instant 1-click access to PDF tools, saved history, and Gemini AI analysis.'}
+          <p className="text-xs text-rose-100/90 mt-1 max-w-xs mx-auto leading-relaxed">
+            {redirectReason || 'Save your PDF document processing history across devices with 1-click Google Sign-In.'}
           </p>
         </div>
 
@@ -110,12 +109,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
 
           <div className="space-y-4">
-            {/* Google Sign In Button */}
             <button
               type="button"
               onClick={handleGoogleSignIn}
               disabled={loading}
-              className="w-full py-3.5 px-4 rounded-2xl text-sm font-bold text-slate-800 bg-white hover:bg-slate-50 border-2 border-slate-200 shadow-md hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 active:scale-[0.99]"
+              className="w-full py-3.5 px-4 rounded-2xl text-sm font-bold text-[#24212A] bg-white hover:bg-[#FFF4F8] border-2 border-[#FFE3EE] hover:border-[#E83E8C] shadow-md hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 active:scale-[0.99]"
             >
               {loading ? (
                 <div className="w-5 h-5 border-2 border-[#E83E8C] border-t-transparent rounded-full animate-spin"></div>
@@ -150,7 +148,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 <span>Fast &amp; Passwordless</span>
               </div>
               <p className="text-[11px] leading-relaxed">
-                No email or password needed. Simply sign in with your Google account to automatically sync your processed files and Pro status.
+                All 11 PDF tools are 100% free and unlimited. Sign in optionally to sync your document processing history.
               </p>
             </div>
           </div>
@@ -160,15 +158,15 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         <div className="bg-[#FFF4F8] p-4 border-t border-[#FFE3EE] flex items-center justify-around text-[11px] text-[#77717B]">
           <div className="flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5 text-[#1FA971]" />
-            <span>3 Free PDF Ops</span>
+            <span>100% Free</span>
           </div>
           <div className="flex items-center gap-1">
-            <Sparkles className="w-3.5 h-3.5 text-[#E83E8C]" />
-            <span>5 AI Queries</span>
+            <InfinityIcon className="w-3.5 h-3.5 text-[#E83E8C]" />
+            <span>Unlimited PDF Ops</span>
           </div>
           <div className="flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-blue-600" />
-            <span>Firebase Cloud</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-[#C92B72]" />
+            <span>Saved History</span>
           </div>
         </div>
       </div>

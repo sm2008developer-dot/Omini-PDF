@@ -14,31 +14,25 @@ export type ToolId =
   | 'page-numbers'
   | 'remove-pages'
   | 'image-to-pdf'
-  | 'pdf-to-image'
-  | 'ai-summarizer'
-  | 'ai-chat'
-  | 'ai-keypoints'
-  | 'ai-qa';
+  | 'pdf-to-image';
 
 export interface ToolDefinition {
   id: ToolId;
   name: string;
-  category: 'pdf' | 'ai';
+  category: 'pdf';
   tagline: string;
   description: string;
   iconName: string;
-  badge?: 'Popular' | 'AI' | 'Essential' | 'New';
-  proRequired?: boolean;
+  badge?: 'Popular' | 'Essential' | 'New' | 'Free';
 }
 
 export const TOOLS_CONFIG: ToolDefinition[] = [
-  // PDF Tools
   {
     id: 'merge-pdf',
     name: 'Merge PDF',
     category: 'pdf',
     tagline: 'Combine multiple PDFs into one unified document',
-    description: 'Merge two or more PDF files in any order you choose with instant download.',
+    description: 'Merge two or more PDF files in any order you choose with instant download — 100% free.',
     iconName: 'Combine',
     badge: 'Popular',
   },
@@ -76,6 +70,7 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     tagline: 'Stamp text or custom labels across your pages',
     description: 'Overlay custom watermark text with configurable opacity, rotation, color, and positioning.',
     iconName: 'Stamp',
+    badge: 'Free',
   },
   {
     id: 'edit-metadata',
@@ -120,6 +115,7 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     tagline: 'Convert PNG, JPG, or WebP images into clean PDFs',
     description: 'Turn your photos, scans, and graphic documents into a crisp multi-page PDF in seconds.',
     iconName: 'FileImage',
+    badge: 'Free',
   },
   {
     id: 'pdf-to-image',
@@ -128,42 +124,6 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     tagline: 'Extract pages as high-resolution PNG or JPEG images',
     description: 'Render every PDF page into crisp image files downloadable individually or as a ZIP archive.',
     iconName: 'ImageDown',
-  },
-  // AI Tools
-  {
-    id: 'ai-summarizer',
-    name: 'AI PDF Summarizer',
-    category: 'ai',
-    tagline: 'Get concise executive summaries in seconds',
-    description: 'Powered by Gemini 3.8 Flash to distill lengthy reports, papers, and legal contracts.',
-    iconName: 'Sparkles',
-    badge: 'AI',
-  },
-  {
-    id: 'ai-chat',
-    name: 'Chat with PDF',
-    category: 'ai',
-    tagline: 'Converse directly with your documents',
-    description: 'Ask questions, clarify complex clauses, and query data with context-grounded AI answers.',
-    iconName: 'MessageSquare',
-    badge: 'AI',
-  },
-  {
-    id: 'ai-keypoints',
-    name: 'Extract Key Points',
-    category: 'ai',
-    tagline: 'Instant bullet points, figures, and takeaways',
-    description: 'Extract essential statistics, dates, deliverables, and conclusions from any document.',
-    iconName: 'ListOrdered',
-    badge: 'AI',
-  },
-  {
-    id: 'ai-qa',
-    name: 'AI-Powered PDF Q&A',
-    category: 'ai',
-    tagline: 'Generate study questions or answer complex inquiries',
-    description: 'Deep question answering and automatic study assessment generation for documents.',
-    iconName: 'HelpCircle',
-    badge: 'AI',
+    badge: 'Free',
   },
 ];

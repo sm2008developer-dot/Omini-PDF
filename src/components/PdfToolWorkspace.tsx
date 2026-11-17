@@ -36,7 +36,6 @@ import {
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { User, PlatformLimits, api } from '../utils/api.js';
 import { AdSenseBanner } from './AdSenseBanner.js';
-import { logPdfOperationInFirestore } from '../lib/firebaseService.js';
 import {
   mergePdfFiles,
   splitPdfFile,
@@ -52,13 +51,19 @@ import {
   removePagesFromPdf,
   ProcessedPdfResult,
 } from '../utils/pdfEngine.js';
+import {
+  addLocalHistoryItem,
+  cacheSessionHistoryFile,
+} from '../utils/historyStore.js';
 import { PdfPreviewModal } from './PdfPreviewModal.js';
+import { PdfCanvasViewer } from './PdfCanvasViewer.js';
 
 interface PdfToolWorkspaceProps {
   toolId: ToolId;
   user: User | null;
   limits: PlatformLimits;
   onBack: () => void;
+  onOpenHistory?: () => void;
   onRequireAuth: (reason: string) => void;
   onRequireUpgrade: (reason: string) => void;
   onUserUpdate: (updatedUser: User) => void;
@@ -69,6 +74,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   user,
   limits,
   onBack,
+  onOpenHistory,
   onRequireAuth,
   onRequireUpgrade,
   onUserUpdate,
@@ -86,6 +92,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     fileUrl?: string;
     name: string;
     downloadUrl?: string;
+    extraFiles?: ProcessedPdfResult['extraFiles'];
   } | null>(null);
   const [showResultInlinePreview, setShowResultInlinePreview] = useState(true);
 
@@ -265,19 +272,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   };
 
   const handleProcess = async () => {
-    // 1. Guard Authentication
-    if (!user) {
-      onRequireAuth(`Please sign in or create an account to process documents with ${tool?.name}.`);
-      return;
-    }
-
-    // 2. Guard Free Plan Quota
-    if (user.plan === 'free' && user.pdfOperationsUsed >= limits.freePdfLimit) {
-      onRequireUpgrade(`You have used all ${limits.freePdfLimit} free PDF operations. Upgrade to Pro for unlimited usage!`);
-      return;
-    }
-
-    // 3. Validate Inputs
+    // Validate Inputs (100% Free & Unlimited — no login or quota block)
     if (files.length === 0) {
       setError('Please upload or select at least one file.');
       return;
@@ -349,6 +344,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
           break;
 
         case 'edit-metadata':
+        case 'edit-pdf-metadata' as unknown as ToolId:
           output = await editPdfMetadata(files[0], {
             title: metaTitle,
             author: metaAuthor,
@@ -380,30 +376,56 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
       setResult(output);
 
-      // 1. Sync operation to Firebase Firestore
+      // Save to persistent browser History + in-session file cache for all users
+      const inputSummaryName =
+        files.length > 1 ? `${files[0].name} (+${files.length - 1} more)` : files[0].name;
+      const savedEntry = addLocalHistoryItem({
+        userId: user?.id || 'guest',
+        toolId,
+        toolName: tool?.name || 'PDF Operation',
+        fileName: inputSummaryName,
+        outputFileName: output.fileName,
+        fileSize: output.fileSize,
+        pageCount: output.pageCount,
+        resultSummary: output.summary,
+      });
+      cacheSessionHistoryFile(savedEntry.id, {
+        blob: output.blob,
+        downloadUrl: output.downloadUrl,
+        fileName: output.fileName,
+      });
+
+      // 1. Sync operation to Firebase Firestore only when signed in
       if (user?.id) {
-        logPdfOperationInFirestore(user.id, {
+        import('../lib/firebaseService.js')
+          .then(({ logPdfOperationInFirestore }) =>
+            logPdfOperationInFirestore(user.id, {
+              toolName: tool?.name || 'PDF Operation',
+              fileName: files[0].name,
+              fileSize: output.fileSize,
+              resultSummary: output.summary,
+            })
+          )
+          .then((fRes) => {
+            if (fRes?.user) onUserUpdate(fRes.user);
+          })
+          .catch((err) => {
+            console.warn('Firestore log notice:', err);
+          });
+      }
+
+      // 2. Also log operation on backend if signed in
+      if (user?.id) {
+        const logRes = await api.logPdfOperation({
           toolName: tool?.name || 'PDF Operation',
           fileName: files[0].name,
           fileSize: output.fileSize,
           resultSummary: output.summary,
-        }).then((fRes) => {
-          if (fRes?.user) onUserUpdate(fRes.user);
-        }).catch((err) => {
-          console.warn('Firestore log notice:', err);
-        });
-      }
+        }).catch(() => null);
 
-      // 2. Also log operation on backend to record user history and decrement free quota
-      const logRes = await api.logPdfOperation({
-        toolName: tool?.name || 'PDF Operation',
-        fileName: files[0].name,
-        fileSize: output.fileSize,
-        resultSummary: output.summary,
-      }).catch(() => null);
-
-      if (logRes?.user) {
-        onUserUpdate(logRes.user);
+        if (logRes?.user) {
+          onUserUpdate(logRes.user);
+        }
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Processing failed. Please verify the PDF format.';
@@ -455,24 +477,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
         </button>
 
         <div className="flex items-center gap-2">
-          {user ? (
-            user.plan === 'pro' ? (
-              <span className="text-xs font-bold text-amber-700 bg-amber-100 px-3 py-1 rounded-full border border-amber-300">
-                PRO Member • Unlimited
-              </span>
-            ) : (
-              <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-3 py-1 rounded-full">
-                Free Quota: {Math.max(0, limits.freePdfLimit - user.pdfOperationsUsed)} left
-              </span>
-            )
-          ) : (
-            <button
-              onClick={() => onRequireAuth('Please sign in to process files.')}
-              className="text-xs font-semibold text-rose-600 hover:underline cursor-pointer"
-            >
-              Sign in to unlock
-            </button>
-          )}
+          <span className="text-xs font-bold text-[#1FA971] bg-[#1FA971]/10 px-3 py-1 rounded-full border border-[#1FA971]/25">
+            100% Free • Unlimited Operations
+          </span>
         </div>
       </div>
 
@@ -1236,6 +1243,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       file: result.blob,
                       name: result.fileName,
                       downloadUrl: result.downloadUrl,
+                      extraFiles: result.extraFiles,
                     })
                   }
                   className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-[#24212A] bg-white border-2 border-[#E83E8C] hover:bg-[#FFE3EE] shadow-xs transition-all cursor-pointer"
@@ -1247,24 +1255,37 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 <a
                   href={result.downloadUrl}
                   download={result.fileName}
-                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#1FA971] hover:bg-[#168a5c] shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 w-full min-w-0 overflow-hidden py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#1FA971] hover:bg-[#168a5c] shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                  title={`Download ${result.fileName}`}
                 >
-                  <Download className="w-4 h-4" />
-                  <span>Download {result.fileName}</span>
+                  <Download className="w-4 h-4 shrink-0" />
+                  <span className="truncate">Download {result.fileName}</span>
                 </a>
               </div>
 
+              {onOpenHistory && (
+                <div className="mt-3 flex justify-center">
+                  <button
+                    type="button"
+                    onClick={onOpenHistory}
+                    className="text-xs font-semibold text-[#C92B72] hover:text-[#E83E8C] hover:underline cursor-pointer"
+                  >
+                    Saved to History • View All Operations →
+                  </button>
+                </div>
+              )}
+
               {/* Embedded Interactive Live Preview Container */}
-              <div className="mt-6 border border-[#FFE3EE] rounded-2xl bg-white p-4 shadow-xs text-left">
-                <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <span className="w-2.5 h-2.5 rounded-full bg-[#1FA971] animate-pulse"></span>
+              <div className="mt-5 border border-[#FFE3EE] rounded-2xl bg-white p-3 sm:p-4 shadow-xs text-left">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-[#1FA971] animate-pulse shrink-0"></span>
                     <span className="font-extrabold text-xs text-[#24212A]">Live Updated Document</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72]">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] shrink-0">
                       Verify Updates
                     </span>
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-3 shrink-0">
                     <button
                       type="button"
                       onClick={() => setShowResultInlinePreview(!showResultInlinePreview)}
@@ -1279,6 +1300,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                           file: result.blob,
                           name: result.fileName,
                           downloadUrl: result.downloadUrl,
+                          extraFiles: result.extraFiles,
                         })
                       }
                       className="text-xs font-bold text-[#E83E8C] hover:underline flex items-center gap-1 cursor-pointer"
@@ -1290,11 +1312,23 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 {showResultInlinePreview && (
-                  <div className="mt-3 w-full h-[400px] rounded-xl overflow-hidden border border-slate-200 bg-slate-50 relative">
-                    <iframe
-                      src={result.downloadUrl}
-                      title="Live Updated PDF Preview"
-                      className="w-full h-full border-0 rounded-xl bg-white"
+                  <div className="mt-3 w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                    <PdfCanvasViewer
+                      file={result.blob}
+                      fileName={result.fileName}
+                      downloadUrl={result.downloadUrl}
+                      compact={true}
+                      fitWidth={true}
+                      showControls={true}
+                      extraFiles={result.extraFiles}
+                      onSelectExtraFile={(extra) =>
+                        setPreviewTarget({
+                          file: extra.blob || null,
+                          fileUrl: extra.url,
+                          name: extra.name,
+                          downloadUrl: extra.url,
+                        })
+                      }
                     />
                   </div>
                 )}
@@ -1356,11 +1390,10 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             </div>
           )}
 
-          {/* In-Article Google AdSense Unit (Slot: 7477499834) - Automatically hidden for Pro users */}
+          {/* In-Article Google AdSense Unit */}
           <AdSenseBanner
             slotId="7477499834"
             user={user}
-            onOpenUpgrade={() => onRequireUpgrade('Upgrade to Pro to remove all ads and enjoy an ad-free experience')}
             layout="in-article"
           />
         </div>
@@ -1373,6 +1406,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
         fileUrl={previewTarget?.fileUrl}
         fileName={previewTarget?.name}
         downloadUrl={previewTarget?.downloadUrl}
+        extraFiles={previewTarget?.extraFiles}
         onClose={() => setPreviewTarget(null)}
       />
     </div>

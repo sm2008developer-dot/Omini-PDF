@@ -19,27 +19,19 @@ export interface PlatformLimits {
 }
 
 export const DEFAULT_LIMITS: PlatformLimits = {
-  freePdfLimit: 3,
-  freeAiLimit: 5,
-  proPriceINR: 99,
-  subscriptionDays: 30,
+  freePdfLimit: 999999,
+  freeAiLimit: 0,
+  proPriceINR: 0,
+  subscriptionDays: 365,
 };
 
 /**
- * Checks whether user's Pro subscription is currently active (within 30 days)
+ * All users enjoy unlimited free access
  */
 export function isSubscriptionActive(
-  user: UserPlanData,
-  currentTimestamp: number = Date.now()
+  _user: UserPlanData,
+  _currentTimestamp: number = Date.now()
 ): boolean {
-  if (user.plan !== 'pro') return false;
-  // If user has an expiry date, verify timestamp has not elapsed
-  if (user.proExpiresAt) {
-    const expiryTime = new Date(user.proExpiresAt).getTime();
-    if (isNaN(expiryTime) || expiryTime <= currentTimestamp) {
-      return false;
-    }
-  }
   return true;
 }
 
@@ -67,41 +59,25 @@ export function calculateSubscriptionExpiry(startDate = new Date(), days = 30): 
 }
 
 /**
- * Checks whether user has remaining PDF operation quota
+ * All PDF operations are 100% free and unlimited
  */
 export function canPerformPdfOperation(
-  user: UserPlanData,
-  limits: PlatformLimits = DEFAULT_LIMITS,
-  nowTimestamp: number = Date.now()
+  _user: UserPlanData,
+  _limits: PlatformLimits = DEFAULT_LIMITS,
+  _nowTimestamp: number = Date.now()
 ): { allowed: boolean; remaining: number; max: number } {
-  if (user.plan === 'pro' && isSubscriptionActive(user, nowTimestamp)) {
-    return { allowed: true, remaining: Infinity, max: Infinity };
-  }
-  const remaining = Math.max(0, limits.freePdfLimit - user.pdfOperationsUsed);
-  return {
-    allowed: remaining > 0,
-    remaining,
-    max: limits.freePdfLimit,
-  };
+  return { allowed: true, remaining: Infinity, max: Infinity };
 }
 
 /**
- * Checks whether user has remaining AI query quota
+ * AI queries disabled (platform is pure 100% free PDF suite)
  */
 export function canPerformAiQuery(
-  user: UserPlanData,
-  limits: PlatformLimits = DEFAULT_LIMITS,
-  nowTimestamp: number = Date.now()
+  _user: UserPlanData,
+  _limits: PlatformLimits = DEFAULT_LIMITS,
+  _nowTimestamp: number = Date.now()
 ): { allowed: boolean; remaining: number; max: number } {
-  if (user.plan === 'pro' && isSubscriptionActive(user, nowTimestamp)) {
-    return { allowed: true, remaining: Infinity, max: Infinity };
-  }
-  const remaining = Math.max(0, limits.freeAiLimit - user.aiQueriesUsed);
-  return {
-    allowed: remaining > 0,
-    remaining,
-    max: limits.freeAiLimit,
-  };
+  return { allowed: false, remaining: 0, max: 0 };
 }
 
 /**
@@ -178,26 +154,23 @@ export function formatINR(amount: number): string {
 }
 
 /**
- * Extracts and sanitizes ZapPay Order ID from raw text, URLs, or query parameters
+ * Extracts and sanitizes Order ID from raw text, URLs, or query parameters
  */
 export function extractZapOrderId(input?: string): string | null {
   if (!input) return null;
   const trimmed = String(input).trim();
   if (!trimmed) return null;
 
-  // 1. URL queries like ?order_id=ZP... or ?zp_order=ZP... or &order=ZP...
   const urlParamMatch = trimmed.match(/[?&](?:order_id|order|zp_order)=([A-Za-z0-9_-]+)/i);
   if (urlParamMatch && urlParamMatch[1]) {
     return urlParamMatch[1].toUpperCase();
   }
 
-  // 2. Direct string starting with ZP
   const directZp = trimmed.match(/\b(ZP[a-zA-Z0-9]+)\b/i);
   if (directZp && directZp[1]) {
     return directZp[1].toUpperCase();
   }
 
-  // 3. Clean alphanumeric token (between 8 and 35 chars)
   const cleanToken = trimmed.replace(/[^a-zA-Z0-9_-]/g, '');
   if (cleanToken.length >= 8 && cleanToken.length <= 35) {
     return cleanToken.toUpperCase();
@@ -222,4 +195,3 @@ export function computeVoucherDiscount(
     isFree: finalPrice === 0,
   };
 }
-

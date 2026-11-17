@@ -3,77 +3,102 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
-  User as UserIcon,
-  Crown,
   FileText,
-  Sparkles,
-  Zap,
-  Clock,
   CheckCircle2,
   Calendar,
   Shield,
-  RotateCcw,
-  ExternalLink,
   Search,
-  Filter,
+  Infinity as InfinityIcon,
+  History as HistoryIcon,
+  Trash2,
+  Eye,
+  Download,
+  LogIn,
+  ArrowRight,
 } from 'lucide-react';
-import { User, PlatformLimits, DocumentHistory, api } from '../utils/api.js';
+import { User, PlatformLimits, api } from '../utils/api.js';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
-import { getRemainingSubscriptionDays } from '../utils/pdfLimits.js';
 import { AdSenseBanner } from './AdSenseBanner.js';
-import { getUserHistoryFromFirestore } from '../lib/firebaseService.js';
+import {
+  LocalHistoryEntry,
+  getLocalHistory,
+  mergeHistoryLists,
+  filterHistoryItems,
+  deleteLocalHistoryItem,
+  clearLocalHistory,
+  getSessionHistoryFile,
+} from '../utils/historyStore.js';
+import { PdfPreviewModal } from './PdfPreviewModal.js';
 
 interface UserDashboardProps {
-  user: User;
+  user: User | null;
   limits: PlatformLimits;
-  onOpenUpgrade: () => void;
   onSelectTool: (toolId: ToolId) => void;
   onUserUpdate: (updatedUser: User) => void;
+  onOpenAuth?: (mode?: 'login' | 'register', reason?: string) => void;
 }
 
 export const UserDashboard: React.FC<UserDashboardProps> = ({
   user,
-  limits,
-  onOpenUpgrade,
   onSelectTool,
   onUserUpdate,
+  onOpenAuth,
 }) => {
-  const [history, setHistory] = useState<DocumentHistory[]>([]);
+  const [history, setHistory] = useState<LocalHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+  const [toolFilter, setToolFilter] = useState<string>('all');
   const [isEditingName, setIsEditingName] = useState(false);
-  const [editNameVal, setEditNameVal] = useState(user.name);
-  const [resetting, setResetting] = useState(false);
+  const [editNameVal, setEditNameVal] = useState(user?.name || '');
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [previewTarget, setPreviewTarget] = useState<{
+    file?: File | Blob | null;
+    name: string;
+    downloadUrl?: string;
+  } | null>(null);
 
   useEffect(() => {
-    loadHistory();
-  }, [user.id]);
+    setEditNameVal(user?.name || '');
+  }, [user?.name]);
 
-  const loadHistory = async () => {
+  const loadHistory = useCallback(async () => {
+    setLoading(true);
+    const localDocs = getLocalHistory();
+
+    if (!user?.id) {
+      setHistory(localDocs);
+      setLoading(false);
+      return;
+    }
+
     try {
-      setLoading(true);
-      if (user?.id) {
-        const firestoreDocs = await getUserHistoryFromFirestore(user.id);
-        if (firestoreDocs && firestoreDocs.length > 0) {
-          setHistory(firestoreDocs);
-          setLoading(false);
-          return;
-        }
+      const { getUserHistoryFromFirestore } = await import('../lib/firebaseService.js');
+      const firestoreDocs = await getUserHistoryFromFirestore(user.id).catch(() => []);
+      if (firestoreDocs && firestoreDocs.length > 0) {
+        setHistory(mergeHistoryLists(localDocs, firestoreDocs));
+        setLoading(false);
+        return;
       }
-      const res = await api.getHistory();
-      setHistory(res.history);
+
+      const res = await api.getHistory().catch(() => ({ history: [] }));
+      setHistory(mergeHistoryLists(localDocs, res.history || []));
     } catch (err) {
       console.warn('History load notice:', err);
+      setHistory(localDocs);
     } finally {
       setLoading(false);
     }
-  };
+  }, [user?.id]);
+
+  useEffect(() => {
+    loadHistory();
+  }, [loadHistory]);
 
   const handleSaveName = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!editNameVal.trim()) return;
+    if (!editNameVal.trim() || !user) return;
     try {
       const res = await api.updateProfile(editNameVal);
       onUserUpdate(res.user);
@@ -83,364 +108,436 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     }
   };
 
-  const handleResetDemo = async () => {
-    try {
-      setResetting(true);
-      const res = await api.resetDemoUsage();
-      onUserUpdate(res.user);
-    } catch (err) {
-      console.error('Failed to reset demo:', err);
-    } finally {
-      setResetting(false);
-    }
+  const handleDeleteEntry = (id: string) => {
+    deleteLocalHistoryItem(id);
+    setHistory((prev) => prev.filter((item) => item.id !== id));
   };
 
-  const filteredHistory = history.filter(
-    (h) =>
-      h.fileName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      h.toolName.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const handleClearAll = () => {
+    clearLocalHistory();
+    setConfirmClear(false);
+    loadHistory();
+  };
 
-  const pdfPercent =
-    user.plan === 'pro'
-      ? 100
-      : Math.min(100, Math.round((user.pdfOperationsUsed / limits.freePdfLimit) * 100));
-
-  const aiPercent =
-    user.plan === 'pro'
-      ? 100
-      : Math.min(100, Math.round((user.aiQueriesUsed / limits.freeAiLimit) * 100));
+  const filteredHistory = filterHistoryItems(history, searchQuery, toolFilter);
+  const hasLocalItems = history.some((item) => item.source !== 'cloud');
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-      {/* Top Welcome Banner */}
-      <div className="bg-gradient-to-r from-slate-900 via-slate-800 to-rose-950 rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="flex items-center gap-4">
-            <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center text-2xl font-black text-white shadow-inner">
-              {user.name.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                {isEditingName ? (
-                  <form onSubmit={handleSaveName} className="flex items-center gap-2">
-                    <input
-                      type="text"
-                      value={editNameVal}
-                      onChange={(e) => setEditNameVal(e.target.value)}
-                      className="px-2 py-1 text-sm bg-white/20 rounded-lg text-white border border-white/30 focus:outline-hidden"
-                    />
-                    <button
-                      type="submit"
-                      className="px-2 py-1 text-xs bg-rose-600 rounded-lg font-bold"
-                    >
-                      Save
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setIsEditingName(false)}
-                      className="text-xs text-slate-300"
-                    >
-                      Cancel
-                    </button>
-                  </form>
-                ) : (
-                  <>
-                    <h1 className="text-2xl font-black tracking-tight">{user.name}</h1>
-                    <button
-                      onClick={() => setIsEditingName(true)}
-                      className="text-xs text-rose-300 hover:text-white underline cursor-pointer"
-                    >
-                      Edit
-                    </button>
-                  </>
-                )}
-                {user.plan === 'pro' && (
-                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-amber-400 text-amber-950 shadow-xs">
-                    <Crown className="w-3.5 h-3.5 fill-amber-950" />
-                    PRO
+    <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8">
+      {/* Top Banner: Signed-in Profile OR Guest History Banner */}
+      {user ? (
+        <div className="bg-gradient-to-r from-[#24212A] via-[#3B1226] to-[#550B2E] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="flex items-center gap-4 min-w-0">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-white/10 border border-white/20 backdrop-blur-md flex items-center justify-center text-2xl font-black text-white shadow-inner shrink-0">
+                {user.name.charAt(0).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-2">
+                  {isEditingName ? (
+                    <form onSubmit={handleSaveName} className="flex items-center gap-2">
+                      <input
+                        type="text"
+                        value={editNameVal}
+                        onChange={(e) => setEditNameVal(e.target.value)}
+                        className="px-2 py-1 text-sm bg-white/20 rounded-lg text-white border border-white/30 focus:outline-hidden"
+                      />
+                      <button
+                        type="submit"
+                        className="px-2 py-1 text-xs bg-[#E83E8C] rounded-lg font-bold cursor-pointer"
+                      >
+                        Save
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingName(false)}
+                        className="text-xs text-slate-300 cursor-pointer"
+                      >
+                        Cancel
+                      </button>
+                    </form>
+                  ) : (
+                    <>
+                      <h1 className="text-xl sm:text-2xl font-black tracking-tight truncate">{user.name}</h1>
+                      <button
+                        type="button"
+                        onClick={() => setIsEditingName(true)}
+                        className="text-xs text-rose-300 hover:text-white underline cursor-pointer"
+                      >
+                        Edit
+                      </button>
+                    </>
+                  )}
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wider bg-[#1FA971] text-white shadow-xs">
+                    100% Free Unlimited
                   </span>
-                )}
-              </div>
-              <p className="text-xs text-slate-300 mt-1">{user.email}</p>
-              <div className="mt-2 flex items-center gap-4 text-xs text-slate-400">
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5" />
-                  Joined {new Date(user.createdAt).toLocaleDateString()}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Shield className="w-3.5 h-3.5 text-emerald-400" />
-                  Account Secured
-                </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 truncate">{user.email}</p>
+                <div className="mt-2 flex flex-wrap items-center gap-4 text-xs text-slate-400">
+                  <span className="flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5" />
+                    Joined {new Date(user.createdAt).toLocaleDateString()}
+                  </span>
+                  <span className="flex items-center gap-1">
+                    <Shield className="w-3.5 h-3.5 text-[#1FA971]" />
+                    Cloud + Browser Sync Active
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          <div className="flex flex-wrap items-center gap-3">
-            {user.plan === 'free' ? (
+            <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-rose-100 text-xs font-semibold flex items-center gap-1.5 self-start md:self-auto">
+              <InfinityIcon className="w-4 h-4 text-[#E83E8C] shrink-0" />
+              <span>All 11 PDF Tools Unlocked — Forever Free</span>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-r from-[#24212A] via-[#3B1226] to-[#550B2E] rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+            <div className="flex items-start sm:items-center gap-4">
+              <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center shrink-0">
+                <HistoryIcon className="w-6 h-6 sm:w-7 sm:h-7 text-[#F36AA6]" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h1 className="text-xl sm:text-2xl font-black tracking-tight">PDF Processing History</h1>
+                  <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#1FA971] text-white">
+                    Saved Automatically
+                  </span>
+                </div>
+                <p className="text-xs text-slate-300 mt-1 max-w-xl">
+                  Every PDF you merge, compress, number, watermark, or convert is saved here automatically in your browser.
+                  Sign in anytime to sync history across devices.
+                </p>
+              </div>
+            </div>
+
+            {onOpenAuth && (
               <button
-                onClick={onOpenUpgrade}
-                className="px-5 py-2.5 rounded-xl font-bold text-xs sm:text-sm text-white bg-gradient-to-r from-amber-500 to-rose-600 hover:brightness-105 shadow-md shadow-rose-600/30 transition-all flex items-center gap-2 cursor-pointer"
+                type="button"
+                onClick={() => onOpenAuth('login', 'Sign in with Google to sync your PDF history across devices.')}
+                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#E83E8C] to-[#C92B72] hover:brightness-110 shadow-md transition-all cursor-pointer shrink-0 self-start md:self-auto"
               >
-                <Zap className="w-4 h-4 fill-white" />
-                <span>Upgrade to Pro (₹{limits.proPriceINR ?? 99} / {limits.subscriptionDays ?? 30} Days)</span>
-              </button>
-            ) : (
-              <div className="px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-400/40 text-amber-300 text-xs font-semibold flex items-center gap-1.5">
-                <Crown className="w-4 h-4 fill-amber-300" />
-                <span>
-                  Pro 30-Day Plan ({getRemainingSubscriptionDays(user.proExpiresAt) > 0 ? `${getRemainingSubscriptionDays(user.proExpiresAt)} days left` : 'Active'})
-                </span>
-              </div>
-            )}
-
-            {user.plan === 'free' && (
-              <button
-                onClick={handleResetDemo}
-                disabled={resetting}
-                title="Reset free counters for demo tutorial"
-                className="px-3 py-2.5 rounded-xl text-xs font-semibold bg-white/10 hover:bg-white/20 border border-white/20 text-slate-200 transition-colors flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCcw className={`w-3.5 h-3.5 ${resetting ? 'animate-spin' : ''}`} />
-                <span className="hidden sm:inline">Reset Quota</span>
+                <LogIn className="w-4 h-4" />
+                <span>Sync with Google</span>
               </button>
             )}
           </div>
         </div>
-      </div>
+      )}
 
-      {/* Quota & Usage Metric Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* PDF Operations Quota */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              PDF Operations
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-rose-50 text-rose-600 flex items-center justify-center">
-              <FileText className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between mb-2">
-            <span className="text-2xl font-black text-slate-900">
-              {user.plan === 'pro' ? 'Unlimited' : `${user.pdfOperationsUsed} / ${limits.freePdfLimit}`}
-            </span>
-            <span className="text-xs text-slate-500">
-              {user.plan === 'pro'
-                ? '∞ remaining'
-                : `${Math.max(0, limits.freePdfLimit - user.pdfOperationsUsed)} free remaining`}
-            </span>
-          </div>
-          {/* Progress bar */}
-          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-            <div
-              className={`h-2.5 rounded-full transition-all duration-500 ${
-                user.plan === 'pro'
-                  ? 'bg-amber-500'
-                  : pdfPercent >= 100
-                  ? 'bg-rose-600'
-                  : 'bg-rose-500'
-              }`}
-              style={{ width: `${user.plan === 'pro' ? 100 : pdfPercent}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {/* AI Queries Quota */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-          <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-              AI Document Queries
-            </span>
-            <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center">
-              <Sparkles className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="flex items-baseline justify-between mb-2">
-            <span className="text-2xl font-black text-slate-900">
-              {user.plan === 'pro' ? 'Unlimited' : `${user.aiQueriesUsed} / ${limits.freeAiLimit}`}
-            </span>
-            <span className="text-xs text-slate-500">
-              {user.plan === 'pro'
-                ? '∞ remaining'
-                : `${Math.max(0, limits.freeAiLimit - user.aiQueriesUsed)} queries left`}
-            </span>
-          </div>
-          {/* Progress bar */}
-          <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
-            <div
-              className={`h-2.5 rounded-full transition-all duration-500 ${
-                user.plan === 'pro'
-                  ? 'bg-purple-500'
-                  : aiPercent >= 100
-                  ? 'bg-rose-600'
-                  : 'bg-purple-600'
-              }`}
-              style={{ width: `${user.plan === 'pro' ? 100 : aiPercent}%` }}
-            ></div>
-          </div>
-        </div>
-
-        {/* Plan Status Card */}
-        <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs flex flex-col justify-between">
+      {/* Document Processing History Card */}
+      <div className="bg-white rounded-3xl p-4 sm:p-6 border border-[#FFE3EE] shadow-xs">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 mb-6">
           <div>
-            <div className="flex items-center justify-between mb-1">
-              <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
-                Membership Tier
-              </span>
-              <span
-                className={`text-[10px] font-bold uppercase px-2 py-0.5 rounded-full ${
-                  user.plan === 'pro' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-700'
-                }`}
-              >
-                {user.plan === 'pro' ? 'Pro (30 Days)' : 'Free Plan'}
-              </span>
-            </div>
-            <p className="text-lg font-bold text-slate-900">
-              {user.plan === 'pro' ? 'Pro 30-Day Subscription' : 'Free Starter Tier'}
-            </p>
-            <p className="text-xs text-slate-500 mt-1">
-              {user.plan === 'pro'
-                ? user.proExpiresAt
-                  ? `Unlimited operations active until ${new Date(user.proExpiresAt).toLocaleDateString(undefined, {
-                      year: 'numeric',
-                      month: 'short',
-                      day: 'numeric',
-                    })}.`
-                  : 'High-speed processing, Gemini 3.8 Flash priority & unlimited operations.'
-                : 'Limited to 3 PDF operations and 5 AI queries.'}
+            <h2 className="text-lg font-bold text-[#24212A] flex items-center gap-2">
+              <HistoryIcon className="w-5 h-5 text-[#E83E8C]" />
+              <span>Recent PDF Operations ({history.length})</span>
+            </h2>
+            <p className="text-xs text-[#77717B] mt-0.5">
+              Recent files processed in this session can be previewed or re-downloaded directly.
             </p>
           </div>
 
-          {user.plan === 'free' ? (
-            <button
-              onClick={onOpenUpgrade}
-              className="mt-4 text-xs font-bold text-rose-600 hover:underline flex items-center gap-1 cursor-pointer"
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 w-full lg:w-auto">
+            <select
+              value={toolFilter}
+              onChange={(e) => setToolFilter(e.target.value)}
+              aria-label="Filter by PDF tool"
+              className="px-3 py-2 text-xs rounded-xl border border-[#FFE3EE] bg-[#FFF4F8]/50 text-[#24212A] font-medium focus:outline-hidden focus:border-[#E83E8C]"
             >
-              <span>Unlock {limits.subscriptionDays ?? 30} Days Unlimited for ₹{limits.proPriceINR ?? 99}</span>
-              <ExternalLink className="w-3.5 h-3.5" />
-            </button>
-          ) : (
-            <div className="mt-4 flex items-center gap-2 text-xs text-emerald-900 bg-emerald-50 rounded-xl p-2.5 border border-emerald-200">
-              <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
-              <span className="font-semibold">
-                Status: {user.subscriptionStatus === 'expired' ? 'Expired' : 'Active (Unlimited Operations & AI Priority)'}
-              </span>
+              <option value="all">All PDF Tools</option>
+              {TOOLS_CONFIG.map((t) => (
+                <option key={t.id} value={t.name}>
+                  {t.name}
+                </option>
+              ))}
+            </select>
+
+            <div className="relative flex-1 sm:w-56">
+              <Search className="w-4 h-4 text-[#C92B72] absolute left-3 top-2.5" />
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search file or tool..."
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-[#FFE3EE] focus:outline-hidden focus:border-[#E83E8C]"
+              />
             </div>
-          )}
+
+            {hasLocalItems && (
+              confirmClear ? (
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={handleClearAll}
+                    className="px-3 py-2 rounded-xl text-xs font-bold bg-[#D9364F] text-white hover:brightness-110 cursor-pointer"
+                  >
+                    Confirm Clear
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setConfirmClear(false)}
+                    className="px-2.5 py-2 rounded-xl text-xs font-semibold text-[#77717B] hover:bg-slate-100 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => setConfirmClear(true)}
+                  className="inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-[#D9364F] bg-[#FFF4F8] border border-[#FFE3EE] hover:bg-[#FFE3EE] transition-colors cursor-pointer shrink-0"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Clear History</span>
+                </button>
+              )
+            )}
+          </div>
         </div>
+
+        {loading ? (
+          <div className="py-12 text-center text-xs text-[#77717B]">Loading history...</div>
+        ) : filteredHistory.length === 0 ? (
+          <div className="py-12 px-4 text-center border-2 border-dashed border-[#FFE3EE] rounded-2xl">
+            <FileText className="w-8 h-8 text-[#FDC6DD] mx-auto mb-2" />
+            <p className="text-sm font-semibold text-[#24212A]">
+              {history.length === 0 ? 'No PDF history yet' : 'No matching history entries'}
+            </p>
+            <p className="text-xs text-[#77717B] mt-1 max-w-sm mx-auto">
+              {history.length === 0
+                ? 'Process any PDF using our 11 free tools and it will automatically appear here.'
+                : 'Try clearing your search filter or tool dropdown.'}
+            </p>
+            {history.length === 0 && (
+              <button
+                type="button"
+                onClick={() => onSelectTool('merge-pdf')}
+                className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#E83E8C] to-[#C92B72] hover:brightness-105 cursor-pointer"
+              >
+                <span>Open a PDF Tool</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Mobile-First Cards View */}
+            <div className="space-y-3 md:hidden">
+              {filteredHistory.map((item) => {
+                const cachedFile = getSessionHistoryFile(item.id);
+                const displayFile = item.outputFileName || item.fileName;
+                return (
+                  <div
+                    key={item.id}
+                    className="p-4 rounded-2xl bg-[#FFF4F8]/60 border border-[#FFE3EE] space-y-2.5"
+                  >
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <span className="inline-flex items-center gap-1.5 text-[11px] font-bold text-[#C92B72]">
+                          <span className="w-2 h-2 rounded-full bg-[#E83E8C]"></span>
+                          {item.toolName}
+                        </span>
+                        <h3 className="text-xs font-bold text-[#24212A] truncate pr-1 mt-0.5">
+                          {displayFile}
+                        </h3>
+                      </div>
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1FA971]/10 text-[#1FA971] border border-[#1FA971]/25 shrink-0">
+                        <CheckCircle2 className="w-3 h-3" />
+                        Done
+                      </span>
+                    </div>
+
+                    <p className="text-[11px] text-[#77717B] line-clamp-2">{item.resultSummary}</p>
+
+                    <div className="flex items-center justify-between text-[11px] text-[#77717B] pt-1 border-t border-[#FFE3EE]/70">
+                      <span>
+                        {item.fileSize > 0 ? `${(item.fileSize / 1024).toFixed(1)} KB` : 'N/A'} •{' '}
+                        {new Date(item.timestamp).toLocaleString(undefined, {
+                          dateStyle: 'short',
+                          timeStyle: 'short',
+                        })}
+                      </span>
+
+                      <div className="flex items-center gap-2">
+                        {cachedFile && (
+                          <>
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setPreviewTarget({
+                                  file: cachedFile.blob,
+                                  name: cachedFile.fileName,
+                                  downloadUrl: cachedFile.downloadUrl,
+                                })
+                              }
+                              className="px-2 py-1 rounded-lg bg-white border border-[#E83E8C] text-[#E83E8C] font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                            >
+                              <Eye className="w-3 h-3" />
+                              Preview
+                            </button>
+                            <a
+                              href={cachedFile.downloadUrl}
+                              download={cachedFile.fileName}
+                              className="px-2 py-1 rounded-lg bg-[#1FA971] text-white font-bold text-[11px] flex items-center gap-1"
+                            >
+                              <Download className="w-3 h-3" />
+                              Save
+                            </a>
+                          </>
+                        )}
+                        {item.source !== 'cloud' && (
+                          <button
+                            type="button"
+                            onClick={() => handleDeleteEntry(item.id)}
+                            className="p-1 text-rose-400 hover:text-[#D9364F] cursor-pointer"
+                            aria-label="Delete history entry"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Desktop Table View */}
+            <div className="hidden md:block overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-[#FFF4F8] text-[#77717B] font-semibold uppercase tracking-wider border-b border-[#FFE3EE]">
+                  <tr>
+                    <th className="py-3 px-4">Tool Used</th>
+                    <th className="py-3 px-4">Document</th>
+                    <th className="py-3 px-4">Size</th>
+                    <th className="py-3 px-4">Summary</th>
+                    <th className="py-3 px-4">Timestamp</th>
+                    <th className="py-3 px-4 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-[#FFF4F8]">
+                  {filteredHistory.map((item) => {
+                    const cachedFile = getSessionHistoryFile(item.id);
+                    const displayFile = item.outputFileName || item.fileName;
+                    return (
+                      <tr key={item.id} className="hover:bg-[#FFF4F8]/70 transition-colors">
+                        <td className="py-3.5 px-4 font-bold text-[#24212A]">
+                          <div className="flex items-center gap-2">
+                            <span className="w-2 h-2 rounded-full bg-[#E83E8C] shrink-0"></span>
+                            <span>{item.toolName}</span>
+                          </div>
+                        </td>
+                        <td className="py-3.5 px-4 font-medium text-[#24212A] truncate max-w-[200px]" title={displayFile}>
+                          {displayFile}
+                        </td>
+                        <td className="py-3.5 px-4 text-[#77717B] whitespace-nowrap">
+                          {item.fileSize > 0 ? `${(item.fileSize / 1024).toFixed(1)} KB` : 'N/A'}
+                        </td>
+                        <td className="py-3.5 px-4 text-[#77717B] truncate max-w-[230px]" title={item.resultSummary}>
+                          {item.resultSummary}
+                        </td>
+                        <td className="py-3.5 px-4 text-[#77717B] whitespace-nowrap">
+                          {new Date(item.timestamp).toLocaleString(undefined, {
+                            dateStyle: 'short',
+                            timeStyle: 'short',
+                          })}
+                        </td>
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="inline-flex items-center justify-end gap-2">
+                            {cachedFile ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() =>
+                                    setPreviewTarget({
+                                      file: cachedFile.blob,
+                                      name: cachedFile.fileName,
+                                      downloadUrl: cachedFile.downloadUrl,
+                                    })
+                                  }
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white border border-[#E83E8C] text-[#E83E8C] hover:bg-[#FFE3EE] font-bold text-[11px] cursor-pointer"
+                                >
+                                  <Eye className="w-3 h-3" />
+                                  Preview
+                                </button>
+                                <a
+                                  href={cachedFile.downloadUrl}
+                                  download={cachedFile.fileName}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1FA971] text-white hover:bg-[#168a5c] font-bold text-[11px]"
+                                >
+                                  <Download className="w-3 h-3" />
+                                  Save
+                                </a>
+                              </>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1FA971]/10 text-[#1FA971] border border-[#1FA971]/25">
+                                <CheckCircle2 className="w-3 h-3" />
+                                Completed
+                              </span>
+                            )}
+                            {item.source !== 'cloud' && (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteEntry(item.id)}
+                                className="p-1 text-rose-400 hover:text-[#D9364F] cursor-pointer"
+                                aria-label="Delete history entry"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Quick Launch Tools Grid */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <h3 className="text-sm font-bold text-slate-900 uppercase tracking-wider mb-4">
+      <div className="bg-white rounded-3xl p-5 sm:p-6 border border-[#FFE3EE] shadow-xs">
+        <h3 className="text-sm font-bold text-[#24212A] uppercase tracking-wider mb-4">
           Quick Launch Tools
         </h3>
         <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3">
           {TOOLS_CONFIG.slice(0, 6).map((t) => (
             <button
+              type="button"
               key={t.id}
               onClick={() => onSelectTool(t.id)}
-              className="p-3 rounded-2xl bg-slate-50 hover:bg-rose-50/60 border border-slate-200 hover:border-rose-300 text-center transition-all group cursor-pointer"
+              className="p-3 rounded-2xl bg-[#FFF4F8] hover:bg-[#FFE3EE] border border-[#FFE3EE] hover:border-[#E83E8C] text-center transition-all group cursor-pointer"
             >
-              <div className="w-8 h-8 rounded-xl bg-white shadow-2xs mx-auto flex items-center justify-center text-slate-700 group-hover:text-rose-600 mb-2">
+              <div className="w-8 h-8 rounded-xl bg-white shadow-2xs mx-auto flex items-center justify-center text-[#77717B] group-hover:text-[#E83E8C] mb-2">
                 <FileText className="w-4 h-4" />
               </div>
-              <span className="block text-xs font-bold text-slate-800 truncate">{t.name}</span>
+              <span className="block text-xs font-bold text-[#24212A] truncate">{t.name}</span>
             </button>
           ))}
         </div>
       </div>
 
-      {/* Google AdSense In-feed Native Ad (Slot: 1446830999) - Automatically hidden for Pro users */}
+      {/* Google AdSense In-feed Native Ad */}
       <AdSenseBanner
         slotId="1446830999"
         layout="in-feed"
         layoutKey="-f9+4w+7x-eg+3a"
         user={user}
-        onOpenUpgrade={onOpenUpgrade}
       />
 
-      {/* Document Processing History */}
-      <div className="bg-white rounded-3xl p-6 border border-slate-200/80 shadow-xs">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6">
-          <div>
-            <h2 className="text-lg font-bold text-slate-900">Document Processing History</h2>
-            <p className="text-xs text-slate-500">
-              Audit log of your recent operations, file conversions, and AI queries.
-            </p>
-          </div>
-
-          <div className="relative w-full sm:w-64">
-            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter by file or tool..."
-              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500"
-            />
-          </div>
-        </div>
-
-        {loading ? (
-          <div className="py-12 text-center text-xs text-slate-400">Loading history...</div>
-        ) : filteredHistory.length === 0 ? (
-          <div className="py-12 text-center border-2 border-dashed border-slate-100 rounded-2xl">
-            <FileText className="w-8 h-8 text-slate-300 mx-auto mb-2" />
-            <p className="text-sm font-semibold text-slate-700">No operations found</p>
-            <p className="text-xs text-slate-400 mt-1">
-              Select any tool from the navigation to process your first document.
-            </p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-50 text-slate-500 font-semibold uppercase tracking-wider border-b border-slate-100">
-                <tr>
-                  <th className="py-3 px-4">Tool Used</th>
-                  <th className="py-3 px-4">Document Name</th>
-                  <th className="py-3 px-4">Size</th>
-                  <th className="py-3 px-4">Result Summary</th>
-                  <th className="py-3 px-4">Timestamp</th>
-                  <th className="py-3 px-4 text-right">Status</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {filteredHistory.map((item) => (
-                  <tr key={item.id} className="hover:bg-slate-50/70 transition-colors">
-                    <td className="py-3.5 px-4 font-bold text-slate-900 flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full bg-rose-500"></span>
-                      <span>{item.toolName}</span>
-                    </td>
-                    <td className="py-3.5 px-4 font-medium text-slate-700 truncate max-w-[200px]">
-                      {item.fileName}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-500">
-                      {item.fileSize > 0 ? `${(item.fileSize / 1024).toFixed(1)} KB` : 'N/A'}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-600 truncate max-w-[240px]">
-                      {item.resultSummary}
-                    </td>
-                    <td className="py-3.5 px-4 text-slate-400">
-                      {new Date(item.timestamp).toLocaleString(undefined, {
-                        dateStyle: 'short',
-                        timeStyle: 'short',
-                      })}
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 text-emerald-700 border border-emerald-200">
-                        <CheckCircle2 className="w-3 h-3" />
-                        Completed
-                      </span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {/* Preview Modal for in-session history items */}
+      <PdfPreviewModal
+        isOpen={!!previewTarget}
+        file={previewTarget?.file || null}
+        fileName={previewTarget?.name}
+        downloadUrl={previewTarget?.downloadUrl}
+        onClose={() => setPreviewTarget(null)}
+      />
     </div>
   );
 };

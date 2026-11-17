@@ -1,32 +1,21 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="100%" height="100%">
   <defs>
-    <!-- Gradients -->
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#0f172a"/>
-      <stop offset="60%" stop-color="#1e1b4b"/>
-      <stop offset="100%" stop-color="#31102f"/>
+      <stop offset="0%" stop-color="#24212A"/>
+      <stop offset="60%" stop-color="#3B1226"/>
+      <stop offset="100%" stop-color="#550B2E"/>
     </linearGradient>
-    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#ffffff"/>
-      <stop offset="100%" stop-color="#f8fafc"/>
-    </linearGradient>
-    <linearGradient id="roseAmber" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#e11d48"/>
-      <stop offset="100%" stop-color="#f59e0b"/>
-    </linearGradient>
-    <linearGradient id="purpleRose" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#8b5cf6"/>
-      <stop offset="100%" stop-color="#ec4899"/>
+    <linearGradient id="rosePink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#E83E8C"/>
+      <stop offset="100%" stop-color="#C92B72"/>
     </linearGradient>
     <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#000000" flood-opacity="0.45"/>
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#000000" flood-opacity="0.4"/>
     </filter>
   </defs>
 
-  <!-- Background Canvas -->
   <rect width="1200" height="630" fill="url(#bgGrad)"/>
 
-  <!-- Subtle Blueprint Grid Pattern -->
   <g opacity="0.06" stroke="#ffffff" stroke-width="1">
     <line x1="0" y1="70" x2="1200" y2="70"/>
     <line x1="0" y1="140" x2="1200" y2="140"/>
@@ -45,103 +34,79 @@
     <line x1="1050" y1="0" x2="1050" y2="630"/>
   </g>
 
-  <!-- Main Window Workspace Mockup (Center Stage) -->
   <g filter="url(#cardShadow)">
-    <!-- Window Body -->
     <rect x="80" y="55" width="1040" height="520" rx="24" fill="#ffffff"/>
-    
-    <!-- Window Title Bar -->
-    <rect x="80" y="55" width="1040" height="56" rx="24" fill="#f8fafc"/>
-    <rect x="80" y="90" width="1040" height="21" fill="#f8fafc"/>
-    <line x1="80" y1="111" x2="1120" y2="111" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="80" y="55" width="1040" height="56" rx="24" fill="#FFF4F8"/>
+    <rect x="80" y="90" width="1040" height="21" fill="#FFF4F8"/>
+    <line x1="80" y1="111" x2="1120" y2="111" stroke="#FFE3EE" stroke-width="1.5"/>
 
-    <!-- Window Dots -->
-    <circle cx="116" cy="83" r="6.5" fill="#ef4444"/>
+    <circle cx="116" cy="83" r="6.5" fill="#E83E8C"/>
     <circle cx="136" cy="83" r="6.5" fill="#f59e0b"/>
-    <circle cx="156" cy="83" r="6.5" fill="#10b981"/>
+    <circle cx="156" cy="83" r="6.5" fill="#1FA971"/>
 
-    <!-- URL Bar Center -->
-    <rect x="360" y="68" width="480" height="30" rx="15" fill="#f1f5f9" stroke="#cbd5e1" stroke-width="1"/>
-    <text x="600" y="88" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#475569" text-anchor="middle">https://ominipdf.ai.studio/merge-pdf</text>
+    <rect x="360" y="68" width="480" height="30" rx="15" fill="#ffffff" stroke="#FDC6DD" stroke-width="1"/>
+    <text x="600" y="88" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#24212A" text-anchor="middle">https://ominipdf.ai.studio/merge-pdf</text>
 
-    <!-- Sidebar (Left) -->
-    <rect x="80" y="111" width="220" height="464" rx="0" fill="#f8fafc"/>
-    <line x1="300" y1="111" x2="300" y2="575" stroke="#e2e8f0" stroke-width="1.5"/>
+    <rect x="80" y="111" width="220" height="464" rx="0" fill="#FFF4F8"/>
+    <line x1="300" y1="111" x2="300" y2="575" stroke="#FFE3EE" stroke-width="1.5"/>
 
-    <!-- Brand Header in Sidebar -->
-    <circle cx="120" cy="150" r="16" fill="url(#roseAmber)"/>
+    <circle cx="120" cy="150" r="16" fill="url(#rosePink)"/>
     <text x="120" y="155" font-family="-apple-system, sans-serif" font-size="11" font-weight="900" fill="#ffffff" text-anchor="middle">PDF</text>
-    <text x="146" y="154" font-family="-apple-system, sans-serif" font-size="15" font-weight="800" fill="#0f172a">Omini<tspan fill="#e11d48">PDF</tspan></text>
+    <text x="146" y="154" font-family="-apple-system, sans-serif" font-size="15" font-weight="800" fill="#24212A">Omini<tspan fill="#E83E8C">PDF</tspan></text>
 
-    <!-- Sidebar Menu Items -->
-    <rect x="96" y="184" width="188" height="34" rx="10" fill="#ffe4e6"/>
-    <text x="114" y="206" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#e11d48">Merge PDF</text>
-    <circle cx="266" cy="201" r="4" fill="#e11d48"/>
+    <rect x="96" y="184" width="188" height="34" rx="10" fill="#FFE3EE"/>
+    <text x="114" y="206" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#C92B72">Merge PDF</text>
+    <circle cx="266" cy="201" r="4" fill="#E83E8C"/>
 
-    <text x="114" y="246" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#64748b">Split PDF</text>
-    <text x="114" y="284" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#64748b">Compress PDF</text>
-    <text x="114" y="322" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#64748b">Protect &amp; Encrypt</text>
-    <text x="114" y="360" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#64748b">Watermark PDF</text>
-    <text x="114" y="398" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#64748b">Convert to Image</text>
+    <text x="114" y="246" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Split PDF</text>
+    <text x="114" y="284" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Compress PDF</text>
+    <text x="114" y="322" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Protect &amp; Encrypt</text>
+    <text x="114" y="360" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Watermark PDF</text>
+    <text x="114" y="398" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Rotate &amp; Page Numbers</text>
+    <text x="114" y="436" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Remove Pages</text>
+    <text x="114" y="474" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Image to PDF</text>
+    <text x="114" y="512" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">PDF to Image</text>
 
-    <!-- AI Intelligence Group in Sidebar -->
-    <text x="100" y="445" font-family="-apple-system, sans-serif" font-size="10" font-weight="800" fill="#8b5cf6" letter-spacing="1">AI DOCUMENT SUITE</text>
-    <text x="114" y="475" font-family="-apple-system, sans-serif" font-size="12" font-weight="600" fill="#7c3aed">AI Summarizer</text>
-    <text x="114" y="510" font-family="-apple-system, sans-serif" font-size="12" font-weight="600" fill="#7c3aed">Chat with PDF</text>
+    <text x="335" y="152" font-family="-apple-system, sans-serif" font-size="20" font-weight="800" fill="#24212A">Merge PDF Documents Online</text>
+    <text x="335" y="174" font-family="-apple-system, sans-serif" font-size="12" font-weight="400" fill="#77717B">Combine multiple files into one single PDF in seconds — 100% Free &amp; Client-Side.</text>
 
-    <!-- Workspace Canvas (Middle) -->
-    <text x="335" y="152" font-family="-apple-system, sans-serif" font-size="20" font-weight="800" fill="#0f172a">Merge PDF Documents Online</text>
-    <text x="335" y="174" font-family="-apple-system, sans-serif" font-size="12" font-weight="400" fill="#64748b">Combine multiple files into one single PDF in seconds with zero data upload.</text>
+    <rect x="335" y="196" width="460" height="230" rx="18" fill="#FFF4F8" stroke="#E83E8C" stroke-width="2" stroke-dasharray="8 6"/>
 
-    <!-- Interactive Dropzone Mockup -->
-    <rect x="335" y="196" width="460" height="230" rx="18" fill="#fafafa" stroke="#e11d48" stroke-width="2" stroke-dasharray="8 6"/>
-    
-    <!-- Upload Icon in Center of Dropzone -->
-    <circle cx="565" cy="280" r="32" fill="#ffe4e6"/>
-    <path d="M565 264 L565 294 M553 276 L565 264 L577 276" stroke="#e11d48" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <text x="565" y="336" font-family="-apple-system, sans-serif" font-size="14" font-weight="700" fill="#0f172a" text-anchor="middle">Drop your PDF files here</text>
-    <text x="565" y="356" font-family="-apple-system, sans-serif" font-size="11" font-weight="500" fill="#94a3b8" text-anchor="middle">or click to browse from device (Up to 100MB)</text>
+    <circle cx="565" cy="280" r="32" fill="#FFE3EE"/>
+    <path d="M565 264 L565 294 M553 276 L565 264 L577 276" stroke="#E83E8C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <text x="565" y="336" font-family="-apple-system, sans-serif" font-size="14" font-weight="700" fill="#24212A" text-anchor="middle">Drop your PDF files here</text>
+    <text x="565" y="356" font-family="-apple-system, sans-serif" font-size="11" font-weight="500" fill="#77717B" text-anchor="middle">or click to browse • Instant browser processing</text>
 
-    <!-- Bottom Feature Pills inside Workspace -->
-    <rect x="335" y="446" width="145" height="32" rx="16" fill="#f1f5f9"/>
-    <text x="407" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#475569" text-anchor="middle">🛡️ 256-bit AES Lock</text>
+    <rect x="335" y="446" width="145" height="32" rx="16" fill="#FFF4F8" stroke="#FFE3EE"/>
+    <text x="407" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#24212A" text-anchor="middle">256-bit AES Lock</text>
 
-    <rect x="490" y="446" width="145" height="32" rx="16" fill="#f1f5f9"/>
-    <text x="562" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#475569" text-anchor="middle">⚡ Zero File Limit</text>
+    <rect x="490" y="446" width="145" height="32" rx="16" fill="#FFF4F8" stroke="#FFE3EE"/>
+    <text x="562" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#24212A" text-anchor="middle">Unlimited Free</text>
 
-    <rect x="645" y="446" width="150" height="32" rx="16" fill="#f1f5f9"/>
-    <text x="720" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#475569" text-anchor="middle">🇮🇳 Instant UPI Pass</text>
+    <rect x="645" y="446" width="150" height="32" rx="16" fill="#FFF4F8" stroke="#FFE3EE"/>
+    <text x="720" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#24212A" text-anchor="middle">Zero Watermarks</text>
 
-    <!-- Action Button in Workspace -->
-    <rect x="335" y="496" width="460" height="46" rx="14" fill="#0f172a"/>
-    <text x="565" y="525" font-family="-apple-system, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Merge &amp; Download PDF Files →</text>
+    <rect x="335" y="496" width="460" height="46" rx="14" fill="url(#rosePink)"/>
+    <text x="565" y="525" font-family="-apple-system, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Merge &amp; Download Free PDF →</text>
 
-    <!-- Right Panel: AI Live Assistant Card -->
-    <rect x="825" y="135" width="265" height="410" rx="18" fill="#faf5ff" stroke="#e9d5ff" stroke-width="1.5"/>
-    
-    <!-- AI Header -->
-    <rect x="825" y="135" width="265" height="52" rx="18" fill="url(#purpleRose)"/>
-    <rect x="825" y="165" width="265" height="22" fill="url(#purpleRose)"/>
-    <text x="845" y="168" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" fill="#ffffff">✨ Gemini 3.8 Flash AI</text>
+    <rect x="825" y="135" width="265" height="410" rx="18" fill="#FFF4F8" stroke="#FDC6DD" stroke-width="1.5"/>
+    <rect x="825" y="135" width="265" height="52" rx="18" fill="url(#rosePink)"/>
+    <rect x="825" y="165" width="265" height="22" fill="url(#rosePink)"/>
+    <text x="845" y="168" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" fill="#ffffff">Live PDF Engine Preview</text>
 
-    <!-- AI Output Simulation -->
-    <rect x="841" y="202" width="233" height="80" rx="12" fill="#ffffff" stroke="#f3e8ff" stroke-width="1"/>
-    <text x="853" y="222" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#6b21a8">Executive Summary:</text>
-    <text x="853" y="240" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#4b5563">• 3 documents processed</text>
-    <text x="853" y="256" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#4b5563">• 14 total pages merged</text>
-    <text x="853" y="272" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#4b5563">• Optimized with crisp font vector</text>
+    <rect x="841" y="202" width="233" height="110" rx="12" fill="#ffffff" stroke="#FFE3EE" stroke-width="1"/>
+    <text x="853" y="224" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#C92B72">Processing Summary:</text>
+    <text x="853" y="246" font-family="-apple-system, sans-serif" font-size="10" font-weight="500" fill="#24212A">• 3 documents merged cleanly</text>
+    <text x="853" y="266" font-family="-apple-system, sans-serif" font-size="10" font-weight="500" fill="#24212A">• 14 total pages preserved</text>
+    <text x="853" y="286" font-family="-apple-system, sans-serif" font-size="10" font-weight="500" fill="#1FA971">• 100% Free &amp; Client-Side</text>
 
-    <rect x="841" y="295" width="233" height="110" rx="12" fill="#ffffff" stroke="#f3e8ff" stroke-width="1"/>
-    <text x="853" y="315" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#6b21a8">Document Q&amp;A Chat:</text>
-    <rect x="853" y="325" width="180" height="26" rx="8" fill="#f5f3ff"/>
-    <text x="861" y="342" font-family="-apple-system, sans-serif" font-size="9" font-weight="500" fill="#7c3aed">"What is the total invoice amount?"</text>
-    
-    <rect x="873" y="360" width="190" height="34" rx="8" fill="#e9d5ff"/>
-    <text x="881" y="376" font-family="-apple-system, sans-serif" font-size="9" font-weight="700" fill="#581c87">"The total balance is ₹14,500</text>
-    <text x="881" y="388" font-family="-apple-system, sans-serif" font-size="9" font-weight="500" fill="#581c87">payable before Nov 15th."</text>
+    <rect x="841" y="328" width="233" height="110" rx="12" fill="#ffffff" stroke="#FFE3EE" stroke-width="1"/>
+    <text x="853" y="350" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#C92B72">Privacy Guarantee:</text>
+    <text x="853" y="372" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#77717B">Files stay inside your browser.</text>
+    <text x="853" y="390" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#77717B">No paywalls, no daily limits,</text>
+    <text x="853" y="408" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#77717B">instant full-screen live preview.</text>
 
-    <!-- Quick Prompt Pill -->
-    <rect x="841" y="420" width="233" height="34" rx="10" fill="#8b5cf6"/>
-    <text x="957" y="442" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Ask AI Document Question</text>
+    <rect x="841" y="456" width="233" height="38" rx="10" fill="#1FA971"/>
+    <text x="957" y="480" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Download Ready • 0.3s</text>
   </g>
 </svg>
