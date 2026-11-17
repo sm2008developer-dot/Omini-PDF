@@ -15,6 +15,7 @@ import {
   RotateCcw,
 } from 'lucide-react';
 import { PdfCanvasViewer, PreviewExtraFile } from './PdfCanvasViewer.js';
+import { MonetagDownloadLink } from './MonetagDownloadLink.js';
 
 interface PdfPreviewModalProps {
   file?: File | Blob | null;
@@ -103,14 +104,14 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
             {effectiveDownloadUrl && (
-              <a
-                href={effectiveDownloadUrl}
-                download={displayName}
-                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#E83E8C] hover:bg-[#C92B72] shadow-xs transition-colors"
+              <MonetagDownloadLink
+                downloadUrl={effectiveDownloadUrl}
+                fileName={displayName}
+                className="hidden sm:inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-bold text-xs text-white bg-[#E83E8C] hover:bg-[#C92B72] shadow-xs transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Save File</span>
-              </a>
+                <span>Watch Ad &amp; Save</span>
+              </MonetagDownloadLink>
             )}
             <button
               type="button"
@@ -213,14 +214,14 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
           </span>
           <div className="flex items-center gap-2 shrink-0">
             {effectiveDownloadUrl && (
-              <a
-                href={effectiveDownloadUrl}
-                download={displayName}
-                className="sm:hidden px-3 py-1.5 bg-[#E83E8C] text-white font-bold rounded-xl text-xs flex items-center gap-1"
+              <MonetagDownloadLink
+                downloadUrl={effectiveDownloadUrl}
+                fileName={displayName}
+                className="sm:hidden px-3 py-1.5 bg-[#E83E8C] text-white font-bold rounded-xl text-xs flex items-center gap-1 cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Save</span>
-              </a>
+                <span>Watch Ad &amp; Save</span>
+              </MonetagDownloadLink>
             )}
             <button
               type="button"

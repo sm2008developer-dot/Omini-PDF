@@ -11,6 +11,7 @@ import { ToolId, TOOLS_CONFIG } from './types.js';
 import { api, User, PlatformLimits } from './utils/api.js';
 import { DEFAULT_LIMITS } from './utils/pdfLimits.js';
 import { useSEO } from './hooks/useSEO.js';
+import { trackPageChangeForVignette } from './utils/monetag.js';
 import {
   resolveCurrentRoute,
   navigateTo,
@@ -52,6 +53,7 @@ export default function App() {
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
 
   const [activePath, setActivePath] = useState<string>(initialRoute.path);
+  const previousPathRef = React.useRef<string>(initialRoute.path);
 
   // Dynamically manage document.title, meta description, keywords, and social tags across routes & tools
   useSEO({
@@ -59,6 +61,15 @@ export default function App() {
     toolId: selectedToolId,
     path: activePath,
   });
+
+  // Trigger Monetag Vignette Banner only after 3-4 SPA page navigations (keeps initial load ultra-fast)
+  useEffect(() => {
+    const prev = previousPathRef.current;
+    if (prev !== activePath) {
+      trackPageChangeForVignette(prev, activePath);
+      previousPathRef.current = activePath;
+    }
+  }, [activePath]);
 
   // Sync route on popstate and initial scroll
   useEffect(() => {

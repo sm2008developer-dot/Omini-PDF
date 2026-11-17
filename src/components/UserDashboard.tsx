@@ -31,6 +31,7 @@ import {
   getSessionHistoryFile,
 } from '../utils/historyStore.js';
 import { PdfPreviewModal } from './PdfPreviewModal.js';
+import { MonetagDownloadLink } from './MonetagDownloadLink.js';
 
 interface UserDashboardProps {
   user: User | null;
@@ -352,8 +353,8 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
                     <p className="text-[11px] text-[#77717B] line-clamp-2">{item.resultSummary}</p>
 
-                    <div className="flex items-center justify-between text-[11px] text-[#77717B] pt-1 border-t border-[#FFE3EE]/70">
-                      <span>
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-[11px] text-[#77717B] pt-1.5 border-t border-[#FFE3EE]/70">
+                      <span className="whitespace-nowrap">
                         {item.fileSize > 0 ? `${(item.fileSize / 1024).toFixed(1)} KB` : 'N/A'} •{' '}
                         {new Date(item.timestamp).toLocaleString(undefined, {
                           dateStyle: 'short',
@@ -361,7 +362,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                         })}
                       </span>
 
-                      <div className="flex items-center gap-2">
+                      <div className="flex items-center gap-1.5 shrink-0">
                         {cachedFile && (
                           <>
                             <button
@@ -373,19 +374,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                                   downloadUrl: cachedFile.downloadUrl,
                                 })
                               }
-                              className="px-2 py-1 rounded-lg bg-white border border-[#E83E8C] text-[#E83E8C] font-bold text-[11px] flex items-center gap-1 cursor-pointer"
+                              className="px-2.5 py-1 rounded-lg bg-white border border-[#E83E8C] text-[#E83E8C] font-bold text-[11px] inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
                             >
-                              <Eye className="w-3 h-3" />
-                              Preview
+                              <Eye className="w-3 h-3 shrink-0" />
+                              <span>Preview</span>
                             </button>
-                            <a
-                              href={cachedFile.downloadUrl}
-                              download={cachedFile.fileName}
-                              className="px-2 py-1 rounded-lg bg-[#1FA971] text-white font-bold text-[11px] flex items-center gap-1"
+                            <MonetagDownloadLink
+                              downloadUrl={cachedFile.downloadUrl}
+                              fileName={cachedFile.fileName}
+                              className="px-2.5 py-1 rounded-lg bg-[#1FA971] text-white font-bold text-[11px] inline-flex items-center gap-1 whitespace-nowrap shrink-0 cursor-pointer"
                             >
-                              <Download className="w-3 h-3" />
-                              Save
-                            </a>
+                              <Download className="w-3 h-3 shrink-0" />
+                              <span>Ad &amp; Save</span>
+                            </MonetagDownloadLink>
                           </>
                         )}
                         {item.source !== 'cloud' && (
@@ -463,14 +464,14 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                                   <Eye className="w-3 h-3" />
                                   Preview
                                 </button>
-                                <a
-                                  href={cachedFile.downloadUrl}
-                                  download={cachedFile.fileName}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1FA971] text-white hover:bg-[#168a5c] font-bold text-[11px]"
+                                <MonetagDownloadLink
+                                  downloadUrl={cachedFile.downloadUrl}
+                                  fileName={cachedFile.fileName}
+                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#1FA971] text-white hover:bg-[#168a5c] font-bold text-[11px] cursor-pointer"
                                 >
                                   <Download className="w-3 h-3" />
-                                  Save
-                                </a>
+                                  <span>Watch Ad &amp; Save</span>
+                                </MonetagDownloadLink>
                               </>
                             ) : (
                               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1FA971]/10 text-[#1FA971] border border-[#1FA971]/25">

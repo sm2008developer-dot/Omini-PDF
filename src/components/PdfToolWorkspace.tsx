@@ -32,6 +32,7 @@ import {
   FileEdit,
   RotateCw,
   Hash,
+  ExternalLink,
 } from 'lucide-react';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { User, PlatformLimits, api } from '../utils/api.js';
@@ -57,6 +58,7 @@ import {
 } from '../utils/historyStore.js';
 import { PdfPreviewModal } from './PdfPreviewModal.js';
 import { PdfCanvasViewer } from './PdfCanvasViewer.js';
+import { MonetagDownloadLink } from './MonetagDownloadLink.js';
 
 interface PdfToolWorkspaceProps {
   toolId: ToolId;
@@ -1235,7 +1237,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               <p className="text-xs text-[#77717B] mt-1">{result.summary}</p>
 
               {/* Action Buttons: Live Preview & Download */}
-              <div className="mt-4 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="mt-4 grid grid-cols-1 gap-3">
                 <button
                   type="button"
                   onClick={() =>
@@ -1246,22 +1248,40 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       extraFiles: result.extraFiles,
                     })
                   }
-                  className="inline-flex items-center justify-center gap-2 w-full py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-[#24212A] bg-white border-2 border-[#E83E8C] hover:bg-[#FFE3EE] shadow-xs transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 w-full min-w-0 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-[#24212A] bg-white border-2 border-[#E83E8C] hover:bg-[#FFE3EE] shadow-xs transition-all whitespace-nowrap cursor-pointer"
                 >
-                  <Eye className="w-4 h-4 text-[#E83E8C]" />
-                  <span>Live Preview Updated PDF</span>
+                  <Eye className="w-4 h-4 text-[#E83E8C] shrink-0" />
+                  <span className="truncate">Live Preview Updated PDF</span>
                 </button>
 
-                <a
-                  href={result.downloadUrl}
-                  download={result.fileName}
+                <MonetagDownloadLink
+                  downloadUrl={result.downloadUrl}
+                  fileName={result.fileName}
                   className="inline-flex items-center justify-center gap-2 w-full min-w-0 overflow-hidden py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#1FA971] hover:bg-[#168a5c] shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
-                  title={`Download ${result.fileName}`}
+                  title={`Watch Ad & Download ${result.fileName} (Ad opens in a new tab)`}
                 >
-                  <Download className="w-4 h-4 shrink-0" />
-                  <span className="truncate">Download {result.fileName}</span>
-                </a>
+                  {({ downloading, completed }) => (
+                    <>
+                      <Download className="w-4 h-4 shrink-0" />
+                      <span className="truncate">
+                        {downloading
+                          ? 'Opening Ad & Downloading...'
+                          : completed
+                          ? `Downloaded! (${result.fileName})`
+                          : `Watch Ad & Download ${result.fileName}`}
+                      </span>
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0 opacity-85" />
+                    </>
+                  )}
+                </MonetagDownloadLink>
               </div>
+
+              <p className="mt-2.5 text-[11px] font-medium text-[#77717B] bg-white/80 border border-[#FFE3EE] rounded-xl px-3 py-1.5 inline-flex items-center gap-1.5 max-w-full">
+                <ExternalLink className="w-3 h-3 text-[#E83E8C] shrink-0" />
+                <span>
+                  <strong className="text-[#24212A]">Watch Ad &amp; Download:</strong> Clicking Download opens a sponsor ad in a new tab &amp; downloads your file automatically.
+                </span>
+              </p>
 
               {onOpenHistory && (
                 <div className="mt-3 flex justify-center">
@@ -1341,14 +1361,14 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     <span className="text-[11px] font-bold text-[#24212A] uppercase">
                       Individual Pages / Files ({result.extraFiles.length})
                     </span>
-                    <a
-                      href={result.downloadUrl}
-                      download={result.fileName}
-                      className="text-[11px] font-semibold text-[#E83E8C] hover:underline flex items-center gap-1"
+                    <MonetagDownloadLink
+                      downloadUrl={result.downloadUrl}
+                      fileName={result.fileName}
+                      className="text-[11px] font-semibold text-[#E83E8C] hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <FolderArchive className="w-3 h-3" />
-                      Download ZIP
-                    </a>
+                      <span>Watch Ad &amp; Download ZIP</span>
+                    </MonetagDownloadLink>
                   </div>
                   <div className="max-h-40 overflow-y-auto space-y-1.5 pr-1">
                     {result.extraFiles.map((f, i) => (
@@ -1373,14 +1393,14 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                             <Eye className="w-3 h-3" />
                             Preview
                           </button>
-                          <a
-                            href={f.url}
-                            download={f.name}
-                            className="text-[11px] font-bold text-[#1FA971] hover:underline flex items-center gap-1"
+                          <MonetagDownloadLink
+                            downloadUrl={f.url}
+                            fileName={f.name}
+                            className="text-[11px] font-bold text-[#1FA971] hover:underline flex items-center gap-1 cursor-pointer"
                           >
                             <Download className="w-3 h-3" />
-                            Save
-                          </a>
+                            <span>Watch Ad &amp; Save</span>
+                          </MonetagDownloadLink>
                         </div>
                       </div>
                     ))}

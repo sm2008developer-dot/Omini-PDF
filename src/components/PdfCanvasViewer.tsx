@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
+import { MonetagDownloadLink } from './MonetagDownloadLink.js';
 
 function ensurePdfWorker() {
   if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
@@ -407,28 +408,28 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
                           <span>View</span>
                         </button>
                       )}
-                      <a
-                        href={extra.url}
-                        download={extra.name}
-                        className="text-[#1FA971] font-bold hover:underline flex items-center gap-1"
+                      <MonetagDownloadLink
+                        downloadUrl={extra.url}
+                        fileName={extra.name}
+                        className="text-[#1FA971] font-bold hover:underline flex items-center gap-1 cursor-pointer"
                       >
                         <Download className="w-3.5 h-3.5" />
-                        <span>Save</span>
-                      </a>
+                        <span>Watch Ad &amp; Save</span>
+                      </MonetagDownloadLink>
                     </div>
                   </div>
                 ))}
               </div>
             )}
             {downloadUrl && (
-              <a
-                href={downloadUrl}
-                download={fileName || 'output.zip'}
-                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1FA971] text-white text-xs font-bold hover:bg-[#168a5c] transition-colors"
+              <MonetagDownloadLink
+                downloadUrl={downloadUrl}
+                fileName={fileName || 'output.zip'}
+                className="mt-4 inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#1FA971] text-white text-xs font-bold hover:bg-[#168a5c] transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Download ZIP Archive</span>
-              </a>
+                <span>Watch Ad &amp; Download ZIP</span>
+              </MonetagDownloadLink>
             )}
           </div>
         ) : fileKind === 'image' && imageObjectUrl ? (
@@ -450,14 +451,14 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
             </div>
             <p className="text-xs font-bold text-[#24212A]">{error}</p>
             {downloadUrl && (
-              <a
-                href={downloadUrl}
-                download={fileName || 'document.pdf'}
-                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E83E8C] text-white text-xs font-bold hover:bg-[#C92B72] transition-colors"
+              <MonetagDownloadLink
+                downloadUrl={downloadUrl}
+                fileName={fileName || 'document.pdf'}
+                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E83E8C] text-white text-xs font-bold hover:bg-[#C92B72] transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
-                <span>Download File</span>
-              </a>
+                <span>Watch Ad &amp; Download File</span>
+              </MonetagDownloadLink>
             )}
           </div>
         ) : (
