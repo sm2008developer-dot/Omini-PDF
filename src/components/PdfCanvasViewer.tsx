@@ -91,6 +91,15 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [containerWidth, setContainerWidth] = useState<number>(340);
   const [imageObjectUrl, setImageObjectUrl] = useState<string | null>(null);
+  const [internalExtra, setInternalExtra] = useState<PreviewExtraFile | null>(null);
+
+  useEffect(() => {
+    setInternalExtra(null);
+  }, [file, fileUrl, fileName]);
+
+  const activeFile = internalExtra ? internalExtra.blob || null : file;
+  const activeUrl = internalExtra ? internalExtra.url : fileUrl;
+  const activeName = internalExtra ? internalExtra.name : fileName;
 
   const activePage = controlledPage ?? internalPage;
   const setPage = (nextPage: number) => {
@@ -99,7 +108,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
     onPageChange?.(clamped);
   };
 
-  const fileKind = detectFileKind(file, fileName, fileUrl);
+  const fileKind = detectFileKind(activeFile, activeName, activeUrl);
 
   // Measure available container width for responsive fit-width scaling
   useEffect(() => {
@@ -154,7 +163,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
       }
     };
 
-    if (!file && !fileUrl) {
+    if (!activeFile && !activeUrl) {
       setNumPages(0);
       setError(null);
       return;
@@ -166,11 +175,11 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
       setLoadingDoc(false);
       setNumPages(1);
       setInternalPage(1);
-      if (file) {
-        createdImgUrl = URL.createObjectURL(file);
+      if (activeFile) {
+        createdImgUrl = URL.createObjectURL(activeFile);
         setImageObjectUrl(createdImgUrl);
       } else {
-        setImageObjectUrl(fileUrl || null);
+        setImageObjectUrl(activeUrl || null);
       }
       onDocumentLoaded?.({ numPages: 1, fileType: 'image' });
       return () => {
@@ -197,9 +206,9 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
 
       try {
         ensurePdfWorker();
-        const rawBuffer = file
-          ? await file.arrayBuffer()
-          : await (await fetch(fileUrl!)).arrayBuffer();
+        const rawBuffer = activeFile
+          ? await activeFile.arrayBuffer()
+          : await (await fetch(activeUrl!)).arrayBuffer();
 
         if (cancelled) return;
 
@@ -244,7 +253,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
       if (createdImgUrl) URL.revokeObjectURL(createdImgUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [file, fileUrl, fileKind]);
+  }, [activeFile, activeUrl, fileKind]);
 
   // Render the active page whenever page number, zoom, or container width changes
   useEffect(() => {
@@ -339,6 +348,19 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
 
   return (
     <div className="w-full flex flex-col">
+      {internalExtra && (
+        <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[#FFE3EE] border-b border-[#FDC6DD] text-xs">
+          <button
+            type="button"
+            onClick={() => setInternalExtra(null)}
+            className="px-2.5 py-1 bg-white border border-[#E83E8C] text-[#C92B72] rounded-lg font-bold hover:bg-[#FFF4F8] cursor-pointer flex items-center gap-1"
+          >
+            <ChevronLeft className="w-3.5 h-3.5" />
+            <span>Back to ZIP Archive</span>
+          </button>
+          <span className="truncate font-semibold text-[#24212A]">{internalExtra.name}</span>
+        </div>
+      )}
       {showControls && fileKind === 'pdf' && numPages > 1 && (
         <div className="flex items-center justify-between gap-2 px-3 py-2 bg-[#FFF4F8] border-b border-[#FFE3EE] text-xs">
           <button
@@ -381,44 +403,62 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
         )}
 
         {fileKind === 'zip' ? (
-          <div className="bg-white rounded-2xl border border-[#FFE3EE] p-5 text-center max-w-md mx-auto my-4 shadow-xs">
+          <div className="bg-white rounded-2xl border border-[#FFE3EE] p-5 text-center max-w-lg mx-auto my-4 shadow-xs">
             <div className="w-12 h-12 rounded-2xl bg-[#FFE3EE] text-[#E83E8C] mx-auto flex items-center justify-center mb-3">
               <FileArchive className="w-6 h-6" />
             </div>
-            <h4 className="text-sm font-bold text-[#24212A]">ZIP Archive Ready</h4>
+            <h4 className="text-sm font-bold text-[#24212A]">
+              ZIP Archive Ready {extraFiles?.length ? `(${extraFiles.length} Files)` : ''}
+            </h4>
             <p className="text-xs text-[#77717B] mt-1">
-              {fileName || 'archive.zip'} contains {extraFiles?.length || 'multiple'} exported files.
+              Click <strong className="text-[#24212A]">View</strong> on any page or image below to inspect it live.
             </p>
             {extraFiles && extraFiles.length > 0 && (
-              <div className="mt-4 space-y-1.5 text-left max-h-48 overflow-y-auto">
-                {extraFiles.map((extra, idx) => (
-                  <div
-                    key={`${extra.name}-${idx}`}
-                    className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] text-xs"
-                  >
-                    <span className="truncate font-medium text-[#24212A]">{extra.name}</span>
-                    <div className="flex items-center gap-2 shrink-0">
-                      {onSelectExtraFile && (
+              <div className="mt-4 space-y-2 text-left max-h-60 overflow-y-auto pr-1">
+                {extraFiles.map((extra, idx) => {
+                  const isImg = /\.(png|jpe?g|webp|gif)$/i.test(extra.name);
+                  return (
+                    <div
+                      key={`${extra.name}-${idx}`}
+                      className="flex items-center justify-between gap-2 px-3 py-2 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] text-xs"
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        {isImg && (
+                          <img
+                            src={extra.url}
+                            alt={extra.name}
+                            className="w-8 h-10 object-cover rounded border border-[#FFE3EE] bg-white shrink-0"
+                          />
+                        )}
+                        <span className="truncate font-medium text-[#24212A]">{extra.name}</span>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
                         <button
                           type="button"
-                          onClick={() => onSelectExtraFile(extra)}
-                          className="text-[#E83E8C] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                          onClick={() => {
+                            if (onSelectExtraFile) {
+                              onSelectExtraFile(extra);
+                            } else {
+                              setInternalExtra(extra);
+                            }
+                          }}
+                          className="px-2 py-1 rounded-md bg-white border border-[#E83E8C]/30 text-[#E83E8C] font-bold hover:bg-[#FFE3EE] flex items-center gap-1 cursor-pointer"
                         >
                           <Eye className="w-3.5 h-3.5" />
                           <span>View</span>
                         </button>
-                      )}
-                      <MonetagDownloadLink
-                        downloadUrl={extra.url}
-                        fileName={extra.name}
-                        className="text-[#1FA971] font-bold hover:underline flex items-center gap-1 cursor-pointer"
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                        <span>Watch Ad &amp; Save</span>
-                      </MonetagDownloadLink>
+                        <MonetagDownloadLink
+                          downloadUrl={extra.url}
+                          fileName={extra.name}
+                          className="text-[#1FA971] font-bold hover:underline flex items-center gap-1 cursor-pointer"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>Ad &amp; Save</span>
+                        </MonetagDownloadLink>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
             {downloadUrl && (

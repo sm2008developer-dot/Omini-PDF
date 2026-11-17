@@ -378,6 +378,42 @@ app.post('/api/auth/firebase-session', (req: Request, res: Response) => {
   });
 });
 
+// Passwordless Quick Account Sync for optional user history saving across preview/sandbox domains
+app.post('/api/auth/account-sync', (req: Request, res: Response) => {
+  const { name, email } = req.body || {};
+  const normalizedEmail = String(email || '').trim().toLowerCase();
+  if (!normalizedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    return res.status(400).json({ error: 'Please enter a valid email address.' });
+  }
+
+  let user = db.getUserByEmail(normalizedEmail);
+  if (!user) {
+    user = db.createUser({
+      name: String(name || '').trim() || normalizedEmail.split('@')[0],
+      email: normalizedEmail,
+      passwordHash: '',
+      role: 'user',
+      plan: 'free',
+      subscriptionDurationDays: 30,
+      subscriptionStatus: 'none',
+      proExpiresAt: null,
+      pdfOperationsUsed: 0,
+      aiQueriesUsed: 0,
+    });
+  } else if (name && String(name).trim() && user.name !== String(name).trim()) {
+    user = db.updateUser(user.id, { name: String(name).trim() }) || user;
+  }
+
+  const token = jwt.sign({ id: user.id, email: user.email }, JWT_SECRET, {
+    expiresIn: '30d',
+  });
+
+  res.json({
+    token,
+    user: sanitizeUser(user),
+  });
+});
+
 app.get('/api/auth/me', authenticateToken, (req: AuthenticatedRequest, res: Response) => {
   if (!req.user) {
     return res.status(401).json({ error: 'Not authenticated' });

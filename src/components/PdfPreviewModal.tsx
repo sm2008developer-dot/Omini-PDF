@@ -41,12 +41,14 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
   const [zoomMultiplier, setZoomMultiplier] = useState<number>(1.0);
   const [fileType, setFileType] = useState<'pdf' | 'image' | 'zip'>('pdf');
   const [objectDownloadUrl, setObjectDownloadUrl] = useState<string | null>(null);
+  const [selectedExtra, setSelectedExtra] = useState<PreviewExtraFile | null>(null);
 
   // Reset pagination & zoom when switching files or reopening modal
   useEffect(() => {
     if (isOpen) {
       setCurrentPage(1);
       setZoomMultiplier(1.0);
+      setSelectedExtra(null);
     }
   }, [isOpen, file, fileUrl, fileName]);
 
@@ -63,10 +65,13 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
 
   if (!isOpen || (!file && !fileUrl)) return null;
 
+  const activeFile = selectedExtra ? selectedExtra.blob || null : file;
+  const activeUrl = selectedExtra ? selectedExtra.url : fileUrl;
   const displayName =
-    fileName || (file instanceof File ? file.name : 'Document_Preview.pdf');
-  const fileSizeLabel = file ? `${(file.size / 1024).toFixed(1)} KB` : 'Document';
-  const effectiveDownloadUrl = downloadUrl || objectDownloadUrl || fileUrl;
+    selectedExtra?.name || fileName || (file instanceof File ? file.name : 'Document_Preview.pdf');
+  const activeSize = selectedExtra ? selectedExtra.size : file?.size;
+  const fileSizeLabel = activeSize ? `${(activeSize / 1024).toFixed(1)} KB` : 'Document';
+  const effectiveDownloadUrl = selectedExtra?.url || downloadUrl || objectDownloadUrl || fileUrl;
 
   return (
     <div
@@ -103,6 +108,19 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
           </div>
 
           <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+            {selectedExtra && (
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedExtra(null);
+                  setCurrentPage(1);
+                }}
+                className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-xl font-bold text-xs text-[#C92B72] bg-white border border-[#E83E8C] hover:bg-[#FFE3EE] transition-colors cursor-pointer"
+              >
+                <ChevronLeft className="w-3.5 h-3.5" />
+                <span>Archive</span>
+              </button>
+            )}
             {effectiveDownloadUrl && (
               <MonetagDownloadLink
                 downloadUrl={effectiveDownloadUrl}
@@ -189,8 +207,8 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
         {/* Responsive Canvas / Image / ZIP Body */}
         <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
           <PdfCanvasViewer
-            file={file}
-            fileUrl={fileUrl}
+            file={activeFile}
+            fileUrl={activeUrl}
             fileName={displayName}
             downloadUrl={effectiveDownloadUrl}
             currentPage={currentPage}
@@ -202,7 +220,11 @@ export const PdfPreviewModal: React.FC<PdfPreviewModalProps> = ({
             zoomMultiplier={zoomMultiplier}
             fitWidth={true}
             showControls={false}
-            extraFiles={extraFiles}
+            extraFiles={selectedExtra ? undefined : extraFiles}
+            onSelectExtraFile={(extra) => {
+              setSelectedExtra(extra);
+              setCurrentPage(1);
+            }}
           />
         </div>
 

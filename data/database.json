@@ -124,6 +124,36 @@
       "id": "user_1793642081066_uez93",
       "createdAt": "2026-11-02T17:54:41.066Z",
       "updatedAt": "2026-11-02T17:54:41.066Z"
+    },
+    {
+      "name": "eueu",
+      "email": "eueu@jwj.jsj",
+      "passwordHash": "",
+      "role": "user",
+      "plan": "free",
+      "subscriptionDurationDays": 30,
+      "subscriptionStatus": "none",
+      "proExpiresAt": null,
+      "pdfOperationsUsed": 0,
+      "aiQueriesUsed": 0,
+      "id": "user_1794932202531_ojhv0",
+      "createdAt": "2026-11-17T16:16:42.531Z",
+      "updatedAt": "2026-11-17T16:16:42.531Z"
+    },
+    {
+      "name": "Test User",
+      "email": "testuser@example.com",
+      "passwordHash": "",
+      "role": "user",
+      "plan": "free",
+      "subscriptionDurationDays": 30,
+      "subscriptionStatus": "none",
+      "proExpiresAt": null,
+      "pdfOperationsUsed": 0,
+      "aiQueriesUsed": 0,
+      "id": "user_1794932365839_o4dsg",
+      "createdAt": "2026-11-17T16:19:25.839Z",
+      "updatedAt": "2026-11-17T16:19:25.839Z"
     }
   ],
   "documents": [

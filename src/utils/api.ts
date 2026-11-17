@@ -149,6 +149,19 @@ class ApiService {
     return res;
   }
 
+  async syncAccountSession(name: string, email: string): Promise<{ token: string; user: User }> {
+    const cleanEmail = email.trim().toLowerCase();
+    this.setUserEmail(cleanEmail);
+    const res = await this.request<{ token: string; user: User }>('/api/auth/account-sync', {
+      method: 'POST',
+      body: JSON.stringify({ name: name.trim(), email: cleanEmail }),
+    });
+    if (res.token) {
+      this.setToken(res.token);
+    }
+    return res;
+  }
+
   async login(email: string, password: string): Promise<{ token: string; user: User }> {
     this.setUserEmail(email);
     const res = await this.request<{ token: string; user: User }>('/api/auth/login', {
@@ -178,6 +191,7 @@ class ApiService {
 
   logout() {
     this.setToken(null);
+    this.setUserEmail(null);
   }
 
   // Profile & History

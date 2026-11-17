@@ -203,9 +203,46 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     setFiles(copy);
   };
 
-  // Generate a sample PDF file directly in the browser so users can test immediately!
+  // Generate a crisp sample file directly in the browser (PNG images for image-to-pdf, PDF otherwise)
   const loadSamplePdf = async () => {
     try {
+      if (toolId === 'image-to-pdf') {
+        const makeSampleImage = (index: number, accentHex: string): Promise<File> =>
+          new Promise((resolve) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = 794;
+            canvas.height = 1123;
+            const ctx = canvas.getContext('2d')!;
+            ctx.fillStyle = '#FFF4F8';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#FFFFFF';
+            ctx.fillRect(48, 48, canvas.width - 96, canvas.height - 96);
+            ctx.strokeStyle = accentHex;
+            ctx.lineWidth = 4;
+            ctx.strokeRect(48, 48, canvas.width - 96, canvas.height - 96);
+            ctx.fillStyle = accentHex;
+            ctx.font = 'bold 34px Georgia, serif';
+            ctx.fillText(`Omini PDF Sample Scan ${index}`, 90, 140);
+            ctx.fillStyle = '#24212A';
+            ctx.font = '22px Georgia, serif';
+            ctx.fillText(`High-Resolution Sample Image #${index} (Ready for PDF Conversion)`, 90, 200);
+            ctx.fillStyle = '#77717B';
+            ctx.font = '18px sans-serif';
+            ctx.fillText(`Dimensions: 794 x 1123 px (A4 Aspect Ratio)`, 90, 250);
+            canvas.toBlob((blob) => {
+              resolve(new File([blob || new Blob()], `Sample_Scan_${index}.png`, { type: 'image/png' }));
+            }, 'image/png');
+          });
+        const [img1, img2] = await Promise.all([
+          makeSampleImage(1, '#E83E8C'),
+          makeSampleImage(2, '#C92B72'),
+        ]);
+        setFiles([img1, img2]);
+        setResult(null);
+        setError(null);
+        return;
+      }
+
       const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
       const doc = await PDFDocument.create();
       const font = await doc.embedFont(StandardFonts.Helvetica);
@@ -549,7 +586,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-slate-200 hover:border-rose-300 text-slate-700 hover:text-rose-600 shadow-2xs transition-colors flex items-center gap-1.5"
               >
                 <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-                <span>Load Sample PDF</span>
+                <span>{toolId === 'image-to-pdf' ? 'Load Sample Images' : 'Load Sample PDF'}</span>
               </button>
             </div>
           </div>
@@ -613,11 +650,12 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       <button
                         type="button"
                         onClick={() => setPreviewTarget({ file, name: file.name })}
-                        className="p-1 rounded-md text-slate-400 hover:text-[#E83E8C] hover:bg-[#FFE3EE] cursor-pointer"
-                        title="Preview Document"
-                        aria-label="Preview document"
+                        className="px-2 py-1 rounded-md text-[#E83E8C] bg-[#FFF4F8] border border-[#FFE3EE] hover:bg-[#FFE3EE] font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                        title={`Preview ${file.name}`}
+                        aria-label={`Preview ${file.name}`}
                       >
-                        <Eye className="w-4 h-4" />
+                        <Eye className="w-3.5 h-3.5" />
+                        <span className="hidden xs:inline">Preview</span>
                       </button>
                       <button
                         type="button"
@@ -1284,7 +1322,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               </p>
 
               {onOpenHistory && (
-                <div className="mt-3 flex justify-center">
+                <div className="mt-3 flex flex-col items-center gap-1 text-center">
                   <button
                     type="button"
                     onClick={onOpenHistory}
@@ -1292,6 +1330,25 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   >
                     Saved to History • View All Operations →
                   </button>
+                  <p className="text-[11px] text-[#77717B]">
+                    {user ? (
+                      <>
+                        Saved to your <strong className="text-[#24212A]">Account History</strong> ({user.email}).
+                      </>
+                    ) : (
+                      <>
+                        Saved in <strong className="text-[#24212A]">Browser Local Storage</strong>.{' '}
+                        <button
+                          type="button"
+                          onClick={() => onRequireAuth('Optional: Sign in to save your PDF history to your Account.')}
+                          className="text-[#E83E8C] font-semibold hover:underline cursor-pointer"
+                        >
+                          Sign in (optional)
+                        </button>{' '}
+                        to save to your account.
+                      </>
+                    )}
+                  </p>
                 </div>
               )}
 

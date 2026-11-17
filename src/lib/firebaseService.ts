@@ -7,6 +7,8 @@ import {
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signOut,
   onAuthStateChanged,
   User as FirebaseUser,
@@ -45,46 +47,23 @@ export function isUserAdmin(email?: string | null): boolean {
 }
 
 /**
- * Sync or create user profile in Firestore
+ * Sync or create user profile in Firestore (with safe auth fallback if Firestore fails)
  */
 export async function syncUserProfile(
   fbUser: FirebaseUser,
   additionalData?: { name?: string }
 ): Promise<User> {
-  const userRef = doc(db, 'users', fbUser.uid);
-  const userSnap = await getDoc(userRef);
-
   const email = (fbUser.email || '').trim().toLowerCase();
   const isAdmin = isUserAdmin(email);
   const nowIso = new Date().toISOString();
-
-  if (userSnap.exists()) {
-    const existing = userSnap.data() as User;
-    // If user is designated admin but role isn't admin yet, elevate privileges
-    if (isAdmin && (existing.role !== 'admin' || existing.plan !== 'pro')) {
-      const update = {
-        role: 'admin' as const,
-        plan: 'pro' as const,
-        subscriptionStatus: 'active' as const,
-        subscriptionDurationDays: 365,
-        proExpiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
-        updatedAt: nowIso,
-      };
-      await updateDoc(userRef, update);
-      return { ...existing, ...update, id: fbUser.uid };
-    }
-    return { ...existing, id: fbUser.uid };
-  }
-
-  // Create new profile in Firestore
-  const name =
+  const fallbackName =
     additionalData?.name ||
     fbUser.displayName ||
     (email ? email.split('@')[0] : 'PDF User');
 
-  const newUser: User = {
+  const fallbackUser: User = {
     id: fbUser.uid,
-    name,
+    name: fallbackName,
     email,
     role: isAdmin ? 'admin' : 'user',
     plan: isAdmin ? 'pro' : 'free',
@@ -98,13 +77,37 @@ export async function syncUserProfile(
     updatedAt: nowIso,
   };
 
-  await setDoc(userRef, {
-    ...newUser,
-    firestoreCreatedAt: serverTimestamp(),
-    firestoreUpdatedAt: serverTimestamp(),
-  });
+  try {
+    const userRef = doc(db, 'users', fbUser.uid);
+    const userSnap = await getDoc(userRef);
 
-  return newUser;
+    if (userSnap.exists()) {
+      const existing = userSnap.data() as User;
+      if (isAdmin && (existing.role !== 'admin' || existing.plan !== 'pro')) {
+        const update = {
+          role: 'admin' as const,
+          plan: 'pro' as const,
+          subscriptionStatus: 'active' as const,
+          subscriptionDurationDays: 365,
+          proExpiresAt: new Date(Date.now() + 365 * 86400000).toISOString(),
+          updatedAt: nowIso,
+        };
+        await updateDoc(userRef, update).catch(() => {});
+        return { ...existing, ...update, id: fbUser.uid };
+      }
+      return { ...existing, id: fbUser.uid };
+    }
+
+    await setDoc(userRef, {
+      ...fallbackUser,
+      firestoreCreatedAt: serverTimestamp(),
+      firestoreUpdatedAt: serverTimestamp(),
+    });
+  } catch (firestoreErr) {
+    console.warn('Firestore profile sync skipped (continuing with Firebase Auth profile):', firestoreErr);
+  }
+
+  return fallbackUser;
 }
 
 /**
@@ -136,12 +139,38 @@ export async function loginWithEmail(
 }
 
 /**
- * Login / Sign Up with Google
+ * Login / Sign Up with Google (popup with redirect fallback if popup blocked outside iframe)
  */
-export async function loginWithGoogle(): Promise<{ user: User }> {
-  const cred = await signInWithPopup(auth, googleProvider);
-  const user = await syncUserProfile(cred.user);
-  return { user };
+export async function loginWithGoogle(): Promise<{ user?: User; redirected?: boolean }> {
+  try {
+    const cred = await signInWithPopup(auth, googleProvider);
+    const user = await syncUserProfile(cred.user);
+    return { user };
+  } catch (err: unknown) {
+    const code = (err as { code?: string })?.code || '';
+    const isInsideIframe = typeof window !== 'undefined' && window.self !== window.top;
+    if (code === 'auth/popup-blocked' && !isInsideIframe) {
+      await signInWithRedirect(auth, googleProvider);
+      return { redirected: true };
+    }
+    throw err;
+  }
+}
+
+/**
+ * Resolve any pending Google redirect login result on page load
+ */
+export async function checkGoogleRedirectResult(): Promise<User | null> {
+  try {
+    const res = await getRedirectResult(auth);
+    if (res?.user) {
+      return await syncUserProfile(res.user);
+    }
+    return null;
+  } catch (err) {
+    console.warn('Google redirect result check notice:', err);
+    return null;
+  }
 }
 
 /**

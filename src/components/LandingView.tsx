@@ -96,7 +96,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
     },
     {
       q: 'Do I need to create an account or pay anything to download PDFs?',
-      a: 'No account or payment is required to use any PDF tool or download your processed files. Signing in with Google is completely optional and only used if you want to save your document history.',
+      a: 'No account or payment is required. Login is 100% optional: if you sign in, your PDF history saves to your Account; if you continue without logging in, your history saves automatically in your Browser Local Storage.',
     },
     {
       q: 'Can I split PDFs into individual pages or custom page ranges?',
@@ -156,7 +156,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </div>
 
           {/* Trust Bar */}
-          <div className="mt-12 pt-8 border-t border-[#FFE3EE] flex flex-wrap items-center justify-center gap-6 sm:gap-12 text-xs font-serif font-semibold italic text-[#77717B]">
+          <div className="mt-12 pt-8 border-t border-[#FFE3EE] flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs font-serif font-semibold italic text-[#77717B]">
             <div className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-[#1FA971]" />
               <span>Strict Privacy &amp; AES-256</span>
@@ -167,7 +167,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
             </div>
             <div className="flex items-center gap-1.5">
               <InfinityIcon className="w-4 h-4 text-[#C92B72]" />
-              <span>Unlimited Free Operations</span>
+              <span>No Login Required • Local or Account History</span>
             </div>
           </div>
 

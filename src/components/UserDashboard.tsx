@@ -29,6 +29,7 @@ import {
   deleteLocalHistoryItem,
   clearLocalHistory,
   getSessionHistoryFile,
+  hydrateHistoryBlobs,
 } from '../utils/historyStore.js';
 import { PdfPreviewModal } from './PdfPreviewModal.js';
 import { MonetagDownloadLink } from './MonetagDownloadLink.js';
@@ -69,6 +70,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
     const localDocs = getLocalHistory();
 
     if (!user?.id) {
+      await hydrateHistoryBlobs(localDocs);
       setHistory(localDocs);
       setLoading(false);
       return;
@@ -76,17 +78,19 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
     try {
       const { getUserHistoryFromFirestore } = await import('../lib/firebaseService.js');
-      const firestoreDocs = await getUserHistoryFromFirestore(user.id).catch(() => []);
-      if (firestoreDocs && firestoreDocs.length > 0) {
-        setHistory(mergeHistoryLists(localDocs, firestoreDocs));
-        setLoading(false);
-        return;
-      }
+      const [firestoreDocs, apiRes] = await Promise.all([
+        getUserHistoryFromFirestore(user.id).catch(() => []),
+        api.getHistory().catch(() => ({ history: [] })),
+      ]);
 
-      const res = await api.getHistory().catch(() => ({ history: [] }));
-      setHistory(mergeHistoryLists(localDocs, res.history || []));
+      const firestoreSafeArray = Array.isArray(firestoreDocs) ? firestoreDocs : [];
+      const combinedCloud = [...firestoreSafeArray, ...(apiRes?.history || [])];
+      const merged = mergeHistoryLists(localDocs, combinedCloud);
+      await hydrateHistoryBlobs(merged);
+      setHistory(merged);
     } catch (err) {
       console.warn('History load notice:', err);
+      await hydrateHistoryBlobs(localDocs);
       setHistory(localDocs);
     } finally {
       setLoading(false);
@@ -181,7 +185,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                   </span>
                   <span className="flex items-center gap-1">
                     <Shield className="w-3.5 h-3.5 text-[#1FA971]" />
-                    Cloud + Browser Sync Active
+                    Saved to Your Account ({user.email})
                   </span>
                 </div>
               </div>
@@ -189,7 +193,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
 
             <div className="px-4 py-2 rounded-xl bg-white/10 border border-white/20 text-rose-100 text-xs font-semibold flex items-center gap-1.5 self-start md:self-auto">
               <InfinityIcon className="w-4 h-4 text-[#E83E8C] shrink-0" />
-              <span>All 11 PDF Tools Unlocked — Forever Free</span>
+              <span>Account History Active • 100% Free</span>
             </div>
           </div>
         </div>
@@ -204,12 +208,13 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
                 <div className="flex flex-wrap items-center gap-2">
                   <h1 className="text-xl sm:text-2xl font-black tracking-tight">PDF Processing History</h1>
                   <span className="px-2.5 py-0.5 rounded-full text-[11px] font-bold bg-[#1FA971] text-white">
-                    Saved Automatically
+                    Saved in Local Storage
                   </span>
                 </div>
-                <p className="text-xs text-slate-300 mt-1 max-w-xl">
-                  Every PDF you merge, compress, number, watermark, or convert is saved here automatically in your browser.
-                  Sign in anytime to sync history across devices.
+                <p className="text-xs text-slate-300 mt-1 max-w-xl leading-relaxed">
+                  <strong>Login is optional:</strong> Without signing in, your PDF history saves automatically in your{' '}
+                  <strong>Browser Local Storage</strong>. If you sign in, your history saves to your{' '}
+                  <strong>Account</strong>.
                 </p>
               </div>
             </div>
@@ -217,11 +222,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             {onOpenAuth && (
               <button
                 type="button"
-                onClick={() => onOpenAuth('login', 'Sign in with Google to sync your PDF history across devices.')}
+                onClick={() => onOpenAuth('login', 'Optional: Sign in to save your PDF processing history to your Account.')}
                 className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#E83E8C] to-[#C92B72] hover:brightness-110 shadow-md transition-all cursor-pointer shrink-0 self-start md:self-auto"
               >
                 <LogIn className="w-4 h-4" />
-                <span>Sync with Google</span>
+                <span>Sign In to Save to Account</span>
               </button>
             )}
           </div>
@@ -237,7 +242,9 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
               <span>Recent PDF Operations ({history.length})</span>
             </h2>
             <p className="text-xs text-[#77717B] mt-0.5">
-              Recent files processed in this session can be previewed or re-downloaded directly.
+              {user
+                ? 'Signed in: History is saved to your Account and cached locally so files stay previewable.'
+                : 'Guest Mode: History is saved in Browser Local Storage so processed files stay previewable & downloadable.'}
             </p>
           </div>
 

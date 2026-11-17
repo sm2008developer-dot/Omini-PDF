@@ -141,8 +141,14 @@ export default function App() {
 
     const startFirebaseListener = async () => {
       try {
-        const { subscribeToAuth } = await import('./lib/firebaseService.js');
+        const { subscribeToAuth, checkGoogleRedirectResult } = await import('./lib/firebaseService.js');
         if (!isMounted) return;
+        const redirectedUser = await checkGoogleRedirectResult();
+        if (redirectedUser && isMounted) {
+          setUser(redirectedUser);
+          api.setUserEmail(redirectedUser.email);
+          api.syncFirebaseSession(redirectedUser).catch(() => {});
+        }
         unsubscribeFirebase = subscribeToAuth(async (fbUser) => {
           if (fbUser && isMounted) {
             setUser(fbUser);

@@ -78,7 +78,7 @@ export async function splitPdfFile(
   if (mode === 'all') {
     // Extract each page into an individual PDF and package into a ZIP
     const zip = new JSZip();
-    const extraFiles: { name: string; url: string; size: number }[] = [];
+    const extraFiles: { name: string; url: string; size: number; blob: Blob }[] = [];
 
     for (let i = 0; i < totalPages; i++) {
       const singleDoc = await PDFDocument.create();
@@ -94,6 +94,7 @@ export async function splitPdfFile(
         name: pageName,
         url: URL.createObjectURL(pageBlob),
         size: pageBlob.size,
+        blob: pageBlob,
       });
     }
 
@@ -167,25 +168,17 @@ export async function compressPdfFile(
     compressedPdf.setCreator('Omini PDF');
   }
 
-  // Save with object streams enabled
+  // Save with object streams enabled (never truncate raw PDF bytes or it breaks xref & preview)
   const pdfBytes = await compressedPdf.save({
     useObjectStreams: true,
+    addDefaultPage: false,
   });
 
-  // Calculate actual compression or simulate standard compression ratio if source was already compact
-  let finalBytes = pdfBytes;
-  if (pdfBytes.length >= originalSize) {
-    // If pdf-lib rebuilding did not yield smaller bytes due to pre-existing compression,
-    // apply simulated reduction proportional to compression level
-    const reductionFactor = level === 'extreme' ? 0.58 : level === 'recommended' ? 0.72 : 0.85;
-    const targetSize = Math.floor(originalSize * reductionFactor);
-    finalBytes = pdfBytes.slice(0, targetSize > 200 ? targetSize : pdfBytes.length);
-  }
-
+  const finalBytes = pdfBytes;
   const blob = new Blob([finalBytes as unknown as BlobPart], { type: 'application/pdf' });
   const downloadUrl = URL.createObjectURL(blob);
   const savedBytes = Math.max(0, originalSize - blob.size);
-  const savedPercent = Math.min(99, Math.round((savedBytes / originalSize) * 100));
+  const savedPercent = originalSize > 0 ? Math.min(99, Math.round((savedBytes / originalSize) * 100)) : 0;
 
   return {
     blob,
@@ -468,7 +461,7 @@ export async function pdfToImages(
   const totalPages = pdf.numPages;
 
   const zip = new JSZip();
-  const extraFiles: { name: string; url: string; size: number }[] = [];
+  const extraFiles: { name: string; url: string; size: number; blob: Blob }[] = [];
 
   for (let i = 1; i <= totalPages; i++) {
     const page = await pdf.getPage(i);
@@ -504,6 +497,7 @@ export async function pdfToImages(
       name: imgName,
       url: fileUrl,
       size: blob.size,
+      blob,
     });
 
     zip.file(imgName, blob);

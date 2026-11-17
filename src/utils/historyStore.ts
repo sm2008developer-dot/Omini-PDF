@@ -9,6 +9,11 @@ import type { DocumentHistory } from './api.js';
 export const HISTORY_STORAGE_KEY = 'omini_pdf_history_v1';
 export const MAX_LOCAL_HISTORY_ITEMS = 50;
 
+const IDB_NAME = 'omini_pdf_history_blobs_v1';
+const IDB_STORE = 'files';
+const MAX_IDB_BLOB_BYTES = 12 * 1024 * 1024; // 12 MB cap per item
+const MAX_IDB_ITEMS = 20;
+
 export interface LocalHistoryEntry extends DocumentHistory {
   toolId?: ToolId;
   outputFileName?: string;
@@ -23,6 +28,130 @@ export interface SessionCachedFile {
 }
 
 const sessionFileCache = new Map<string, SessionCachedFile>();
+
+interface StoredBlobRecord {
+  id: string;
+  fileName: string;
+  blob: Blob;
+  savedAt: number;
+}
+
+function openBlobDb(): Promise<IDBDatabase | null> {
+  if (typeof window === 'undefined' || !window.indexedDB) {
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    try {
+      const req = window.indexedDB.open(IDB_NAME, 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains(IDB_STORE)) {
+          db.createObjectStore(IDB_STORE, { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => resolve(null);
+    } catch {
+      resolve(null);
+    }
+  });
+}
+
+async function saveBlobToIndexedDb(id: string, fileName: string, blob: Blob): Promise<void> {
+  if (blob.size > MAX_IDB_BLOB_BYTES) return;
+  const db = await openBlobDb();
+  if (!db) return;
+  try {
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      const store = tx.objectStore(IDB_STORE);
+      store.put({ id, fileName, blob, savedAt: Date.now() } as StoredBlobRecord);
+
+      // Trim oldest items beyond MAX_IDB_ITEMS
+      const allReq = store.getAll();
+      allReq.onsuccess = () => {
+        const records = (allReq.result || []) as StoredBlobRecord[];
+        if (records.length > MAX_IDB_ITEMS) {
+          records.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
+          for (const stale of records.slice(MAX_IDB_ITEMS)) {
+            store.delete(stale.id);
+          }
+        }
+      };
+
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function deleteBlobFromIndexedDb(id: string): Promise<void> {
+  const db = await openBlobDb();
+  if (!db) return;
+  try {
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).delete(id);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } finally {
+    db.close();
+  }
+}
+
+async function clearIndexedDbBlobs(): Promise<void> {
+  const db = await openBlobDb();
+  if (!db) return;
+  try {
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readwrite');
+      tx.objectStore(IDB_STORE).clear();
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } finally {
+    db.close();
+  }
+}
+
+/**
+ * Hydrates in-memory sessionFileCache from IndexedDB so Preview & Download buttons
+ * in History keep working even after full page reloads.
+ */
+export async function hydrateHistoryBlobs(entries: LocalHistoryEntry[]): Promise<void> {
+  const missingIds = entries.filter((e) => !sessionFileCache.has(e.id)).map((e) => e.id);
+  if (missingIds.length === 0) return;
+
+  const db = await openBlobDb();
+  if (!db) return;
+
+  try {
+    await new Promise<void>((resolve) => {
+      const tx = db.transaction(IDB_STORE, 'readonly');
+      const store = tx.objectStore(IDB_STORE);
+      for (const id of missingIds) {
+        const req = store.get(id);
+        req.onsuccess = () => {
+          const rec = req.result as StoredBlobRecord | undefined;
+          if (rec?.blob) {
+            sessionFileCache.set(id, {
+              blob: rec.blob,
+              fileName: rec.fileName,
+              downloadUrl: URL.createObjectURL(rec.blob),
+            });
+          }
+        };
+      }
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => resolve();
+    });
+  } finally {
+    db.close();
+  }
+}
 
 export function parseHistoryJson(raw: string | null): LocalHistoryEntry[] {
   if (!raw) return [];
@@ -169,6 +298,7 @@ export function deleteLocalHistoryItem(id: string): LocalHistoryEntry[] {
   const updated = removeHistoryItemById(getLocalHistory(), id);
   saveLocalHistory(updated);
   sessionFileCache.delete(id);
+  void deleteBlobFromIndexedDb(id);
   return updated;
 }
 
@@ -181,6 +311,7 @@ export function clearLocalHistory(): void {
     }
   }
   sessionFileCache.clear();
+  void clearIndexedDbBlobs();
 }
 
 export function cacheSessionHistoryFile(id: string, file: SessionCachedFile): void {
@@ -190,6 +321,7 @@ export function cacheSessionHistoryFile(id: string, file: SessionCachedFile): vo
     const oldestKey = sessionFileCache.keys().next().value;
     if (oldestKey) sessionFileCache.delete(oldestKey);
   }
+  void saveBlobToIndexedDb(id, file.fileName, file.blob);
 }
 
 export function getSessionHistoryFile(id: string): SessionCachedFile | undefined {
