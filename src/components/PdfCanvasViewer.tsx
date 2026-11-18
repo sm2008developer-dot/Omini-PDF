@@ -17,6 +17,7 @@ import {
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { MonetagDownloadLink } from './MonetagDownloadLink.js';
+import { canvasToBlob, loadImageElement } from '../utils/imageEngine.js';
 
 function ensurePdfWorker() {
   if (typeof window !== 'undefined' && pdfjsLib.GlobalWorkerOptions) {
@@ -96,6 +97,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
   const [showCheckerboard, setShowCheckerboard] = useState(true);
   const [containerWidth, setContainerWidth] = useState<number>(340);
   const [imageObjectUrl, setImageObjectUrl] = useState<string | null>(null);
+  const [fallbackImgUrl, setFallbackImgUrl] = useState<string | null>(null);
   const [internalExtra, setInternalExtra] = useState<PreviewExtraFile | null>(null);
 
   useEffect(() => {
@@ -103,6 +105,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
     setSubmittedPassword(undefined);
     setUnlockPassword('');
     setNeedsPassword(false);
+    setFallbackImgUrl(null);
   }, [file, fileUrl, fileName]);
 
   const activeFile = internalExtra ? internalExtra.blob || null : file;
@@ -521,8 +524,20 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
               }
             >
               <img
-                src={imageObjectUrl}
+                src={fallbackImgUrl || imageObjectUrl}
                 alt={fileName || 'Image Preview'}
+                onError={() => {
+                  if (!fallbackImgUrl && activeFile) {
+                    loadImageElement(activeFile)
+                      .then(({ img }) => canvasToBlob(img, 'png', 0.92))
+                      .then((pngBlob) => {
+                        setFallbackImgUrl(URL.createObjectURL(pngBlob));
+                      })
+                      .catch(() => {
+                        setError('Unable to decode this image preview in browser.');
+                      });
+                  }
+                }}
                 style={{
                   width: zoomMultiplier === 1 ? '100%' : `${Math.round(zoomMultiplier * 100)}%`,
                   maxWidth: zoomMultiplier <= 1 ? '100%' : 'none',

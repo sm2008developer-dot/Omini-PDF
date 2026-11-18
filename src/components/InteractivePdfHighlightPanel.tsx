@@ -317,9 +317,13 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
       <div className="overflow-auto bg-slate-100 rounded-xl p-2 sm:p-3 flex justify-center">
         <div
           ref={overlayRef}
-          onPointerDown={handlePointerDown}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+            handlePointerDown(e);
+          }}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
+          onPointerCancel={handlePointerUp}
           className="relative inline-block shadow-md rounded border border-slate-200 bg-white select-none touch-none cursor-crosshair"
         >
           <canvas ref={canvasRef} className="block max-w-full h-auto" />

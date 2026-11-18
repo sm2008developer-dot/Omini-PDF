@@ -12,8 +12,12 @@ import {
   buildBatchRenamePlan,
   clampCropRect,
   computeRatioCanvasDimensions,
+  NormalizedBrushStroke,
   NormalizedCropRect,
+  PhotoFilterPresetMath,
   processBackgroundRemovalPixels,
+  processEnhancePhotoPixels,
+  RgbColor,
 } from './imageMath.js';
 
 export type ImageOutputFormat = 'png' | 'jpeg' | 'webp';
@@ -33,27 +37,150 @@ function stripExt(name: string): string {
   return idx > 0 ? name.slice(0, idx) : name;
 }
 
+function rasterSourceToSafeCanvas(
+  source: CanvasImageSource,
+  rawWidth: number,
+  rawHeight: number,
+  maxSide = 4096
+): { canvas: HTMLCanvasElement; width: number; height: number } {
+  const srcW = Math.max(1, Math.round(rawWidth));
+  const srcH = Math.max(1, Math.round(rawHeight));
+  const scale = Math.max(srcW, srcH) > maxSide ? maxSide / Math.max(srcW, srcH) : 1;
+  const width = Math.max(1, Math.round(srcW * scale));
+  const height = Math.max(1, Math.round(srcH * scale));
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  if (!ctx) throw new Error('Canvas 2D context is not available.');
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = 'high';
+  ctx.drawImage(source, 0, 0, width, height);
+  return { canvas, width, height };
+}
+
+function fileToDataUrl(file: File | Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('FileReader did not return data URL.'));
+    };
+    reader.onerror = () => reject(new Error('Failed reading image bytes.'));
+    reader.readAsDataURL(file);
+  });
+}
+
+async function decodeViaHtmlImage(srcUrl: string): Promise<{ canvas: HTMLCanvasElement; width: number; height: number }> {
+  const img = new Image();
+  await new Promise<void>((resolve, reject) => {
+    img.onload = () => resolve();
+    img.onerror = () => reject(new Error('HTMLImageElement failed decoding image.'));
+    img.src = srcUrl;
+  });
+  if (typeof img.decode === 'function') {
+    try {
+      await img.decode();
+    } catch {
+      // Some SVG/PNG streams resolve onload cleanly even if decode() rejects; drawImage still works if naturalWidth > 0
+    }
+  }
+  const w = img.naturalWidth || img.width;
+  const h = img.naturalHeight || img.height;
+  if (!w || !h) {
+    throw new Error('Decoded image has zero dimensions.');
+  }
+  return rasterSourceToSafeCanvas(img, w, h);
+}
+
+/**
+ * Bulletproof 3-tier client-side image decoder returning an in-memory HTMLCanvasElement:
+ * Tier 1: createImageBitmap (handles EXIF orientation & huge mobile photos without blob URL races)
+ * Tier 2: HTMLImageElement via ObjectURL & FileReader DataURL (rasterized BEFORE revoking URL)
+ * Tier 3: Pure-JS UPNG.decode fallback (handles 16-bit/unusual PNGs that native Chromium rejects)
+ */
 export async function loadImageElement(file: File | Blob): Promise<{
-  img: HTMLImageElement;
+  img: HTMLCanvasElement;
   width: number;
   height: number;
 }> {
+  // Tier 1: createImageBitmap
+  if (typeof createImageBitmap === 'function') {
+    let bitmap: ImageBitmap | null = null;
+    try {
+      try {
+        bitmap = await createImageBitmap(file, { imageOrientation: 'from-image' });
+      } catch {
+        bitmap = await createImageBitmap(file);
+      }
+      if (bitmap && bitmap.width > 0 && bitmap.height > 0) {
+        const res = rasterSourceToSafeCanvas(bitmap, bitmap.width, bitmap.height);
+        return { img: res.canvas, width: res.width, height: res.height };
+      }
+    } catch {
+      // Fall through to Tier 2
+    } finally {
+      try {
+        bitmap?.close();
+      } catch {
+        // ignore
+      }
+    }
+  }
+
+  // Tier 2a: ObjectURL + decode + immediate canvas copy before revoke
   const url = URL.createObjectURL(file);
   try {
-    const img = new Image();
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error('Unable to decode image file.'));
-      img.src = url;
-    });
-    return {
-      img,
-      width: img.naturalWidth || img.width || 800,
-      height: img.naturalHeight || img.height || 600,
-    };
+    const res = await decodeViaHtmlImage(url);
+    return { img: res.canvas, width: res.width, height: res.height };
+  } catch {
+    // Fall through
   } finally {
     URL.revokeObjectURL(url);
   }
+
+  // Tier 2b: FileReader DataURL (helps on mobile WebView/Android content:// blobs)
+  try {
+    const dataUrl = await fileToDataUrl(file);
+    const res = await decodeViaHtmlImage(dataUrl);
+    return { img: res.canvas, width: res.width, height: res.height };
+  } catch {
+    // Fall through to Tier 3
+  }
+
+  // Tier 3: Pure-JS PNG decoder (UPNG) for tricky/16-bit/non-standard PNGs
+  try {
+    const buf = await file.arrayBuffer();
+    const bytes = new Uint8Array(buf);
+    const isPngSig =
+      bytes.length > 8 &&
+      bytes[0] === 0x89 &&
+      bytes[1] === 0x50 &&
+      bytes[2] === 0x4e &&
+      bytes[3] === 0x47;
+    if (isPngSig) {
+      const decoded = UPNG.decode(buf);
+      const frames = UPNG.toRGBA8(decoded);
+      if (frames && frames.length > 0 && decoded.width > 0 && decoded.height > 0) {
+        const rgba = new Uint8ClampedArray(frames[0]);
+        const tmp = document.createElement('canvas');
+        tmp.width = decoded.width;
+        tmp.height = decoded.height;
+        const tctx = tmp.getContext('2d', { willReadFrequently: true });
+        if (tctx) {
+          tctx.putImageData(new ImageData(rgba, decoded.width, decoded.height), 0, 0);
+          const safe = rasterSourceToSafeCanvas(tmp, decoded.width, decoded.height);
+          return { img: safe.canvas, width: safe.width, height: safe.height };
+        }
+      }
+    }
+  } catch {
+    // Fall through to descriptive error
+  }
+
+  throw new Error(
+    'Unable to decode this image file. It may be HEIC/RAW or corrupted — please try a standard PNG, JPG, or WebP photo.'
+  );
 }
 
 export async function canvasToBlob(
@@ -339,15 +466,7 @@ export async function resizeAndConvertImage(
 /**
  * 3. PHOTO EDITOR: Crop, Rotate, Flip, Filters & Color Adjustments (Pure pixel math)
  */
-export type PhotoFilterPreset =
-  | 'original'
-  | 'bw'
-  | 'sepia'
-  | 'vivid'
-  | 'warm'
-  | 'cool'
-  | 'vintage'
-  | 'high-contrast';
+export type PhotoFilterPreset = PhotoFilterPresetMath;
 
 export interface PhotoEditOptions {
   crop?: NormalizedCropRect;
@@ -520,7 +639,7 @@ export async function highlightPhotoFile(
 }
 
 /**
- * 5. REMOVE BACKGROUND: Shared perceptual YCbCr edge flood-fill + chroma key + defringe (NO AI)
+ * 5. REMOVE BACKGROUND: Shared perceptual YCbCr edge-barrier flood-fill + chroma key + touch-up masks (NO AI)
  */
 export async function removeBackgroundAlgorithmic(
   file: File,
@@ -528,7 +647,11 @@ export async function removeBackgroundAlgorithmic(
     tolerance?: number; // 8 - 110
     feather?: number; // 0 - 30
     mode?: 'flood-edges' | 'global-color';
-    sampleColor?: { r: number; g: number; b: number } | null;
+    sampleColor?: RgbColor | null;
+    sampleColors?: RgbColor[];
+    edgeBarrier?: boolean;
+    keepStrokes?: NormalizedBrushStroke[];
+    eraseStrokes?: NormalizedBrushStroke[];
     bgFill?: 'transparent' | string;
     format?: ImageOutputFormat;
   }
@@ -550,10 +673,14 @@ export async function removeBackgroundAlgorithmic(
 
   const imgData = ctx.getImageData(0, 0, width, height);
   const { removedCount } = processBackgroundRemovalPixels(imgData.data, width, height, {
-    tolerance: options.tolerance ?? 42,
-    feather: options.feather ?? 12,
+    tolerance: options.tolerance ?? 38,
+    feather: options.feather ?? 10,
     mode: options.mode || 'flood-edges',
     sampleColor: options.sampleColor ?? null,
+    sampleColors: options.sampleColors,
+    edgeBarrier: options.edgeBarrier !== false,
+    keepStrokes: options.keepStrokes,
+    eraseStrokes: options.eraseStrokes,
   });
 
   ctx.putImageData(imgData, 0, 0);
@@ -581,13 +708,13 @@ export async function removeBackgroundAlgorithmic(
     fileSize: blob.size,
     pageCount: 1,
     summary: `Removed background (${pctRemoved}% pixels cleared) using client-side ${
-      options.mode === 'global-color' ? 'chroma key' : 'edge flood-fill'
+      options.mode === 'global-color' ? 'chroma key' : 'edge-aware flood-fill'
     }.`,
   };
 }
 
 /**
- * 6. PHOTO ENHANCE & SHARPEN: Histogram auto-levels + unsharp mask kernel + vibrance (NO AI)
+ * 6. PHOTO ENHANCE & SHARPEN: Adaptive Auto-Levels, Gamma Lift, Document Cleanup & Multi-Pixel Unsharp Mask (NO AI)
  */
 export async function enhancePhotoAlgorithmic(
   file: File,
@@ -610,123 +737,25 @@ export async function enhancePhotoAlgorithmic(
   const preset = options.preset || 'auto';
   const sharpenAmt =
     options.sharpen ??
-    (preset === 'document' ? 75 : preset === 'portrait' ? 35 : preset === 'vivid' ? 50 : 55);
+    (preset === 'document' ? 80 : preset === 'portrait' ? 40 : preset === 'vivid' ? 60 : 62);
   const autoContrastAmt =
     options.autoContrast ??
-    (preset === 'document' ? 85 : preset === 'portrait' ? 45 : preset === 'vivid' ? 65 : 65);
+    (preset === 'document' ? 88 : preset === 'portrait' ? 50 : preset === 'vivid' ? 72 : 70);
   const vibranceAmt =
     options.vibrance ??
-    (preset === 'document' ? 10 : preset === 'portrait' ? 28 : preset === 'vivid' ? 65 : 35);
-  const brightnessVal = options.brightness ?? (preset === 'document' ? 8 : 4);
-  const denoiseAmt = options.denoise ?? (preset === 'portrait' ? 30 : 12);
+    (preset === 'document' ? 12 : preset === 'portrait' ? 32 : preset === 'vivid' ? 70 : 40);
+  const brightnessVal = options.brightness ?? (preset === 'document' ? 6 : 4);
+  const denoiseAmt = options.denoise ?? (preset === 'portrait' ? 34 : 12);
 
   const imgData = ctx.getImageData(0, 0, width, height);
-  const src = new Uint8ClampedArray(imgData.data);
-  const data = imgData.data;
-
-  // Step A: Build luminance histogram (1% - 99% bounds for deterministic auto-levels)
-  const hist = new Uint32Array(256);
-  const totalPixels = width * height;
-  for (let i = 0; i < data.length; i += 4) {
-    const lum = Math.min(255, Math.round(0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2]));
-    hist[lum]++;
-  }
-
-  let lowClip = 0;
-  let highClip = 255;
-  let acc = 0;
-  const lowThresh = totalPixels * 0.015;
-  const highThresh = totalPixels * 0.985;
-  for (let l = 0; l < 256; l++) {
-    acc += hist[l];
-    if (acc < lowThresh) lowClip = l;
-    if (acc >= highThresh && highClip === 255) highClip = l;
-  }
-  const span = Math.max(24, highClip - lowClip);
-  const contrastBlend = Math.max(0, Math.min(1, autoContrastAmt / 100));
-
-  // Step B: Mild spatial denoise blend + Auto-Levels + Brightness + Vibrance
-  const denoiseBlend = Math.max(0, Math.min(0.45, (denoiseAmt / 100) * 0.45));
-  const vibBoost = Math.max(0, vibranceAmt / 100) * 0.8;
-  const brightShift = brightnessVal * 1.4;
-
-  const working = new Uint8ClampedArray(src.length);
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      let r = src[idx];
-      let g = src[idx + 1];
-      let b = src[idx + 2];
-
-      if (denoiseBlend > 0 && x > 0 && x < width - 1 && y > 0 && y < height - 1) {
-        const up = idx - width * 4;
-        const dn = idx + width * 4;
-        const lf = idx - 4;
-        const rt = idx + 4;
-        const avgR = (src[up] + src[dn] + src[lf] + src[rt] + r) / 5;
-        const avgG = (src[up + 1] + src[dn + 1] + src[lf + 1] + src[rt + 1] + g) / 5;
-        const avgB = (src[up + 2] + src[dn + 2] + src[lf + 2] + src[rt + 2] + b) / 5;
-        r = r * (1 - denoiseBlend) + avgR * denoiseBlend;
-        g = g * (1 - denoiseBlend) + avgG * denoiseBlend;
-        b = b * (1 - denoiseBlend) + avgB * denoiseBlend;
-      }
-
-      if (contrastBlend > 0) {
-        const sr = ((r - lowClip) / span) * 255;
-        const sg = ((g - lowClip) / span) * 255;
-        const sb = ((b - lowClip) / span) * 255;
-        r = r * (1 - contrastBlend) + sr * contrastBlend;
-        g = g * (1 - contrastBlend) + sg * contrastBlend;
-        b = b * (1 - contrastBlend) + sb * contrastBlend;
-      }
-
-      r += brightShift;
-      g += brightShift;
-      b += brightShift;
-
-      if (vibBoost > 0) {
-        const avg = (r + g + b) / 3;
-        const mx = Math.max(r, g, b);
-        const amt = ((Math.abs(mx - avg) * 2) / 255) * -vibBoost + vibBoost;
-        r += (r - avg) * amt;
-        g += (g - avg) * amt;
-        b += (b - avg) * amt;
-      }
-
-      working[idx] = Math.max(0, Math.min(255, r));
-      working[idx + 1] = Math.max(0, Math.min(255, g));
-      working[idx + 2] = Math.max(0, Math.min(255, b));
-      working[idx + 3] = src[idx + 3];
-    }
-  }
-
-  // Step C: 3x3 Unsharp Mask Convolution Sharpening Kernel
-  const sharpWeight = Math.max(0, Math.min(1.5, (sharpenAmt / 100) * 1.1));
-  for (let y = 0; y < height; y++) {
-    for (let x = 0; x < width; x++) {
-      const idx = (y * width + x) * 4;
-      if (sharpWeight > 0 && x > 0 && x < width - 1 && y > 0 && y < height - 1) {
-        const up = idx - width * 4;
-        const dn = idx + width * 4;
-        const lf = idx - 4;
-        const rt = idx + 4;
-        for (let c = 0; c < 3; c++) {
-          const lap =
-            4 * working[idx + c] -
-            working[up + c] -
-            working[dn + c] -
-            working[lf + c] -
-            working[rt + c];
-          data[idx + c] = Math.max(0, Math.min(255, working[idx + c] + lap * (sharpWeight * 0.45)));
-        }
-      } else {
-        data[idx] = working[idx];
-        data[idx + 1] = working[idx + 1];
-        data[idx + 2] = working[idx + 2];
-      }
-      data[idx + 3] = working[idx + 3];
-    }
-  }
+  processEnhancePhotoPixels(imgData.data, width, height, {
+    preset,
+    sharpen: sharpenAmt,
+    autoContrast: autoContrastAmt,
+    brightness: brightnessVal,
+    vibrance: vibranceAmt,
+    denoise: denoiseAmt,
+  });
 
   ctx.putImageData(imgData, 0, 0);
   const blob = await canvasToBlob(canvas, format, options.quality ?? 0.92);

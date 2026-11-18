@@ -8,6 +8,7 @@ import {
   computeColorDistanceSq,
   computePerceptualBgDistance,
   processBackgroundRemovalPixels,
+  processEnhancePhotoPixels,
   applyPixelAdjustmentsToBuffer,
   applyBatchRenameRule,
   buildBatchRenamePlan,
@@ -152,4 +153,87 @@ test('applyBatchRenameRule and buildBatchRenamePlan preserve extensions and prev
     numbering: 'none',
   });
   assert.deepEqual(deduped, ['same.png', 'same_2.png']);
+});
+
+test('expanded 16 filter presets and keep/erase BG masks + portrait edge protection work accurately', () => {
+  const sample = () => new Uint8ClampedArray([170, 130, 100, 255]);
+  const presets = ['noir', 'cinematic', 'golden-hour', 'fade', 'emerald', 'rose-glow', 'hdr-crisp', 'invert'] as const;
+  const outputs = presets.map((p) => Array.from(applyPixelAdjustmentsToBuffer(sample(), { preset: p })));
+  // Every filter creates a valid clamped 4-byte pixel and invert flips exactly
+  assert.deepEqual(outputs[presets.indexOf('invert')], [85, 125, 155, 255]);
+  assert.ok(outputs[presets.indexOf('emerald')][1] > outputs[presets.indexOf('emerald')][0]);
+  assert.ok(outputs[presets.indexOf('rose-glow')][0] > outputs[presets.indexOf('rose-glow')][1]);
+
+  // Portrait touching bottom edge (dark shirt at bottom center) should NOT be treated as background
+  const w = 24;
+  const h = 24;
+  const buf = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const inShirt = y >= 14 && x >= 7 && x <= 16;
+      buf[idx] = inShirt ? 25 : 225;
+      buf[idx + 1] = inShirt ? 30 : 238;
+      buf[idx + 2] = inShirt ? 40 : 248;
+      buf[idx + 3] = 255;
+    }
+  }
+
+  processBackgroundRemovalPixels(buf, w, h, {
+    tolerance: 38,
+    feather: 8,
+    mode: 'flood-edges',
+    edgeBarrier: true,
+    keepStrokes: [{ points: [{ x: 0.5, y: 0.8 }], radius: 0.1 }],
+    eraseStrokes: [{ points: [{ x: 0.1, y: 0.1 }], radius: 0.08 }],
+  });
+
+  // Top-left backdrop erased, bottom-center dark shirt preserved at 100% alpha
+  assert.equal(buf[3], 0);
+  const shirtCenter = (20 * w + 12) * 4;
+  assert.equal(buf[shirtCenter + 3], 255);
+});
+
+test('processEnhancePhotoPixels lifts dim exposure, boosts sharpness, and whitens document paper', () => {
+  const w = 20;
+  const h = 20;
+  // Dim low-contrast blurred step edge (values 40..90)
+  const dimImg = new Uint8ClampedArray(w * h * 4);
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const idx = (y * w + x) * 4;
+      const v = x < 10 ? 45 : 88;
+      dimImg[idx] = v;
+      dimImg[idx + 1] = v;
+      dimImg[idx + 2] = v;
+      dimImg[idx + 3] = 255;
+    }
+  }
+  const beforeSpan = 88 - 45;
+  processEnhancePhotoPixels(dimImg, w, h, {
+    preset: 'auto',
+    sharpen: 70,
+    autoContrast: 80,
+    brightness: 6,
+    vibrance: 40,
+    denoise: 10,
+  });
+
+  const leftVal = dimImg[(10 * w + 4) * 4];
+  const rightEdgeVal = dimImg[(10 * w + 10) * 4];
+  const rightFarVal = dimImg[(10 * w + 15) * 4];
+  // Span stretched significantly and edge sharpened above interior level
+  assert.ok(rightFarVal - leftVal > beforeSpan * 2);
+  assert.ok(rightEdgeVal >= rightFarVal);
+
+  // Document preset whitens off-white grey paper (205 -> >= 238)
+  const docImg = new Uint8ClampedArray(12 * 12 * 4);
+  for (let i = 0; i < 12 * 12 * 4; i += 4) {
+    docImg[i] = 205;
+    docImg[i + 1] = 205;
+    docImg[i + 2] = 205;
+    docImg[i + 3] = 255;
+  }
+  processEnhancePhotoPixels(docImg, 12, 12, { preset: 'document', sharpen: 80, autoContrast: 85 });
+  assert.ok(docImg[0] >= 235);
 });

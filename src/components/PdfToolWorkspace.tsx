@@ -78,7 +78,9 @@ import {
 } from '../utils/imageEngine.js';
 import {
   buildBatchRenamePlan,
+  NormalizedBrushStroke,
   NormalizedCropRect,
+  RgbColor,
 } from '../utils/imageMath.js';
 import {
   addLocalHistoryItem,
@@ -214,20 +216,23 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   const [photoHighlights, setPhotoHighlights] = useState<PhotoHighlightItem[]>([]);
   const [photoHlFormat, setPhotoHlFormat] = useState<ImageOutputFormat>('png');
 
-  // 16. Remove Background (Pure Algorithmic Flood-Fill & Chroma Key)
+  // 16. Remove Background (Pure Algorithmic Edge-Barrier Flood-Fill + Chroma Key + Brush Masks)
   const [bgMode, setBgMode] = useState<'flood-edges' | 'global-color'>('flood-edges');
-  const [bgTolerance, setBgTolerance] = useState<number>(42);
-  const [bgFeather, setBgFeather] = useState<number>(12);
-  const [bgSampleColor, setBgSampleColor] = useState<{ r: number; g: number; b: number } | null>(null);
+  const [bgTolerance, setBgTolerance] = useState<number>(38);
+  const [bgFeather, setBgFeather] = useState<number>(10);
+  const [bgEdgeBarrier, setBgEdgeBarrier] = useState<boolean>(true);
+  const [bgSampleColors, setBgSampleColors] = useState<RgbColor[]>([]);
+  const [bgKeepStrokes, setBgKeepStrokes] = useState<NormalizedBrushStroke[]>([]);
+  const [bgEraseStrokes, setBgEraseStrokes] = useState<NormalizedBrushStroke[]>([]);
   const [bgFill, setBgFill] = useState<string>('transparent');
   const [bgFormat, setBgFormat] = useState<ImageOutputFormat>('png');
 
-  // 17. Enhance Photo (Histogram Auto-Levels + Unsharp Mask Sharpening)
+  // 17. Enhance Photo (Adaptive Auto-Levels + Multi-Pixel Unsharp Mask)
   const [enhancePreset, setEnhancePreset] = useState<'auto' | 'document' | 'portrait' | 'vivid' | 'custom'>('auto');
-  const [enhanceSharpen, setEnhanceSharpen] = useState<number>(55);
-  const [enhanceContrast, setEnhanceContrast] = useState<number>(65);
+  const [enhanceSharpen, setEnhanceSharpen] = useState<number>(62);
+  const [enhanceContrast, setEnhanceContrast] = useState<number>(70);
   const [enhanceBrightness, setEnhanceBrightness] = useState<number>(4);
-  const [enhanceVibrance, setEnhanceVibrance] = useState<number>(35);
+  const [enhanceVibrance, setEnhanceVibrance] = useState<number>(40);
   const [enhanceDenoise, setEnhanceDenoise] = useState<number>(12);
   const [enhanceFormat, setEnhanceFormat] = useState<ImageOutputFormat>('png');
 
@@ -248,7 +253,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     setError(null);
     setPdfAnnotations([]);
     setPhotoHighlights([]);
-    setBgSampleColor(null);
+    setBgSampleColors([]);
+    setBgKeepStrokes([]);
+    setBgEraseStrokes([]);
     setEditCrop({ x: 0, y: 0, w: 1, h: 1 });
     setEditRotate(0);
     setEditFlipH(false);
@@ -327,9 +334,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   const isMultiple = toolId === 'merge-pdf' || toolId === 'image-to-pdf' || toolId === 'rename-files';
   const acceptedTypes =
     toolId === 'rename-files'
-      ? '.pdf,application/pdf,image/png,image/jpeg,image/webp'
+      ? '.pdf,application/pdf,image/*'
       : isPhotoOnlyTool
-      ? 'image/png,image/jpeg,image/webp'
+      ? 'image/*'
       : '.pdf,application/pdf';
 
   const isFileValidForTool = (f: File): boolean => {
@@ -338,7 +345,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     const isPdf = mime.includes('pdf') || name.endsWith('.pdf');
     const isImg =
       mime.startsWith('image/') ||
-      /\.(png|jpe?g|webp|gif|bmp)$/i.test(name);
+      /\.(png|jpe?g|webp|gif|bmp|avif|svg)$/i.test(name);
     if (toolId === 'rename-files') return isPdf || isImg;
     if (isPhotoOnlyTool) return isImg;
     return isPdf;
@@ -360,6 +367,11 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
       setFiles((prev) => [...prev, ...valid]);
     } else {
       setFiles([valid[0]]);
+      setPdfAnnotations([]);
+      setPhotoHighlights([]);
+      setBgSampleColors([]);
+      setBgKeepStrokes([]);
+      setBgEraseStrokes([]);
     }
     setResult(null);
     setError(
@@ -623,7 +635,10 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             tolerance: bgTolerance,
             feather: bgFeather,
             mode: bgMode,
-            sampleColor: bgSampleColor,
+            edgeBarrier: bgEdgeBarrier,
+            sampleColors: bgSampleColors.length > 0 ? bgSampleColors : undefined,
+            keepStrokes: bgKeepStrokes,
+            eraseStrokes: bgEraseStrokes,
             bgFill,
             format: bgFormat,
           });
@@ -1015,15 +1030,25 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             />
           )}
 
-          {/* Interactive Photo Studio Canvas (edit-photo, highlight-photo, remove-bg, enhance-photo) */}
+          {/* Interactive Photo Studio Canvas (live preview across all photo tools) */}
           {files.length > 0 &&
-            (toolId === 'edit-photo' ||
+            (toolId === 'compress-image' ||
+              toolId === 'resize-image' ||
+              toolId === 'edit-photo' ||
               toolId === 'highlight-photo' ||
               toolId === 'remove-bg' ||
               toolId === 'enhance-photo') && (
               <InteractivePhotoPanel
                 toolId={toolId}
                 file={files[0]}
+                compressFormat={imgCompressFormat}
+                compressQuality={imgCompressQuality}
+                compressTargetKb={imgCompressMode === 'target-kb' ? imgTargetKb : null}
+                resizeRatio={resizeRatio}
+                resizeCustomW={resizeCustomW}
+                resizeCustomH={resizeCustomH}
+                resizeMode={resizeMode}
+                resizeBgColor={resizeBgColor}
                 cropRect={editCrop}
                 onChangeCropRect={setEditCrop}
                 rotateDeg={editRotate}
@@ -1038,14 +1063,20 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 bgTolerance={bgTolerance}
                 bgFeather={bgFeather}
                 bgMode={bgMode}
-                bgSampleColor={bgSampleColor}
-                onPickSampleColor={setBgSampleColor}
+                bgEdgeBarrier={bgEdgeBarrier}
+                bgSampleColors={bgSampleColors}
+                onChangeBgSampleColors={setBgSampleColors}
+                bgKeepStrokes={bgKeepStrokes}
+                onChangeBgKeepStrokes={setBgKeepStrokes}
+                bgEraseStrokes={bgEraseStrokes}
+                onChangeBgEraseStrokes={setBgEraseStrokes}
                 bgFill={bgFill}
                 enhancePreset={enhancePreset}
                 enhanceSharpen={enhanceSharpen}
                 enhanceContrast={enhanceContrast}
                 enhanceBrightness={enhanceBrightness}
                 enhanceVibrance={enhanceVibrance}
+                enhanceDenoise={enhanceDenoise}
               />
             )}
         </div>
@@ -1922,18 +1953,26 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Filter Preset</label>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Filter Presets (16 Looks)</label>
                   <div className="grid grid-cols-4 gap-1.5">
                     {(
                       [
                         { id: 'original', label: 'Original' },
-                        { id: 'bw', label: 'B&W' },
-                        { id: 'sepia', label: 'Sepia' },
                         { id: 'vivid', label: 'Vivid' },
                         { id: 'warm', label: 'Warm' },
                         { id: 'cool', label: 'Cool' },
+                        { id: 'golden-hour', label: 'Golden Hr' },
+                        { id: 'cinematic', label: 'Cinematic' },
+                        { id: 'rose-glow', label: 'Rose Glow' },
+                        { id: 'emerald', label: 'Emerald' },
+                        { id: 'fade', label: 'Soft Fade' },
                         { id: 'vintage', label: 'Vintage' },
+                        { id: 'sepia', label: 'Sepia' },
+                        { id: 'bw', label: 'B&W' },
+                        { id: 'noir', label: 'Film Noir' },
                         { id: 'high-contrast', label: 'Contrast+' },
+                        { id: 'hdr-crisp', label: 'HDR Crisp' },
+                        { id: 'invert', label: 'Invert' },
                       ] as const
                     ).map((p) => (
                       <button
@@ -2106,6 +2145,18 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   </div>
                 </div>
 
+                {bgMode === 'flood-edges' && (
+                  <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] cursor-pointer">
+                    <span className="font-semibold text-[#24212A]">Edge Shield (Stop at subject outlines)</span>
+                    <input
+                      type="checkbox"
+                      checked={bgEdgeBarrier}
+                      onChange={(e) => setBgEdgeBarrier(e.target.checked)}
+                      className="accent-rose-600 w-4 h-4"
+                    />
+                  </label>
+                )}
+
                 <div>
                   <label className="block text-[11px] font-semibold text-slate-700">
                     Color Tolerance: {bgTolerance}
@@ -2200,10 +2251,10 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   <label className="block font-semibold text-slate-700 mb-1.5">Enhancement Preset</label>
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { id: 'auto' as const, label: 'Auto HD', sh: 55, ct: 65, br: 4, vb: 35, dn: 12 },
-                      { id: 'document' as const, label: 'Crisp Document Scan', sh: 75, ct: 85, br: 8, vb: 10, dn: 8 },
-                      { id: 'portrait' as const, label: 'Smooth Portrait', sh: 35, ct: 45, br: 6, vb: 28, dn: 30 },
-                      { id: 'vivid' as const, label: 'Vivid Color Boost', sh: 50, ct: 65, br: 4, vb: 65, dn: 10 },
+                      { id: 'auto' as const, label: 'Auto HD', sh: 62, ct: 70, br: 4, vb: 40, dn: 12 },
+                      { id: 'document' as const, label: 'Crisp Document Scan', sh: 80, ct: 88, br: 6, vb: 12, dn: 8 },
+                      { id: 'portrait' as const, label: 'Smooth Portrait', sh: 40, ct: 50, br: 6, vb: 32, dn: 34 },
+                      { id: 'vivid' as const, label: 'Vivid Color Boost', sh: 60, ct: 72, br: 4, vb: 70, dn: 10 },
                     ].map((p) => (
                       <button
                         key={p.id}
@@ -2247,7 +2298,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   </div>
                   <div>
                     <label className="block text-[11px] font-semibold text-slate-700">
-                      Auto-Levels Contrast: {enhanceContrast}%
+                      Auto-Levels &amp; Clarity: {enhanceContrast}%
                     </label>
                     <input
                       type="range"
@@ -2273,6 +2324,22 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       onChange={(e) => {
                         setEnhancePreset('custom');
                         setEnhanceVibrance(parseInt(e.target.value, 10));
+                      }}
+                      className="w-full accent-rose-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Noise Reduction (Denoise): {enhanceDenoise}%
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={enhanceDenoise}
+                      onChange={(e) => {
+                        setEnhancePreset('custom');
+                        setEnhanceDenoise(parseInt(e.target.value, 10));
                       }}
                       className="w-full accent-rose-600"
                     />
