@@ -12,6 +12,7 @@ import {
   Loader2,
   AlertCircle,
   Eye,
+  Lock,
 } from 'lucide-react';
 import * as pdfjsLib from 'pdfjs-dist';
 import pdfWorker from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
@@ -89,12 +90,19 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
   const [loadingDoc, setLoadingDoc] = useState(false);
   const [renderingPage, setRenderingPage] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [needsPassword, setNeedsPassword] = useState(false);
+  const [unlockPassword, setUnlockPassword] = useState('');
+  const [submittedPassword, setSubmittedPassword] = useState<string | undefined>(undefined);
+  const [showCheckerboard, setShowCheckerboard] = useState(true);
   const [containerWidth, setContainerWidth] = useState<number>(340);
   const [imageObjectUrl, setImageObjectUrl] = useState<string | null>(null);
   const [internalExtra, setInternalExtra] = useState<PreviewExtraFile | null>(null);
 
   useEffect(() => {
     setInternalExtra(null);
+    setSubmittedPassword(undefined);
+    setUnlockPassword('');
+    setNeedsPassword(false);
   }, [file, fileUrl, fileName]);
 
   const activeFile = internalExtra ? internalExtra.blob || null : file;
@@ -214,6 +222,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
 
         const loadingTask = pdfjsLib.getDocument({
           data: new Uint8Array(rawBuffer),
+          password: submittedPassword,
         });
         loadingTaskRef.current = loadingTask;
         const pdf = await loadingTask.promise;
@@ -223,6 +232,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
           return;
         }
 
+        setNeedsPassword(false);
         pdfDocRef.current = pdf;
         setNumPages(pdf.numPages);
         setInternalPage(1);
@@ -232,12 +242,25 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
         onDocumentLoaded?.({ numPages: pdf.numPages, fileType: 'pdf' });
       } catch (err) {
         if (!cancelled) {
-          console.error('PDF load error:', err);
-          setError(
-            err instanceof Error && err.message.toLowerCase().includes('password')
-              ? 'This PDF is password-protected. Download to unlock with your password.'
-              : 'Unable to render this PDF preview in browser.'
-          );
+          const msg = err instanceof Error ? err.message : '';
+          const errName = err instanceof Error ? err.name : '';
+          const isPasswordErr =
+            errName === 'PasswordException' ||
+            msg.toLowerCase().includes('password') ||
+            msg.toLowerCase().includes('no password given');
+
+          if (isPasswordErr) {
+            setNeedsPassword(true);
+            setError(
+              submittedPassword
+                ? 'Incorrect password. Please try again.'
+                : 'This PDF is password-protected (AES-256). Enter password to preview or download.'
+            );
+          } else {
+            console.error('PDF load error:', err);
+            setNeedsPassword(false);
+            setError('Unable to render this PDF preview in browser.');
+          }
           setNumPages(0);
         }
       } finally {
@@ -253,7 +276,7 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
       if (createdImgUrl) URL.revokeObjectURL(createdImgUrl);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeFile, activeUrl, fileKind]);
+  }, [activeFile, activeUrl, fileKind, submittedPassword]);
 
   // Render the active page whenever page number, zoom, or container width changes
   useEffect(() => {
@@ -473,28 +496,76 @@ export const PdfCanvasViewer: React.FC<PdfCanvasViewerProps> = ({
             )}
           </div>
         ) : fileKind === 'image' && imageObjectUrl ? (
-          <div className="w-fit mx-auto bg-white p-2 rounded-xl border border-slate-200 shadow-md">
-            <img
-              src={imageObjectUrl}
-              alt={fileName || 'Image Preview'}
-              style={{
-                width: zoomMultiplier === 1 ? '100%' : `${Math.round(zoomMultiplier * 100)}%`,
-                maxWidth: zoomMultiplier <= 1 ? '100%' : 'none',
-              }}
-              className="block rounded-lg h-auto mx-auto object-contain"
-            />
+          <div className="space-y-2">
+            <div className="flex justify-end">
+              <button
+                type="button"
+                onClick={() => setShowCheckerboard((v) => !v)}
+                className="px-2.5 py-1 rounded-lg bg-white border border-slate-200 text-[11px] font-semibold text-slate-600 hover:border-[#E83E8C] hover:text-[#C92B72] cursor-pointer"
+              >
+                Backdrop: {showCheckerboard ? 'Checkerboard (Alpha)' : 'Solid White'}
+              </button>
+            </div>
+            <div
+              className="w-fit mx-auto p-2 rounded-xl border border-slate-200 shadow-md"
+              style={
+                showCheckerboard
+                  ? {
+                      backgroundImage:
+                        'linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)',
+                      backgroundSize: '16px 16px',
+                      backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
+                      backgroundColor: '#ffffff',
+                    }
+                  : { backgroundColor: '#ffffff' }
+              }
+            >
+              <img
+                src={imageObjectUrl}
+                alt={fileName || 'Image Preview'}
+                style={{
+                  width: zoomMultiplier === 1 ? '100%' : `${Math.round(zoomMultiplier * 100)}%`,
+                  maxWidth: zoomMultiplier <= 1 ? '100%' : 'none',
+                }}
+                className="block rounded-lg h-auto mx-auto object-contain"
+              />
+            </div>
           </div>
         ) : error ? (
-          <div className="bg-white rounded-2xl border border-[#FFE3EE] p-5 text-center max-w-md mx-auto my-4 shadow-xs">
-            <div className="w-11 h-11 rounded-full bg-[#FFE3EE] text-[#D9364F] mx-auto flex items-center justify-center mb-2.5">
-              <AlertCircle className="w-5 h-5" />
+          <div className="bg-white rounded-2xl border border-[#FFE3EE] p-5 text-center max-w-md mx-auto my-4 shadow-xs space-y-3">
+            <div className="w-11 h-11 rounded-full bg-[#FFE3EE] text-[#D9364F] mx-auto flex items-center justify-center">
+              {needsPassword ? <Lock className="w-5 h-5 text-[#E83E8C]" /> : <AlertCircle className="w-5 h-5" />}
             </div>
             <p className="text-xs font-bold text-[#24212A]">{error}</p>
+            {needsPassword && (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setSubmittedPassword(unlockPassword);
+                }}
+                className="flex items-center gap-2 pt-1"
+              >
+                <input
+                  type="password"
+                  value={unlockPassword}
+                  onChange={(e) => setUnlockPassword(e.target.value)}
+                  placeholder="Enter PDF password to preview..."
+                  aria-label="Enter PDF password"
+                  className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:border-[#E83E8C]"
+                />
+                <button
+                  type="submit"
+                  className="px-3 py-1.5 rounded-xl bg-[#24212A] hover:bg-[#550B2E] text-white text-xs font-bold cursor-pointer shrink-0"
+                >
+                  Unlock
+                </button>
+              </form>
+            )}
             {downloadUrl && (
               <MonetagDownloadLink
                 downloadUrl={downloadUrl}
                 fileName={fileName || 'document.pdf'}
-                className="mt-3 inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E83E8C] text-white text-xs font-bold hover:bg-[#C92B72] transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-[#E83E8C] text-white text-xs font-bold hover:bg-[#C92B72] transition-colors cursor-pointer"
               >
                 <Download className="w-3.5 h-3.5" />
                 <span>Watch Ad &amp; Download File</span>

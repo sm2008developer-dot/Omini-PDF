@@ -24,6 +24,12 @@ export interface ProcessedPdfResult {
   extraFiles?: { name: string; url: string; size: number; blob?: Blob }[];
 }
 
+export async function getPdfPageCount(file: File | Blob): Promise<number> {
+  const buf = await file.arrayBuffer();
+  const doc = await PDFDocument.load(buf, { ignoreEncryption: true });
+  return doc.getPageCount();
+}
+
 /**
  * 1. MERGE PDF: Combines multiple PDF files into a single unified document
  */
@@ -139,11 +145,12 @@ export async function splitPdfFile(
 }
 
 /**
- * 3. COMPRESS PDF: Optimizes PDF structure and reduces redundant streams
+ * 3. COMPRESS PDF: Optimizes PDF structure or raster-recompresses pages for high/target-KB reduction
  */
 export async function compressPdfFile(
   file: File,
-  level: 'extreme' | 'recommended' | 'light' = 'recommended'
+  level: 'extreme' | 'recommended' | 'light' | 'target-kb' = 'recommended',
+  targetKb = 150
 ): Promise<ProcessedPdfResult & { originalSize: number; savedBytes: number; savedPercent: number }> {
   const originalSize = file.size;
   const arrayBuffer = await file.arrayBuffer();
@@ -151,14 +158,11 @@ export async function compressPdfFile(
   const srcPdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
   const pageCount = srcPdf.getPageCount();
 
-  // Create clean target document
+  // Lossless stream optimization pass
   const compressedPdf = await PDFDocument.create();
-
-  // Copy pages to drop orphaned objects and unreferenced streams
   const copiedPages = await compressedPdf.copyPages(srcPdf, srcPdf.getPageIndices());
   copiedPages.forEach((page) => compressedPdf.addPage(page));
 
-  // Strip non-essential metadata on extreme or recommended
   if (level !== 'light') {
     compressedPdf.setTitle('');
     compressedPdf.setAuthor('');
@@ -168,13 +172,92 @@ export async function compressPdfFile(
     compressedPdf.setCreator('Omini PDF');
   }
 
-  // Save with object streams enabled (never truncate raw PDF bytes or it breaks xref & preview)
-  const pdfBytes = await compressedPdf.save({
+  let finalBytes = await compressedPdf.save({
     useObjectStreams: true,
     addDefaultPage: false,
   });
 
-  const finalBytes = pdfBytes;
+  // For 'recommended' (when lossless gave <8% reduction on PDFs >60KB), 'extreme', or 'target-kb', perform raster JPEG re-encoding
+  const targetBytes = Math.max(15 * 1024, Math.round((targetKb || 150) * 1024));
+  const needsDeepRecommended =
+    level === 'recommended' && originalSize > 60 * 1024 && finalBytes.byteLength > originalSize * 0.92;
+  if (
+    level === 'extreme' ||
+    needsDeepRecommended ||
+    (level === 'target-kb' && finalBytes.byteLength > targetBytes)
+  ) {
+    try {
+      if (!pdfjsLib.GlobalWorkerOptions.workerSrc) {
+        pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
+      }
+      const pdfProxy = await pdfjsLib.getDocument({ data: new Uint8Array(arrayBuffer) }).promise;
+
+      const buildRasterPdf = async (scale: number, jpegQuality: number): Promise<Uint8Array> => {
+        const outDoc = await PDFDocument.create();
+        outDoc.setProducer('Omini PDF Deep Compressor');
+        for (let i = 1; i <= pdfProxy.numPages; i++) {
+          const page = await pdfProxy.getPage(i);
+          const baseVp = page.getViewport({ scale: 1 });
+          const renderVp = page.getViewport({ scale });
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.max(1, Math.round(renderVp.width));
+          canvas.height = Math.max(1, Math.round(renderVp.height));
+          const ctx = canvas.getContext('2d');
+          if (!ctx) continue;
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await (page as any).render({ canvas, viewport: renderVp, background: '#ffffff' }).promise;
+
+          const jpgBlob = await new Promise<Blob>((resolve) =>
+            canvas.toBlob((b) => resolve(b || new Blob()), 'image/jpeg', jpegQuality)
+          );
+          const jpgBytes = new Uint8Array(await jpgBlob.arrayBuffer());
+          const jpgImage = await outDoc.embedJpg(jpgBytes);
+          const outPage = outDoc.addPage([baseVp.width, baseVp.height]);
+          outPage.drawImage(jpgImage, {
+            x: 0,
+            y: 0,
+            width: baseVp.width,
+            height: baseVp.height,
+          });
+        }
+        return outDoc.save({ useObjectStreams: true, addDefaultPage: false });
+      };
+
+      if (level === 'recommended') {
+        const recBytes = await buildRasterPdf(1.4, 0.78);
+        if (recBytes.byteLength < finalBytes.byteLength) {
+          finalBytes = recBytes;
+        }
+      } else if (level === 'extreme') {
+        const extremeBytes = await buildRasterPdf(1.05, 0.56);
+        if (extremeBytes.byteLength < finalBytes.byteLength) {
+          finalBytes = extremeBytes;
+        }
+      } else {
+        const attempts: Array<[number, number]> = [
+          [1.2, 0.72],
+          [1.0, 0.55],
+          [0.85, 0.42],
+          [0.72, 0.3],
+          [0.58, 0.22],
+          [0.45, 0.16],
+        ];
+        for (const [s, q] of attempts) {
+          const candidate = await buildRasterPdf(s, q);
+          if (candidate.byteLength < finalBytes.byteLength) {
+            finalBytes = candidate;
+          }
+          if (finalBytes.byteLength <= targetBytes) break;
+        }
+      }
+      await pdfProxy.cleanup().catch(() => {});
+    } catch (rasterErr) {
+      console.warn('Raster compression fallback skipped, keeping lossless stream output:', rasterErr);
+    }
+  }
+
   const blob = new Blob([finalBytes as unknown as BlobPart], { type: 'application/pdf' });
   const downloadUrl = URL.createObjectURL(blob);
   const savedBytes = Math.max(0, originalSize - blob.size);
@@ -194,7 +277,7 @@ export async function compressPdfFile(
 }
 
 /**
- * 4. PROTECT PDF: Applies password protection and permissions
+ * 4. PROTECT PDF: Applies genuine AES-256 PDF password encryption & permissions via @cantoo/pdf-lib
  */
 export async function protectPdfFile(
   file: File,
@@ -210,13 +293,28 @@ export async function protectPdfFile(
   }
 
   const arrayBuffer = await file.arrayBuffer();
-  const srcPdf = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const { PDFDocument: EncryptPDFDocument } = await import('@cantoo/pdf-lib');
+  const srcPdf = await EncryptPDFDocument.load(arrayBuffer, { ignoreEncryption: true });
 
-  // Update metadata to note security
-  srcPdf.setSubject(`Protected with Omini PDF Security Shield`);
-  srcPdf.setProducer(`Omini PDF Guard (AES-256 Enabled)`);
+  srcPdf.setSubject('Protected with Omini PDF AES-256 Encryption');
+  srcPdf.setProducer('Omini PDF Guard (AES-256)');
 
-  const pdfBytes = await srcPdf.save({ useObjectStreams: true });
+  srcPdf.encrypt({
+    userPassword: options.userPassword,
+    ownerPassword: options.ownerPassword || `${options.userPassword}_owner`,
+    algorithm: 'AES-256',
+    permissions: {
+      printing: options.allowPrinting === false ? false : 'highResolution',
+      copying: Boolean(options.allowCopying),
+      modifying: false,
+      annotating: true,
+      fillingForms: false,
+      contentAccessibility: true,
+      documentAssembly: false,
+    },
+  });
+
+  const pdfBytes = await srcPdf.save({ useObjectStreams: false });
   const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
   const downloadUrl = URL.createObjectURL(blob);
 
@@ -226,7 +324,7 @@ export async function protectPdfFile(
     fileName: `protected_${file.name}`,
     fileSize: blob.size,
     pageCount: srcPdf.getPageCount(),
-    summary: `PDF locked with password protection. Security hash registered.`,
+    summary: `PDF encrypted with AES-256 password protection (${srcPdf.getPageCount()} pages).`,
   };
 }
 
@@ -301,9 +399,10 @@ export async function addWatermarkToPdf(
       x = (width - textWidth) / 2;
       y = 30;
     } else {
-      // Diagonal across center
-      x = width / 2 - (textWidth / 2) * Math.cos((angle * Math.PI) / 180);
-      y = height / 2 - (textWidth / 2) * Math.sin((angle * Math.PI) / 180);
+      // Diagonal across center (compensated for both rotated text width and ascender height)
+      const rad = (angle * Math.PI) / 180;
+      x = width / 2 - (textWidth / 2) * Math.cos(rad) + (textHeight / 3) * Math.sin(rad);
+      y = height / 2 - (textWidth / 2) * Math.sin(rad) - (textHeight / 3) * Math.cos(rad);
     }
 
     page.drawText(text, {
@@ -736,3 +835,103 @@ export async function removePagesFromPdf(
     summary: `Removed ${sortedDesc.length} page(s). Document now contains ${pdfDoc.getPageCount()} page(s).`,
   };
 }
+
+/**
+ * 13. HIGHLIGHT & EDIT PDF: Draws highlights and text notes directly onto PDF pages
+ */
+export interface PdfAnnotation {
+  id: string;
+  pageIndex: number; // 0-based
+  kind: 'highlight' | 'note';
+  x: number; // normalized 0..1 from left
+  y: number; // normalized 0..1 from top
+  w: number; // normalized 0..1
+  h: number; // normalized 0..1
+  color: string; // hex e.g. '#FACC15'
+  opacity?: number;
+  text?: string;
+}
+
+function parseHexToRgb(hex: string) {
+  const clean = hex.replace('#', '');
+  if (clean.length !== 6) return rgb(0.98, 0.8, 0.08);
+  const r = parseInt(clean.slice(0, 2), 16) / 255;
+  const g = parseInt(clean.slice(2, 4), 16) / 255;
+  const b = parseInt(clean.slice(4, 6), 16) / 255;
+  return rgb(isNaN(r) ? 0.98 : r, isNaN(g) ? 0.8 : g, isNaN(b) ? 0.08 : b);
+}
+
+export async function annotatePdfFile(
+  file: File,
+  annotations: PdfAnnotation[]
+): Promise<ProcessedPdfResult> {
+  if (!annotations || annotations.length === 0) {
+    throw new Error('Please add at least one highlight or note onto the PDF preview first.');
+  }
+
+  const arrayBuffer = await file.arrayBuffer();
+  const pdfDoc = await PDFDocument.load(arrayBuffer, { ignoreEncryption: true });
+  const font = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const pages = pdfDoc.getPages();
+
+  let applied = 0;
+  for (const ann of annotations) {
+    const page = pages[ann.pageIndex];
+    if (!page) continue;
+
+    const { width, height } = page.getSize();
+    const colorRgb = parseHexToRgb(ann.color || '#FACC15');
+
+    if (ann.kind === 'highlight') {
+      const boxW = Math.max(8, ann.w * width);
+      const boxH = Math.max(8, ann.h * height);
+      const boxX = ann.x * width;
+      const boxY = height - (ann.y * height + boxH);
+      page.drawRectangle({
+        x: boxX,
+        y: boxY,
+        width: boxW,
+        height: boxH,
+        color: colorRgb,
+        opacity: Math.max(0.15, Math.min(0.75, ann.opacity ?? 0.38)),
+      });
+      applied++;
+    } else if (ann.kind === 'note' && ann.text?.trim()) {
+      const noteText = ann.text.trim();
+      const fontSize = 11;
+      const txtX = Math.max(12, Math.min(width - 80, ann.x * width));
+      const txtY = Math.max(20, Math.min(height - 20, height - ann.y * height));
+      const textWidth = font.widthOfTextAtSize(noteText, fontSize);
+      page.drawRectangle({
+        x: txtX - 4,
+        y: txtY - 4,
+        width: textWidth + 8,
+        height: fontSize + 8,
+        color: colorRgb,
+        opacity: 0.25,
+      });
+      page.drawText(noteText, {
+        x: txtX,
+        y: txtY,
+        size: fontSize,
+        font,
+        color: rgb(0.14, 0.13, 0.16),
+      });
+      applied++;
+    }
+  }
+
+  const pdfBytes = await pdfDoc.save();
+  const blob = new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' });
+  const downloadUrl = URL.createObjectURL(blob);
+
+  return {
+    blob,
+    downloadUrl,
+    fileName: `highlighted_${file.name}`,
+    fileSize: blob.size,
+    pageCount: pages.length,
+    summary: `Saved ${applied} highlight/annotation(s) onto ${file.name}.`,
+  };
+}
+

@@ -17,6 +17,11 @@ import {
   navigateTo,
   TOOL_PATH_MAP,
 } from './utils/seoRouter.js';
+import {
+  getRecentToolIds,
+  recordRecentTool,
+  clearRecentTools,
+} from './utils/recentTools.js';
 
 // Code-split heavy workspaces & modals for ultra-fast initial load
 const PdfToolWorkspace = lazy(() =>
@@ -45,6 +50,7 @@ export default function App() {
   const [limits, setLimits] = useState<PlatformLimits>(DEFAULT_LIMITS);
   const [currentView, setCurrentView] = useState<'home' | 'tool' | 'dashboard' | 'admin'>(initialRoute.view);
   const [selectedToolId, setSelectedToolId] = useState<ToolId | null>(initialRoute.toolId);
+  const [recentToolIds, setRecentToolIds] = useState<ToolId[]>(() => getRecentToolIds());
 
   // Modals
   const [authModalOpen, setAuthModalOpen] = useState(false);
@@ -75,6 +81,9 @@ export default function App() {
   useEffect(() => {
     const route = resolveCurrentRoute();
     setActivePath(route.path);
+    if (route.view === 'tool' && route.toolId) {
+      setRecentToolIds(recordRecentTool(route.toolId));
+    }
 
     if (route.scrollToSection) {
       setTimeout(() => {
@@ -87,6 +96,9 @@ export default function App() {
       setCurrentView(activeRoute.view);
       setSelectedToolId(activeRoute.toolId);
       setActivePath(activeRoute.path);
+      if (activeRoute.view === 'tool' && activeRoute.toolId) {
+        setRecentToolIds(recordRecentTool(activeRoute.toolId));
+      }
       if (activeRoute.scrollToSection) {
         setTimeout(() => {
           document.getElementById(activeRoute.scrollToSection!)?.scrollIntoView({ behavior: 'smooth' });
@@ -224,13 +236,19 @@ export default function App() {
     }
   };
 
-  // All 11 PDF tools open immediately & free without forced login
+  // All PDF & Photo tools open immediately & free without forced login
   const handleSelectTool = (toolId: ToolId) => {
     const targetPath = TOOL_PATH_MAP[toolId] || '/';
+    setRecentToolIds(recordRecentTool(toolId));
     setSelectedToolId(toolId);
     setCurrentView('tool');
     setActivePath(targetPath);
     navigateTo(targetPath);
+  };
+
+  const handleClearRecentTools = () => {
+    clearRecentTools();
+    setRecentToolIds([]);
   };
 
   const handleLogout = async () => {
@@ -304,6 +322,8 @@ export default function App() {
           <LandingView
             user={user}
             limits={limits}
+            recentToolIds={recentToolIds}
+            onClearRecentTools={handleClearRecentTools}
             onSelectTool={handleSelectTool}
             onOpenAuth={handleOpenAuth}
           />

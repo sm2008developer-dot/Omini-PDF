@@ -33,6 +33,14 @@ import {
   RotateCw,
   Hash,
   ExternalLink,
+  Highlighter,
+  Scaling,
+  SlidersHorizontal,
+  Eraser,
+  Wand2,
+  PenLine,
+  FlipHorizontal2,
+  FlipVertical2,
 } from 'lucide-react';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { User, PlatformLimits, api } from '../utils/api.js';
@@ -50,8 +58,28 @@ import {
   rotatePdfFile,
   addPageNumbersToPdf,
   removePagesFromPdf,
+  annotatePdfFile,
+  getPdfPageCount,
+  PdfAnnotation,
   ProcessedPdfResult,
 } from '../utils/pdfEngine.js';
+import {
+  compressImageFile,
+  resizeAndConvertImage,
+  editPhotoFile,
+  highlightPhotoFile,
+  removeBackgroundAlgorithmic,
+  enhancePhotoAlgorithmic,
+  renameFilesClient,
+  generateSamplePhotoFile,
+  ImageOutputFormat,
+  PhotoFilterPreset,
+  PhotoHighlightItem,
+} from '../utils/imageEngine.js';
+import {
+  buildBatchRenamePlan,
+  NormalizedCropRect,
+} from '../utils/imageMath.js';
 import {
   addLocalHistoryItem,
   cacheSessionHistoryFile,
@@ -59,6 +87,8 @@ import {
 import { PdfPreviewModal } from './PdfPreviewModal.js';
 import { PdfCanvasViewer } from './PdfCanvasViewer.js';
 import { MonetagDownloadLink } from './MonetagDownloadLink.js';
+import { InteractivePdfHighlightPanel } from './InteractivePdfHighlightPanel.js';
+import { InteractivePhotoPanel } from './InteractivePhotoPanel.js';
 
 interface PdfToolWorkspaceProps {
   toolId: ToolId;
@@ -86,6 +116,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
   // Files state
   const [files, setFiles] = useState<File[]>([]);
+  const [pdfPageCounts, setPdfPageCounts] = useState<Record<string, number>>({});
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ProcessedPdfResult | null>(null);
@@ -103,8 +134,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   const [splitMode, setSplitMode] = useState<'all' | 'range'>('range');
   const [splitRange, setSplitRange] = useState('1-2');
 
-  // 2. Compress
-  const [compressLevel, setCompressLevel] = useState<'recommended' | 'extreme' | 'light'>('recommended');
+  // 2. Compress PDF
+  const [compressLevel, setCompressLevel] = useState<'recommended' | 'extreme' | 'light' | 'target-kb'>('recommended');
+  const [pdfTargetKb, setPdfTargetKb] = useState<number>(150);
 
   // 3. Protect
   const [password, setPassword] = useState('');
@@ -123,7 +155,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
   // 5. Image to PDF
   const [imagePageSize, setImagePageSize] = useState<'fit' | 'a4'>('fit');
-  const [imageOrientation, setImageOrientation] = useState<'auto' | 'portrait' | 'landscape'>('auto');
+  const [imageOrientation] = useState<'auto' | 'portrait' | 'landscape'>('auto');
 
   // 6. PDF to Image
   const [imageFormat, setImageFormat] = useState<'png' | 'jpeg'>('png');
@@ -148,6 +180,84 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
   // 10. Remove Pages
   const [pagesToRemove, setPagesToRemove] = useState('1');
+
+  // 11. PDF Highlight & Edit
+  const [pdfAnnotations, setPdfAnnotations] = useState<PdfAnnotation[]>([]);
+
+  // 12. Compress Photo (PNG/JPG/WebP)
+  const [imgCompressFormat, setImgCompressFormat] = useState<ImageOutputFormat>('webp');
+  const [imgCompressMode, setImgCompressMode] = useState<'quality' | 'target-kb'>('quality');
+  const [imgCompressQuality, setImgCompressQuality] = useState<number>(78);
+  const [imgTargetKb, setImgTargetKb] = useState<number>(100);
+  const [imgMaxWidth, setImgMaxWidth] = useState<string>('');
+
+  // 13. Resize / Aspect Ratio & Format Converter
+  const [resizeRatio, setResizeRatio] = useState<string>('1:1');
+  const [resizeCustomW, setResizeCustomW] = useState<number>(1080);
+  const [resizeCustomH, setResizeCustomH] = useState<number>(1080);
+  const [resizeMode, setResizeMode] = useState<'crop' | 'fit' | 'stretch'>('crop');
+  const [resizeFormat, setResizeFormat] = useState<ImageOutputFormat>('png');
+  const [resizeBgColor, setResizeBgColor] = useState<string>('#ffffff');
+
+  // 14. Edit Photo (Crop, Rotate, Flip, Filters)
+  const [editCrop, setEditCrop] = useState<NormalizedCropRect>({ x: 0, y: 0, w: 1, h: 1 });
+  const [editRotate, setEditRotate] = useState<0 | 90 | 180 | 270>(0);
+  const [editFlipH, setEditFlipH] = useState(false);
+  const [editFlipV, setEditFlipV] = useState(false);
+  const [editPreset, setEditPreset] = useState<PhotoFilterPreset>('original');
+  const [editBrightness, setEditBrightness] = useState<number>(0);
+  const [editContrast, setEditContrast] = useState<number>(0);
+  const [editSaturation, setEditSaturation] = useState<number>(0);
+  const [editFormat, setEditFormat] = useState<ImageOutputFormat>('png');
+
+  // 15. Highlight Photo
+  const [photoHighlights, setPhotoHighlights] = useState<PhotoHighlightItem[]>([]);
+  const [photoHlFormat, setPhotoHlFormat] = useState<ImageOutputFormat>('png');
+
+  // 16. Remove Background (Pure Algorithmic Flood-Fill & Chroma Key)
+  const [bgMode, setBgMode] = useState<'flood-edges' | 'global-color'>('flood-edges');
+  const [bgTolerance, setBgTolerance] = useState<number>(42);
+  const [bgFeather, setBgFeather] = useState<number>(12);
+  const [bgSampleColor, setBgSampleColor] = useState<{ r: number; g: number; b: number } | null>(null);
+  const [bgFill, setBgFill] = useState<string>('transparent');
+  const [bgFormat, setBgFormat] = useState<ImageOutputFormat>('png');
+
+  // 17. Enhance Photo (Histogram Auto-Levels + Unsharp Mask Sharpening)
+  const [enhancePreset, setEnhancePreset] = useState<'auto' | 'document' | 'portrait' | 'vivid' | 'custom'>('auto');
+  const [enhanceSharpen, setEnhanceSharpen] = useState<number>(55);
+  const [enhanceContrast, setEnhanceContrast] = useState<number>(65);
+  const [enhanceBrightness, setEnhanceBrightness] = useState<number>(4);
+  const [enhanceVibrance, setEnhanceVibrance] = useState<number>(35);
+  const [enhanceDenoise, setEnhanceDenoise] = useState<number>(12);
+  const [enhanceFormat, setEnhanceFormat] = useState<ImageOutputFormat>('png');
+
+  // 18. Rename PDF & Photos
+  const [renameBaseName, setRenameBaseName] = useState('');
+  const [renamePrefix, setRenamePrefix] = useState('');
+  const [renameSuffix, setRenameSuffix] = useState('');
+  const [renameNumbering, setRenameNumbering] = useState<'none' | 'suffix' | 'prefix'>('suffix');
+  const [renameStartNum, setRenameStartNum] = useState<number>(1);
+  const [renameFind, setRenameFind] = useState('');
+  const [renameReplace, setRenameReplace] = useState('');
+  const [renameCasing, setRenameCasing] = useState<'keep' | 'lower' | 'slug'>('keep');
+
+  // Reset active workspace files & annotations cleanly whenever switching tools
+  useEffect(() => {
+    setFiles([]);
+    setResult(null);
+    setError(null);
+    setPdfAnnotations([]);
+    setPhotoHighlights([]);
+    setBgSampleColor(null);
+    setEditCrop({ x: 0, y: 0, w: 1, h: 1 });
+    setEditRotate(0);
+    setEditFlipH(false);
+    setEditFlipV(false);
+    setEditPreset('original');
+    setEditBrightness(0);
+    setEditContrast(0);
+    setEditSaturation(0);
+  }, [toolId]);
 
   // Automatically read and pre-fill document metadata when a PDF is selected in edit-metadata mode
   useEffect(() => {
@@ -175,19 +285,94 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     }
   }, [files, toolId, user]);
 
-  const isMultiple = toolId === 'merge-pdf' || toolId === 'image-to-pdf';
-  const acceptedTypes = toolId === 'image-to-pdf' ? 'image/png,image/jpeg,image/webp' : '.pdf,application/pdf';
+  // Read page counts automatically for uploaded PDFs
+  useEffect(() => {
+    let cancelled = false;
+    const pdfs = files.filter(
+      (f) => f.type.includes('pdf') || /\.pdf$/i.test(f.name)
+    );
+    if (pdfs.length === 0) {
+      setPdfPageCounts({});
+      return;
+    }
+    Promise.all(
+      pdfs.map(async (f) => {
+        const key = `${f.name}_${f.size}`;
+        const count = await getPdfPageCount(f).catch(() => 0);
+        return [key, count] as const;
+      })
+    ).then((entries) => {
+      if (!cancelled) {
+        const next: Record<string, number> = {};
+        for (const [k, c] of entries) {
+          if (c > 0) next[k] = c;
+        }
+        setPdfPageCounts(next);
+      }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [files]);
+
+  const isPhotoOnlyTool =
+    toolId === 'image-to-pdf' ||
+    toolId === 'compress-image' ||
+    toolId === 'resize-image' ||
+    toolId === 'edit-photo' ||
+    toolId === 'highlight-photo' ||
+    toolId === 'remove-bg' ||
+    toolId === 'enhance-photo';
+
+  const isMultiple = toolId === 'merge-pdf' || toolId === 'image-to-pdf' || toolId === 'rename-files';
+  const acceptedTypes =
+    toolId === 'rename-files'
+      ? '.pdf,application/pdf,image/png,image/jpeg,image/webp'
+      : isPhotoOnlyTool
+      ? 'image/png,image/jpeg,image/webp'
+      : '.pdf,application/pdf';
+
+  const isFileValidForTool = (f: File): boolean => {
+    const mime = (f.type || '').toLowerCase();
+    const name = f.name.toLowerCase();
+    const isPdf = mime.includes('pdf') || name.endsWith('.pdf');
+    const isImg =
+      mime.startsWith('image/') ||
+      /\.(png|jpe?g|webp|gif|bmp)$/i.test(name);
+    if (toolId === 'rename-files') return isPdf || isImg;
+    if (isPhotoOnlyTool) return isImg;
+    return isPdf;
+  };
+
+  const acceptIncomingFiles = (incoming: File[]) => {
+    const valid = incoming.filter(isFileValidForTool);
+    if (valid.length === 0) {
+      setError(
+        toolId === 'rename-files'
+          ? 'Unsupported file type. Please upload PDF, PNG, JPG, or WebP files.'
+          : isPhotoOnlyTool
+          ? 'Please upload a valid PNG, JPG, or WebP image file.'
+          : 'Please upload a valid PDF (.pdf) document.'
+      );
+      return;
+    }
+    if (isMultiple) {
+      setFiles((prev) => [...prev, ...valid]);
+    } else {
+      setFiles([valid[0]]);
+    }
+    setResult(null);
+    setError(
+      valid.length < incoming.length
+        ? 'Skipped unsupported files — only matching PDF/Image files were added.'
+        : null
+    );
+  };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    const selected = Array.from(e.target.files);
-    if (isMultiple) {
-      setFiles((prev) => [...prev, ...selected]);
-    } else {
-      setFiles([selected[0]]);
-    }
-    setResult(null);
-    setError(null);
+    acceptIncomingFiles(Array.from(e.target.files));
+    e.target.value = '';
   };
 
   const removeFile = (index: number) => {
@@ -203,9 +388,42 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     setFiles(copy);
   };
 
-  // Generate a crisp sample file directly in the browser (PNG images for image-to-pdf, PDF otherwise)
+  // Generate a crisp sample file directly in the browser (Photos for photo tools, mixed for rename, PDF otherwise)
   const loadSamplePdf = async () => {
     try {
+      if (toolId === 'compress-image' || toolId === 'resize-image' || toolId === 'edit-photo' || toolId === 'remove-bg') {
+        const samplePhoto = await generateSamplePhotoFile('studio');
+        setFiles([samplePhoto]);
+        setResult(null);
+        setError(null);
+        return;
+      }
+
+      if (toolId === 'highlight-photo' || toolId === 'enhance-photo') {
+        const sampleDocPhoto = await generateSamplePhotoFile('document');
+        setFiles([sampleDocPhoto]);
+        setResult(null);
+        setError(null);
+        return;
+      }
+
+      if (toolId === 'rename-files') {
+        const { PDFDocument, rgb, StandardFonts } = await import('pdf-lib');
+        const doc = await PDFDocument.create();
+        const font = await doc.embedFont(StandardFonts.HelveticaBold);
+        const page = doc.addPage([595.28, 841.89]);
+        page.drawText('Omini PDF Sample Contract', { x: 50, y: 760, size: 18, font, color: rgb(0.91, 0.24, 0.55) });
+        const pdfBytes = await doc.save();
+        const pdfFile = new File([new Blob([pdfBytes as unknown as BlobPart], { type: 'application/pdf' })], 'raw scan 001.pdf', {
+          type: 'application/pdf',
+        });
+        const imgFile = await generateSamplePhotoFile('studio');
+        setFiles([pdfFile, imgFile]);
+        setResult(null);
+        setError(null);
+        return;
+      }
+
       if (toolId === 'image-to-pdf') {
         const makeSampleImage = (index: number, accentHex: string): Promise<File> =>
           new Promise((resolve) => {
@@ -349,7 +567,91 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
           break;
 
         case 'compress-pdf':
-          output = await compressPdfFile(files[0], compressLevel);
+          output = await compressPdfFile(files[0], compressLevel, pdfTargetKb);
+          break;
+
+        case 'highlight-pdf':
+          output = await annotatePdfFile(files[0], pdfAnnotations);
+          break;
+
+        case 'compress-image':
+          output = await compressImageFile(files[0], {
+            format: imgCompressFormat,
+            quality: imgCompressQuality / 100,
+            targetKb: imgCompressMode === 'target-kb' ? imgTargetKb : null,
+            maxWidth: imgMaxWidth.trim() ? parseInt(imgMaxWidth, 10) : null,
+          });
+          break;
+
+        case 'resize-image':
+          output = await resizeAndConvertImage(files[0], {
+            ratio: resizeRatio,
+            customWidth: resizeCustomW,
+            customHeight: resizeCustomH,
+            mode: resizeMode,
+            format: resizeFormat,
+            backgroundColor: resizeBgColor,
+          });
+          break;
+
+        case 'edit-photo':
+          output = await editPhotoFile(files[0], {
+            crop: editCrop,
+            rotate: editRotate,
+            flipH: editFlipH,
+            flipV: editFlipV,
+            preset: editPreset,
+            brightness: editBrightness,
+            contrast: editContrast,
+            saturation: editSaturation,
+            format: editFormat,
+          });
+          break;
+
+        case 'highlight-photo':
+          if (photoHighlights.length === 0) {
+            throw new Error('Please draw a highlight/spotlight on the photo or click "Quick" first.');
+          }
+          output = await highlightPhotoFile(files[0], {
+            annotations: photoHighlights,
+            format: photoHlFormat,
+          });
+          break;
+
+        case 'remove-bg':
+          output = await removeBackgroundAlgorithmic(files[0], {
+            tolerance: bgTolerance,
+            feather: bgFeather,
+            mode: bgMode,
+            sampleColor: bgSampleColor,
+            bgFill,
+            format: bgFormat,
+          });
+          break;
+
+        case 'enhance-photo':
+          output = await enhancePhotoAlgorithmic(files[0], {
+            preset: enhancePreset,
+            sharpen: enhanceSharpen,
+            autoContrast: enhanceContrast,
+            brightness: enhanceBrightness,
+            vibrance: enhanceVibrance,
+            denoise: enhanceDenoise,
+            format: enhanceFormat,
+          });
+          break;
+
+        case 'rename-files':
+          output = await renameFilesClient(files, {
+            baseName: renameBaseName,
+            prefix: renamePrefix,
+            suffix: renameSuffix,
+            numbering: renameNumbering,
+            startNumber: renameStartNum,
+            findText: renameFind,
+            replaceText: renameReplace,
+            casing: renameCasing,
+          });
           break;
 
         case 'protect-pdf':
@@ -481,6 +783,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
       case 'split-pdf':
         return <Split className="w-6 h-6 text-rose-600" />;
       case 'compress-pdf':
+      case 'compress-image':
         return <Minimize2 className="w-6 h-6 text-rose-600" />;
       case 'protect-pdf':
         return <Lock className="w-6 h-6 text-rose-600" />;
@@ -498,6 +801,19 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
         return <Hash className="w-6 h-6 text-rose-600" />;
       case 'remove-pages':
         return <Trash2 className="w-6 h-6 text-rose-600" />;
+      case 'highlight-pdf':
+      case 'highlight-photo':
+        return <Highlighter className="w-6 h-6 text-rose-600" />;
+      case 'resize-image':
+        return <Scaling className="w-6 h-6 text-rose-600" />;
+      case 'edit-photo':
+        return <SlidersHorizontal className="w-6 h-6 text-rose-600" />;
+      case 'remove-bg':
+        return <Eraser className="w-6 h-6 text-rose-600" />;
+      case 'enhance-photo':
+        return <Wand2 className="w-6 h-6 text-rose-600" />;
+      case 'rename-files':
+        return <PenLine className="w-6 h-6 text-rose-600" />;
       default:
         return <FileText className="w-6 h-6 text-rose-600" />;
     }
@@ -542,14 +858,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             onDrop={(e) => {
               e.preventDefault();
               if (e.dataTransfer.files.length > 0) {
-                const dropped = Array.from(e.dataTransfer.files);
-                if (isMultiple) {
-                  setFiles((prev) => [...prev, ...dropped]);
-                } else {
-                  setFiles([dropped[0]]);
-                }
-                setResult(null);
-                setError(null);
+                acceptIncomingFiles(Array.from(e.dataTransfer.files));
               }
             }}
             className="border-2 border-dashed border-slate-300 hover:border-rose-400 bg-slate-50/70 hover:bg-rose-50/30 rounded-3xl p-8 text-center cursor-pointer transition-all group"
@@ -570,10 +879,20 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 ? isMultiple
                   ? 'Add more files'
                   : 'Change selected file'
-                : `Upload ${toolId === 'image-to-pdf' ? 'Images' : 'PDF'}`}
+                : toolId === 'rename-files'
+                ? 'Upload PDF or Photo Files'
+                : isPhotoOnlyTool
+                ? 'Upload Photo (PNG, JPG, WebP)'
+                : 'Upload PDF'}
             </h3>
             <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
-              Drag &amp; drop {toolId === 'image-to-pdf' ? 'PNG, JPG, or WebP files' : 'your PDF document'} here, or click to browse
+              Drag &amp; drop{' '}
+              {toolId === 'rename-files'
+                ? 'PDF, PNG, JPG, or WebP files'
+                : isPhotoOnlyTool
+                ? 'PNG, JPG, or WebP files'
+                : 'your PDF document'}{' '}
+              here, or click to browse
             </p>
 
             <div className="mt-4 inline-flex items-center gap-2">
@@ -583,10 +902,18 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   e.stopPropagation();
                   loadSamplePdf();
                 }}
-                className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-slate-200 hover:border-rose-300 text-slate-700 hover:text-rose-600 shadow-2xs transition-colors flex items-center gap-1.5"
+                className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-slate-200 hover:border-rose-300 text-slate-700 hover:text-rose-600 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
               >
                 <Sparkles className="w-3.5 h-3.5 text-rose-500" />
-                <span>{toolId === 'image-to-pdf' ? 'Load Sample Images' : 'Load Sample PDF'}</span>
+                <span>
+                  {toolId === 'rename-files'
+                    ? 'Load Sample Files'
+                    : toolId === 'image-to-pdf'
+                    ? 'Load Sample Images'
+                    : isPhotoOnlyTool
+                    ? 'Load Sample Photo'
+                    : 'Load Sample PDF'}
+                </span>
               </button>
             </div>
           </div>
@@ -620,7 +947,14 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       </div>
                       <div className="truncate">
                         <p className="font-semibold text-slate-900 truncate">{file.name}</p>
-                        <p className="text-[11px] text-slate-500">{(file.size / 1024).toFixed(1)} KB</p>
+                        <p className="text-[11px] text-slate-500">
+                          {(file.size / 1024).toFixed(1)} KB
+                          {pdfPageCounts[`${file.name}_${file.size}`]
+                            ? ` • ${pdfPageCounts[`${file.name}_${file.size}`]} page${
+                                pdfPageCounts[`${file.name}_${file.size}`] === 1 ? '' : 's'
+                              }`
+                            : ''}
+                        </p>
                       </div>
                     </div>
 
@@ -671,6 +1005,49 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               </div>
             </div>
           )}
+
+          {/* Interactive PDF Highlight Canvas (only for highlight-pdf) */}
+          {toolId === 'highlight-pdf' && files.length > 0 && (
+            <InteractivePdfHighlightPanel
+              file={files[0]}
+              annotations={pdfAnnotations}
+              onChangeAnnotations={setPdfAnnotations}
+            />
+          )}
+
+          {/* Interactive Photo Studio Canvas (edit-photo, highlight-photo, remove-bg, enhance-photo) */}
+          {files.length > 0 &&
+            (toolId === 'edit-photo' ||
+              toolId === 'highlight-photo' ||
+              toolId === 'remove-bg' ||
+              toolId === 'enhance-photo') && (
+              <InteractivePhotoPanel
+                toolId={toolId}
+                file={files[0]}
+                cropRect={editCrop}
+                onChangeCropRect={setEditCrop}
+                rotateDeg={editRotate}
+                flipH={editFlipH}
+                flipV={editFlipV}
+                filterPreset={editPreset}
+                brightness={editBrightness}
+                contrast={editContrast}
+                saturation={editSaturation}
+                highlights={photoHighlights}
+                onChangeHighlights={setPhotoHighlights}
+                bgTolerance={bgTolerance}
+                bgFeather={bgFeather}
+                bgMode={bgMode}
+                bgSampleColor={bgSampleColor}
+                onPickSampleColor={setBgSampleColor}
+                bgFill={bgFill}
+                enhancePreset={enhancePreset}
+                enhanceSharpen={enhanceSharpen}
+                enhanceContrast={enhanceContrast}
+                enhanceBrightness={enhanceBrightness}
+                enhanceVibrance={enhanceVibrance}
+              />
+            )}
         </div>
 
         {/* Right Column: Settings & Process Action */}
@@ -731,15 +1108,16 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               </div>
             )}
 
-            {/* Compress Settings */}
+            {/* Compress PDF Settings */}
             {toolId === 'compress-pdf' && (
               <div className="space-y-3">
                 <label className="block text-xs font-semibold text-slate-700">Compression Level</label>
                 <div className="space-y-2">
                   {[
-                    { id: 'recommended', label: 'Recommended', desc: 'Optimal balance of size & visual fidelity (~50-70% reduction)' },
-                    { id: 'extreme', label: 'Extreme Compression', desc: 'Maximum size reduction for email attachments (~70-85%)' },
-                    { id: 'light', label: 'Light Compression', desc: 'High quality with subtle optimization (~25-40%)' },
+                    { id: 'recommended', label: 'Recommended (Lossless)', desc: 'Clean PDF stream & metadata optimization preserving sharp vector text' },
+                    { id: 'extreme', label: 'Extreme Deep Compression', desc: 'Raster JPEG re-encoding for heavy scans (~65–85% smaller)' },
+                    { id: 'target-kb', label: 'Target File Size (KB)', desc: 'Automatically optimize DPI & JPEG quality toward your KB goal' },
+                    { id: 'light', label: 'Light Compression', desc: 'Subtle object-stream cleanup preserving full quality' },
                   ].map((lvl) => (
                     <label
                       key={lvl.id}
@@ -753,7 +1131,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         type="radio"
                         name="compressLevel"
                         checked={compressLevel === lvl.id}
-                        onChange={() => setCompressLevel(lvl.id as 'recommended' | 'extreme' | 'light')}
+                        onChange={() =>
+                          setCompressLevel(lvl.id as 'recommended' | 'extreme' | 'light' | 'target-kb')
+                        }
                         className="mt-0.5 text-rose-600 focus:ring-rose-500"
                       />
                       <div>
@@ -763,6 +1143,40 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     </label>
                   ))}
                 </div>
+
+                {compressLevel === 'target-kb' && (
+                  <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] space-y-2">
+                    <div className="flex flex-wrap gap-1.5">
+                      {[100, 200, 500].map((kb) => (
+                        <button
+                          key={kb}
+                          type="button"
+                          onClick={() => setPdfTargetKb(kb)}
+                          className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer ${
+                            pdfTargetKb === kb
+                              ? 'bg-[#E83E8C] text-white border-[#C92B72]'
+                              : 'bg-white text-[#24212A] border-[#FFE3EE]'
+                          }`}
+                        >
+                          {kb} KB
+                        </button>
+                      ))}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">
+                        Custom KB:
+                      </label>
+                      <input
+                        type="number"
+                        min={20}
+                        max={10000}
+                        value={pdfTargetKb}
+                        onChange={(e) => setPdfTargetKb(Math.max(20, parseInt(e.target.value, 10) || 100))}
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-hidden focus:border-[#E83E8C]"
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1079,7 +1493,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     type="text"
                     value={metaCreator}
                     onChange={(e) => setMetaCreator(e.target.value)}
-                    placeholder="e.g. Omini PDF AI Suite"
+                    placeholder="e.g. Omini PDF Suite"
                     className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
                   />
                 </div>
@@ -1234,6 +1648,802 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               </div>
             )}
 
+            {/* PDF Edit & Highlight Settings */}
+            {toolId === 'highlight-pdf' && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] text-[#24212A] space-y-1">
+                  <p className="font-bold">How to Highlight &amp; Edit PDF:</p>
+                  <p className="text-[11px] text-[#77717B]">
+                    Upload or load a PDF on the left, then drag across any line or tap <strong>Quick Mark</strong> to draw permanent highlights or text notes onto the page.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+                  <span className="font-semibold text-slate-700">Active Highlights / Notes:</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] font-bold">
+                    {pdfAnnotations.length}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Compress Photo (PNG/JPG/WebP) Settings */}
+            {toolId === 'compress-image' && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Output Format</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['webp', 'jpeg', 'png'] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => setImgCompressFormat(fmt)}
+                        className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
+                          imgCompressFormat === fmt
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {fmt === 'jpeg' ? 'JPG' : fmt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Compression Mode</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setImgCompressMode('quality')}
+                      className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                        imgCompressMode === 'quality'
+                          ? 'border-rose-500 bg-rose-50 text-rose-700'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      Quality Slider
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setImgCompressMode('target-kb')}
+                      className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                        imgCompressMode === 'target-kb'
+                          ? 'border-rose-500 bg-rose-50 text-rose-700'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      Exact Target KB
+                    </button>
+                  </div>
+                </div>
+
+                {imgCompressMode === 'quality' ? (
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">
+                      Quality: {imgCompressQuality}%
+                    </label>
+                    <input
+                      type="range"
+                      min={10}
+                      max={98}
+                      value={imgCompressQuality}
+                      onChange={(e) => setImgCompressQuality(parseInt(e.target.value, 10))}
+                      className="w-full accent-rose-600"
+                    />
+                  </div>
+                ) : (
+                  <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] space-y-2">
+                    <label className="block font-bold text-[#24212A]">Target File Size (KB)</label>
+                    <div className="flex flex-wrap gap-1.5">
+                      {[20, 50, 100, 200].map((kb) => (
+                        <button
+                          key={kb}
+                          type="button"
+                          onClick={() => setImgTargetKb(kb)}
+                          className={`px-2.5 py-1 rounded-lg font-bold border cursor-pointer ${
+                            imgTargetKb === kb
+                              ? 'bg-[#E83E8C] text-white border-[#C92B72]'
+                              : 'bg-white text-[#24212A] border-[#FFE3EE]'
+                          }`}
+                        >
+                          {kb} KB
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      type="number"
+                      min={5}
+                      max={5000}
+                      value={imgTargetKb}
+                      onChange={(e) => setImgTargetKb(Math.max(5, parseInt(e.target.value, 10) || 50))}
+                      placeholder="Custom target KB"
+                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    Max Width (px, optional)
+                  </label>
+                  <input
+                    type="number"
+                    min={100}
+                    max={8000}
+                    value={imgMaxWidth}
+                    onChange={(e) => setImgMaxWidth(e.target.value)}
+                    placeholder="Keep original width"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-[#E83E8C]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* Resize / Aspect Ratio & Format Converter Settings */}
+            {toolId === 'resize-image' && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Aspect Ratio</label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {['Original', '1:1', '4:3', '16:9', '9:16', '3:2', '3:4', 'custom'].map((r) => (
+                      <button
+                        key={r}
+                        type="button"
+                        onClick={() => setResizeRatio(r)}
+                        className={`p-2 rounded-lg border font-bold cursor-pointer ${
+                          resizeRatio === r
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {r === 'custom' ? 'Custom' : r}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {resizeRatio === 'custom' && (
+                  <div className="grid grid-cols-2 gap-2">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Width (px)</label>
+                      <input
+                        type="number"
+                        min={16}
+                        max={6000}
+                        value={resizeCustomW}
+                        onChange={(e) => setResizeCustomW(Math.max(16, parseInt(e.target.value, 10) || 800))}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Height (px)</label>
+                      <input
+                        type="number"
+                        min={16}
+                        max={6000}
+                        value={resizeCustomH}
+                        onChange={(e) => setResizeCustomH(Math.max(16, parseInt(e.target.value, 10) || 800))}
+                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Fit Mode</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'crop' as const, label: 'Crop to Fill' },
+                      { id: 'fit' as const, label: 'Fit (Pad)' },
+                      { id: 'stretch' as const, label: 'Stretch' },
+                    ].map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => setResizeMode(m.id)}
+                        className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                          resizeMode === m.id
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {resizeMode === 'fit' && (
+                  <div className="flex items-center justify-between">
+                    <span className="font-semibold text-slate-700">Padding Color:</span>
+                    <input
+                      type="color"
+                      value={resizeBgColor}
+                      onChange={(e) => setResizeBgColor(e.target.value)}
+                      className="w-10 h-8 rounded cursor-pointer border border-slate-200"
+                    />
+                  </div>
+                )}
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Download Format</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => setResizeFormat(fmt)}
+                        className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
+                          resizeFormat === fmt
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {fmt === 'jpeg' ? 'JPG' : fmt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Edit Photo Settings */}
+            {toolId === 'edit-photo' && (
+              <div className="space-y-4 text-xs">
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditRotate((r) => (((r + 90) % 360) as 0 | 90 | 180 | 270))}
+                    className="px-3 py-2 rounded-xl border border-slate-200 hover:border-rose-400 font-bold flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <RotateCw className="w-3.5 h-3.5 text-rose-600" />
+                    Rotate ({editRotate}°)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditFlipH((v) => !v)}
+                    className={`px-3 py-2 rounded-xl border font-bold flex items-center gap-1 cursor-pointer ${
+                      editFlipH ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-slate-200'
+                    }`}
+                  >
+                    <FlipHorizontal2 className="w-3.5 h-3.5" />
+                    Flip H
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditFlipV((v) => !v)}
+                    className={`px-3 py-2 rounded-xl border font-bold flex items-center gap-1 cursor-pointer ${
+                      editFlipV ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-slate-200'
+                    }`}
+                  >
+                    <FlipVertical2 className="w-3.5 h-3.5" />
+                    Flip V
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Filter Preset</label>
+                  <div className="grid grid-cols-4 gap-1.5">
+                    {(
+                      [
+                        { id: 'original', label: 'Original' },
+                        { id: 'bw', label: 'B&W' },
+                        { id: 'sepia', label: 'Sepia' },
+                        { id: 'vivid', label: 'Vivid' },
+                        { id: 'warm', label: 'Warm' },
+                        { id: 'cool', label: 'Cool' },
+                        { id: 'vintage', label: 'Vintage' },
+                        { id: 'high-contrast', label: 'Contrast+' },
+                      ] as const
+                    ).map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => setEditPreset(p.id)}
+                        className={`p-1.5 rounded-lg border text-[11px] font-bold cursor-pointer ${
+                          editPreset === p.id
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Brightness: {editBrightness}
+                    </label>
+                    <input
+                      type="range"
+                      min={-60}
+                      max={60}
+                      value={editBrightness}
+                      onChange={(e) => setEditBrightness(parseInt(e.target.value, 10))}
+                      className="w-full accent-rose-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Contrast: {editContrast}
+                    </label>
+                    <input
+                      type="range"
+                      min={-60}
+                      max={60}
+                      value={editContrast}
+                      onChange={(e) => setEditContrast(parseInt(e.target.value, 10))}
+                      className="w-full accent-rose-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Saturation: {editSaturation}
+                    </label>
+                    <input
+                      type="range"
+                      min={-80}
+                      max={80}
+                      value={editSaturation}
+                      onChange={(e) => setEditSaturation(parseInt(e.target.value, 10))}
+                      className="w-full accent-rose-600"
+                    />
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] text-[#77717B]">
+                    Crop region: {Math.round(editCrop.w * 100)}% × {Math.round(editCrop.h * 100)}%
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setEditCrop({ x: 0, y: 0, w: 1, h: 1 });
+                      setEditRotate(0);
+                      setEditFlipH(false);
+                      setEditFlipV(false);
+                      setEditPreset('original');
+                      setEditBrightness(0);
+                      setEditContrast(0);
+                      setEditSaturation(0);
+                    }}
+                    className="text-[11px] font-bold text-[#E83E8C] hover:underline cursor-pointer"
+                  >
+                    Reset Crop &amp; Filters
+                  </button>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Export Format</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => setEditFormat(fmt)}
+                        className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
+                          editFormat === fmt
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {fmt === 'jpeg' ? 'JPG' : fmt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Highlight Photo Settings */}
+            {toolId === 'highlight-photo' && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] text-[#24212A] space-y-1">
+                  <p className="font-bold">Highlight &amp; Spotlight Canvas Ready</p>
+                  <p className="text-[11px] text-[#77717B]">
+                    Choose <strong>Box</strong>, <strong>Spotlight</strong>, or <strong>Marker</strong> on the left studio and draw directly over the photo (or tap <strong>Quick</strong>).
+                  </p>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50">
+                  <span className="font-semibold text-slate-700">Active Photo Highlights:</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] font-bold">
+                    {photoHighlights.length}
+                  </span>
+                </div>
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Export Format</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => setPhotoHlFormat(fmt)}
+                        className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
+                          photoHlFormat === fmt
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {fmt === 'jpeg' ? 'JPG' : fmt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Remove Background Settings (Algorithmic Flood-Fill + Chroma Key) */}
+            {toolId === 'remove-bg' && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Detection Mode (No AI)</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setBgMode('flood-edges')}
+                      className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                        bgMode === 'flood-edges'
+                          ? 'border-rose-500 bg-rose-50 text-rose-700'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      Edge Flood-Fill
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setBgMode('global-color')}
+                      className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                        bgMode === 'global-color'
+                          ? 'border-rose-500 bg-rose-50 text-rose-700'
+                          : 'border-slate-200 text-slate-600'
+                      }`}
+                    >
+                      Global Chroma Key
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700">
+                    Color Tolerance: {bgTolerance}
+                  </label>
+                  <input
+                    type="range"
+                    min={8}
+                    max={110}
+                    value={bgTolerance}
+                    onChange={(e) => setBgTolerance(parseInt(e.target.value, 10))}
+                    className="w-full accent-rose-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-slate-700">
+                    Edge Feathering: {bgFeather}px
+                  </label>
+                  <input
+                    type="range"
+                    min={0}
+                    max={30}
+                    value={bgFeather}
+                    onChange={(e) => setBgFeather(parseInt(e.target.value, 10))}
+                    className="w-full accent-rose-600"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">New Backdrop</label>
+                  <div className="flex flex-wrap items-center gap-2">
+                    {[
+                      { val: 'transparent', label: 'Transparent' },
+                      { val: '#FFFFFF', label: 'White' },
+                      { val: '#FFF4F8', label: 'Soft Pink' },
+                      { val: '#E0F2FE', label: 'Sky Blue' },
+                    ].map((bg) => (
+                      <button
+                        key={bg.val}
+                        type="button"
+                        onClick={() => {
+                          setBgFill(bg.val);
+                          if (bg.val === 'transparent' && bgFormat === 'jpeg') {
+                            setBgFormat('png');
+                          }
+                        }}
+                        className={`px-2.5 py-1.5 rounded-lg border font-bold cursor-pointer ${
+                          bgFill === bg.val
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {bg.label}
+                      </button>
+                    ))}
+                    <input
+                      type="color"
+                      value={bgFill === 'transparent' ? '#ffffff' : bgFill}
+                      onChange={(e) => setBgFill(e.target.value)}
+                      title="Custom solid backdrop color"
+                      className="w-8 h-8 rounded border border-slate-200 cursor-pointer"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Output Format</label>
+                  <div className={`grid gap-2 ${bgFill !== 'transparent' ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                    {(bgFill !== 'transparent' ? (['png', 'webp', 'jpeg'] as const) : (['png', 'webp'] as const)).map((fmt) => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => setBgFormat(fmt)}
+                        className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
+                          bgFormat === fmt
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {fmt === 'jpeg' ? 'JPG' : `${fmt} (Alpha)`}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Enhance Photo Settings (Pure Algorithmic Auto-Levels & Unsharp Mask) */}
+            {toolId === 'enhance-photo' && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Enhancement Preset</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'auto' as const, label: 'Auto HD', sh: 55, ct: 65, br: 4, vb: 35, dn: 12 },
+                      { id: 'document' as const, label: 'Crisp Document Scan', sh: 75, ct: 85, br: 8, vb: 10, dn: 8 },
+                      { id: 'portrait' as const, label: 'Smooth Portrait', sh: 35, ct: 45, br: 6, vb: 28, dn: 30 },
+                      { id: 'vivid' as const, label: 'Vivid Color Boost', sh: 50, ct: 65, br: 4, vb: 65, dn: 10 },
+                    ].map((p) => (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => {
+                          setEnhancePreset(p.id);
+                          setEnhanceSharpen(p.sh);
+                          setEnhanceContrast(p.ct);
+                          setEnhanceBrightness(p.br);
+                          setEnhanceVibrance(p.vb);
+                          setEnhanceDenoise(p.dn);
+                        }}
+                        className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                          enhancePreset === p.id
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {p.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Unsharp Mask Sharpen: {enhanceSharpen}%
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={enhanceSharpen}
+                      onChange={(e) => {
+                        setEnhancePreset('custom');
+                        setEnhanceSharpen(parseInt(e.target.value, 10));
+                      }}
+                      className="w-full accent-rose-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Auto-Levels Contrast: {enhanceContrast}%
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={enhanceContrast}
+                      onChange={(e) => {
+                        setEnhancePreset('custom');
+                        setEnhanceContrast(parseInt(e.target.value, 10));
+                      }}
+                      className="w-full accent-rose-600"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[11px] font-semibold text-slate-700">
+                      Vibrance: {enhanceVibrance}%
+                    </label>
+                    <input
+                      type="range"
+                      min={0}
+                      max={100}
+                      value={enhanceVibrance}
+                      onChange={(e) => {
+                        setEnhancePreset('custom');
+                        setEnhanceVibrance(parseInt(e.target.value, 10));
+                      }}
+                      className="w-full accent-rose-600"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1.5">Export Format</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
+                      <button
+                        key={fmt}
+                        type="button"
+                        onClick={() => setEnhanceFormat(fmt)}
+                        className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
+                          enhanceFormat === fmt
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {fmt === 'jpeg' ? 'JPG' : fmt}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Rename PDF & Photos Settings */}
+            {toolId === 'rename-files' && (
+              <div className="space-y-3 text-xs">
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">
+                    New Base Name (Optional — keeps original if empty)
+                  </label>
+                  <input
+                    type="text"
+                    value={renameBaseName}
+                    onChange={(e) => setRenameBaseName(e.target.value)}
+                    placeholder="e.g. Omini_Invoice"
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-[#E83E8C]"
+                  />
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Prefix</label>
+                    <input
+                      type="text"
+                      value={renamePrefix}
+                      onChange={(e) => setRenamePrefix(e.target.value)}
+                      placeholder="e.g. 2026_"
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Suffix</label>
+                    <input
+                      type="text"
+                      value={renameSuffix}
+                      onChange={(e) => setRenameSuffix(e.target.value)}
+                      placeholder="e.g. _final"
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Find Text</label>
+                    <input
+                      type="text"
+                      value={renameFind}
+                      onChange={(e) => setRenameFind(e.target.value)}
+                      placeholder="e.g. raw "
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Replace With</label>
+                    <input
+                      type="text"
+                      value={renameReplace}
+                      onChange={(e) => setRenameReplace(e.target.value)}
+                      placeholder="e.g. clean_"
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Numbering</label>
+                    <select
+                      value={renameNumbering}
+                      onChange={(e) => setRenameNumbering(e.target.value as 'none' | 'suffix' | 'prefix')}
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white"
+                    >
+                      <option value="suffix">Suffix (_1, _2)</option>
+                      <option value="prefix">Prefix (1_, 2_)</option>
+                      <option value="none">No Numbering</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1">Start At</label>
+                    <input
+                      type="number"
+                      min={1}
+                      value={renameStartNum}
+                      onChange={(e) => setRenameStartNum(Math.max(1, parseInt(e.target.value, 10) || 1))}
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1">Filename Casing</label>
+                  <div className="grid grid-cols-3 gap-1.5">
+                    {[
+                      { id: 'keep' as const, label: 'Keep' },
+                      { id: 'lower' as const, label: 'lowercase' },
+                      { id: 'slug' as const, label: 'clean_slug' },
+                    ].map((c) => (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => setRenameCasing(c.id)}
+                        className={`p-1.5 rounded-lg border font-bold cursor-pointer ${
+                          renameCasing === c.id
+                            ? 'border-rose-500 bg-rose-50 text-rose-700'
+                            : 'border-slate-200 text-slate-600'
+                        }`}
+                      >
+                        {c.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {files.length > 0 && (
+                  <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] space-y-1">
+                    <span className="text-[11px] font-bold text-[#C92B72] uppercase">
+                      Live Filename Preview
+                    </span>
+                    <div className="space-y-1 max-h-28 overflow-y-auto text-[11px]">
+                      {buildBatchRenamePlan(
+                        files.map((f) => f.name),
+                        {
+                          baseName: renameBaseName,
+                          prefix: renamePrefix,
+                          suffix: renameSuffix,
+                          numbering: renameNumbering,
+                          startNumber: renameStartNum,
+                          findText: renameFind,
+                          replaceText: renameReplace,
+                          casing: renameCasing,
+                        }
+                      )
+                        .slice(0, 6)
+                        .map((nextName, idx) => (
+                          <div key={idx} className="flex items-center gap-1.5 truncate">
+                            <span className="text-[#77717B] truncate max-w-[40%]">{files[idx].name}</span>
+                            <span className="text-[#E83E8C] font-bold">→</span>
+                            <span className="font-bold text-[#24212A] truncate">{nextName}</span>
+                          </div>
+                        ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Error banner */}
             {error && (
               <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
@@ -1289,7 +2499,11 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   className="inline-flex items-center justify-center gap-2 w-full min-w-0 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-[#24212A] bg-white border-2 border-[#E83E8C] hover:bg-[#FFE3EE] shadow-xs transition-all whitespace-nowrap cursor-pointer"
                 >
                   <Eye className="w-4 h-4 text-[#E83E8C] shrink-0" />
-                  <span className="truncate">Live Preview Updated PDF</span>
+                  <span className="truncate">
+                    {isPhotoOnlyTool || toolId === 'rename-files'
+                      ? 'Live Preview Updated File'
+                      : 'Live Preview Updated PDF'}
+                  </span>
                 </button>
 
                 <MonetagDownloadLink

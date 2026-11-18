@@ -316,7 +316,7 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
             </p>
             <p className="text-xs text-[#77717B] mt-1 max-w-sm mx-auto">
               {history.length === 0
-                ? 'Process any PDF using our 11 free tools and it will automatically appear here.'
+                ? `Process any PDF or photo using our ${TOOLS_CONFIG.length} free tools and it will automatically appear here.`
                 : 'Try clearing your search filter or tool dropdown.'}
             </p>
             {history.length === 0 && (

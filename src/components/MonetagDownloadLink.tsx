@@ -112,7 +112,7 @@ export const MonetagDownloadLink: React.FC<MonetagDownloadLinkProps> = ({
                   )}
 
                   <p className="text-[11px] text-[#77717B] leading-relaxed">
-                    A sponsor page opened in a new tab to keep all 11 PDF tools 100% free. If your browser blocked the new tab, click below to open the Sponsor Ad directly.
+                    A sponsor page opened in a new tab to keep all 19 PDF &amp; Photo tools 100% free. If your browser blocked the new tab, click below to open the Sponsor Ad directly.
                   </p>
 
                   <a

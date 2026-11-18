@@ -25,6 +25,14 @@ import {
   Hash,
   Trash2,
   Infinity as InfinityIcon,
+  Highlighter,
+  Scaling,
+  SlidersHorizontal,
+  Eraser,
+  Wand2,
+  PenLine,
+  Clock,
+  X,
 } from 'lucide-react';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { TOOL_PATH_MAP } from '../utils/seoRouter.js';
@@ -34,19 +42,33 @@ import { AdSenseBanner } from './AdSenseBanner.js';
 interface LandingViewProps {
   user: User | null;
   limits: PlatformLimits;
+  recentToolIds?: ToolId[];
+  onClearRecentTools?: () => void;
   onSelectTool: (toolId: ToolId) => void;
   onOpenAuth: (mode?: 'login' | 'register') => void;
 }
 
 export const LandingView: React.FC<LandingViewProps> = ({
   user,
+  recentToolIds = [],
+  onClearRecentTools,
   onSelectTool,
 }) => {
   const [searchQuery, setSearchQuery] = useState('');
+  const [activeCategory, setActiveCategory] = useState<'all' | 'pdf' | 'image' | 'utility'>('all');
   const [openFaqIndex, setOpenFaqIndex] = useState<number | null>(0);
   const [activeLegalModal, setActiveLegalModal] = useState<'privacy' | 'terms' | 'security' | 'license' | null>(null);
 
+  const recentTools = recentToolIds
+    .map((id) => TOOLS_CONFIG.find((t) => t.id === id))
+    .filter((t): t is (typeof TOOLS_CONFIG)[number] => Boolean(t));
+
+  const pdfCount = TOOLS_CONFIG.filter((t) => t.category === 'pdf').length;
+  const imageCount = TOOLS_CONFIG.filter((t) => t.category === 'image').length;
+  const utilityCount = TOOLS_CONFIG.filter((t) => t.category === 'utility').length;
+
   const filteredTools = TOOLS_CONFIG.filter((tool) => {
+    if (activeCategory !== 'all' && tool.category !== activeCategory) return false;
     const q = searchQuery.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -63,6 +85,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
       case 'split-pdf':
         return <Split className="w-5 h-5" />;
       case 'compress-pdf':
+      case 'compress-image':
         return <Minimize2 className="w-5 h-5" />;
       case 'protect-pdf':
         return <Lock className="w-5 h-5" />;
@@ -80,6 +103,19 @@ export const LandingView: React.FC<LandingViewProps> = ({
         return <Hash className="w-5 h-5" />;
       case 'remove-pages':
         return <Trash2 className="w-5 h-5" />;
+      case 'highlight-pdf':
+      case 'highlight-photo':
+        return <Highlighter className="w-5 h-5" />;
+      case 'resize-image':
+        return <Scaling className="w-5 h-5" />;
+      case 'edit-photo':
+        return <SlidersHorizontal className="w-5 h-5" />;
+      case 'remove-bg':
+        return <Eraser className="w-5 h-5" />;
+      case 'enhance-photo':
+        return <Wand2 className="w-5 h-5" />;
+      case 'rename-files':
+        return <PenLine className="w-5 h-5" />;
       default:
         return <FileText className="w-5 h-5" />;
     }
@@ -88,7 +124,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
   const faqs = [
     {
       q: 'Is Omini PDF completely free with no paid plans or hidden limits?',
-      a: 'Yes! Every single PDF tool on Omini PDF — Merge, Split, Compress, Protect, Watermark, Rotate, Page Numbers, Remove Pages, Edit Metadata, Image to PDF, and PDF to Image — is 100% free forever with unlimited operations and zero watermarks.',
+      a: `Yes! All ${TOOLS_CONFIG.length} PDF, Photo, and Utility tools on Omini PDF — including PDF Highlight, Photo Compressor, Aspect Ratio Converter, Photo Editor, Background Remover, Photo Enhancer, and Batch Rename — are 100% free forever with unlimited operations.`,
     },
     {
       q: 'Are my PDF documents safe and private?',
@@ -121,14 +157,14 @@ export const LandingView: React.FC<LandingViewProps> = ({
           </div>
 
           <h1 className="text-4xl sm:text-6xl font-black italic tracking-tight leading-[1.18] text-[#24212A]">
-            Every PDF Tool You Need. <br className="hidden sm:inline" />
+            Every PDF &amp; Photo Tool You Need. <br className="hidden sm:inline" />
             <span className="bg-gradient-to-r from-[#E83E8C] via-[#FF2E93] to-[#C92B72] bg-clip-text text-transparent">
               100% Free, Private &amp; Instant.
             </span>
           </h1>
 
           <p className="mt-5 text-base sm:text-lg text-[#77717B] max-w-2xl mx-auto leading-relaxed font-serif italic">
-            Merge, split, compress, protect, watermark, rotate, and convert PDFs directly in your browser at lightning speed — with zero limits and zero watermarks.
+            Merge, split, compress to target KB, highlight PDFs, edit &amp; resize photos, remove backgrounds, and rename files directly in your browser — with zero AI, zero limits, and zero watermarks.
           </p>
 
           {/* Hero CTAs */}
@@ -196,18 +232,85 @@ export const LandingView: React.FC<LandingViewProps> = ({
         />
       </div>
 
+      {/* Recently Used Tools Section (Last 3 tools persisted in localStorage) */}
+      {recentTools.length > 0 && (
+        <section
+          id="recently-used"
+          aria-label="Recently Used Tools"
+          className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+        >
+          <div className="bg-white rounded-3xl p-5 sm:p-6 border-2 border-[#FFE3EE] shadow-xs">
+            <div className="flex items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-2">
+                <div className="w-8 h-8 rounded-xl bg-[#FFE3EE] text-[#E83E8C] flex items-center justify-center shrink-0">
+                  <Clock className="w-4 h-4" />
+                </div>
+                <div>
+                  <h2 className="text-base sm:text-lg font-serif font-extrabold italic text-[#24212A] leading-tight">
+                    Recently Used
+                  </h2>
+                  <p className="text-[11px] text-[#77717B] font-serif italic">
+                    Quick jump back to your last {recentTools.length} tool{recentTools.length > 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+
+              {onClearRecentTools && (
+                <button
+                  type="button"
+                  onClick={onClearRecentTools}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold text-[#77717B] hover:text-[#D9364F] hover:bg-[#FFF4F8] border border-[#FFE3EE] transition-colors cursor-pointer"
+                >
+                  <X className="w-3 h-3" />
+                  <span>Clear</span>
+                </button>
+              )}
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
+              {recentTools.map((tool) => (
+                <a
+                  key={`recent-${tool.id}`}
+                  href={TOOL_PATH_MAP[tool.id] || '/'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSelectTool(tool.id);
+                  }}
+                  className="flex items-center justify-between gap-3 p-4 rounded-2xl bg-[#FFF4F8]/70 hover:bg-[#FFE3EE]/70 border border-[#FFE3EE] hover:border-[#E83E8C] transition-all group no-underline cursor-pointer"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    <div className="w-10 h-10 rounded-xl bg-white border border-[#FDC6DD] text-[#E83E8C] group-hover:bg-gradient-to-r group-hover:from-[#E83E8C] group-hover:to-[#C92B72] group-hover:text-white flex items-center justify-center shrink-0 transition-colors">
+                      {getToolIcon(tool.id)}
+                    </div>
+                    <div className="min-w-0">
+                      <h3 className="text-sm font-serif font-extrabold italic text-[#24212A] group-hover:text-[#E83E8C] truncate">
+                        {tool.name}
+                      </h3>
+                      <p className="text-[11px] text-[#77717B] truncate font-serif italic">
+                        {tool.tagline}
+                      </p>
+                    </div>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-[#E83E8C] shrink-0 group-hover:translate-x-0.5 transition-transform" />
+                </a>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Tools Section */}
       <section id="tools-grid" className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-5">
           <div>
             <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#1FA971]/10 text-[#1FA971] text-xs font-bold mb-2 border border-[#1FA971]/25">
               <span>All {TOOLS_CONFIG.length} Tools 100% Free &amp; Unlimited</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-serif font-extrabold italic text-[#24212A] tracking-tight">
-              Powerful Free PDF Tools
+              Powerful Free PDF &amp; Photo Tools
             </h2>
             <p className="text-xs sm:text-sm text-[#77717B] mt-1 font-serif italic">
-              Select any tool below to process your PDFs instantly — no limits, no watermarks.
+              Select any tool below to process your PDFs &amp; photos instantly — pure browser libraries, zero AI, zero watermarks.
             </p>
           </div>
 
@@ -218,20 +321,48 @@ export const LandingView: React.FC<LandingViewProps> = ({
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search PDF tools..."
-              aria-label="Search PDF tools"
+              placeholder="Search PDF or photo tools..."
+              aria-label="Search PDF and photo tools"
               className="w-full sm:w-64 pl-9 pr-3 py-2 text-xs rounded-2xl border-2 border-[#FFE3EE] bg-white text-[#24212A] focus:outline-hidden focus:border-[#E83E8C] font-serif italic shadow-2xs"
             />
           </div>
         </div>
 
+        {/* Category Filter Tabs */}
+        <div className="flex flex-wrap items-center gap-2 mb-7" role="tablist" aria-label="Tool categories">
+          {[
+            { id: 'all' as const, label: `All Tools (${TOOLS_CONFIG.length})` },
+            { id: 'pdf' as const, label: `PDF Tools (${pdfCount})` },
+            { id: 'image' as const, label: `Photo Studio (${imageCount})` },
+            { id: 'utility' as const, label: `Rename & Utility (${utilityCount})` },
+          ].map((tab) => (
+            <button
+              key={tab.id}
+              type="button"
+              role="tab"
+              aria-selected={activeCategory === tab.id}
+              onClick={() => setActiveCategory(tab.id)}
+              className={`px-4 py-2 rounded-2xl text-xs font-serif font-bold italic transition-all cursor-pointer border ${
+                activeCategory === tab.id
+                  ? 'bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white border-[#C92B72] shadow-sm'
+                  : 'bg-white text-[#24212A] border-[#FFE3EE] hover:border-[#E83E8C] hover:text-[#E83E8C]'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+
         {/* Tools Grid */}
         {filteredTools.length === 0 ? (
           <div className="text-center py-12 bg-white rounded-3xl border-2 border-[#FFE3EE]">
-            <p className="text-sm font-bold text-[#24212A]">No matching PDF tools found</p>
+            <p className="text-sm font-bold text-[#24212A]">No matching tools found</p>
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
+              onClick={() => {
+                setSearchQuery('');
+                setActiveCategory('all');
+              }}
               className="mt-3 text-xs font-bold text-[#E83E8C] hover:underline cursor-pointer"
             >
               Show all {TOOLS_CONFIG.length} tools
@@ -488,7 +619,7 @@ export const LandingView: React.FC<LandingViewProps> = ({
                   </p>
                   <h4 className="font-bold text-[#24212A] mt-3">1. 100% Free Unlimited Access</h4>
                   <p>
-                    All 11 PDF tools on Omini PDF are completely free for personal, academic, and business use with unlimited document operations.
+                    All {TOOLS_CONFIG.length} PDF, Photo, and Utility tools on Omini PDF are completely free for personal, academic, and business use with unlimited document operations.
                   </p>
                   <h4 className="font-bold text-[#24212A] mt-3">2. Acceptable Use</h4>
                   <p>

@@ -24,8 +24,16 @@ export const TOOL_PATH_MAP: Record<ToolId, string> = {
   'rotate-pdf': '/rotate-pdf',
   'page-numbers': '/page-numbers',
   'remove-pages': '/remove-pages',
+  'highlight-pdf': '/highlight-pdf',
   'image-to-pdf': '/image-to-pdf',
   'pdf-to-image': '/pdf-to-image',
+  'compress-image': '/compress-image',
+  'resize-image': '/resize-image',
+  'edit-photo': '/edit-photo',
+  'highlight-photo': '/highlight-photo',
+  'remove-bg': '/remove-background',
+  'enhance-photo': '/enhance-photo',
+  'rename-files': '/rename-files',
 };
 
 export const PATH_TO_TOOL_MAP: Record<string, ToolId> = {
@@ -39,16 +47,25 @@ export const PATH_TO_TOOL_MAP: Record<string, ToolId> = {
   '/rotate-pdf': 'rotate-pdf',
   '/page-numbers': 'page-numbers',
   '/remove-pages': 'remove-pages',
+  '/highlight-pdf': 'highlight-pdf',
   '/image-to-pdf': 'image-to-pdf',
   '/pdf-to-image': 'pdf-to-image',
+  '/compress-image': 'compress-image',
+  '/resize-image': 'resize-image',
+  '/edit-photo': 'edit-photo',
+  '/highlight-photo': 'highlight-photo',
+  '/remove-background': 'remove-bg',
+  '/remove-bg': 'remove-bg',
+  '/enhance-photo': 'enhance-photo',
+  '/rename-files': 'rename-files',
 };
 
 export const SEO_METADATA_REGISTRY: Record<string, RouteMeta> = {
   '/': {
-    title: 'Omini PDF - 100% Free Online PDF Suite | Merge, Split, Compress & Edit PDF',
-    description: '100% free, unlimited online PDF editor. Merge, split, compress to 100KB, protect, watermark, rotate, add page numbers, and convert PDFs right in your browser.',
+    title: 'Omini PDF - 100% Free Online PDF & Photo Suite | Merge, Compress, Edit & Convert',
+    description: '100% free, unlimited online PDF & photo editor. Merge, split, compress to 100KB, highlight PDF, compress PNG/JPG/WebP, crop photos, remove backgrounds, and rename files right in your browser.',
     canonicalPath: '/',
-    keywords: 'free online pdf editor, free pdf tools, merge pdf free, split pdf online, compress pdf to 100kb, protect pdf password, watermark pdf free, rotate pdf, page numbers pdf, remove pdf pages, image to pdf, pdf to jpg, omini pdf',
+    keywords: 'free online pdf editor, free photo tools, merge pdf free, compress pdf to 100kb, compress image png jpg webp, remove background free, photo enhance sharpen, crop photo online, highlight pdf free, omini pdf',
   },
   '/merge-pdf': {
     title: 'Merge PDF Free Online - Omini PDF',
@@ -104,6 +121,12 @@ export const SEO_METADATA_REGISTRY: Record<string, RouteMeta> = {
     canonicalPath: '/remove-pages',
     keywords: 'remove pages from pdf, delete pdf pages, delete pages from pdf free, cut pages from pdf online',
   },
+  '/highlight-pdf': {
+    title: 'Highlight & Edit PDF Online Free - Omini PDF',
+    description: 'Highlight important sections and add text annotations directly onto PDF pages in your browser with instant live preview and zero watermarks.',
+    canonicalPath: '/highlight-pdf',
+    keywords: 'highlight pdf online, edit pdf highlight free, annotate pdf online, pdf highlighter tool, add notes to pdf',
+  },
   '/image-to-pdf': {
     title: 'Image to PDF Converter Free - Omini PDF',
     description: 'Convert JPG, PNG, and WebP images into clean, multi-page PDF documents for free. Arrange photos, adjust page margins, and download instantly.',
@@ -115,6 +138,48 @@ export const SEO_METADATA_REGISTRY: Record<string, RouteMeta> = {
     description: 'Convert PDF pages into high-resolution PNG or JPEG images for free. Download individual page images or all pages bundled in a ZIP file.',
     canonicalPath: '/pdf-to-image',
     keywords: 'pdf to image, pdf to png, pdf to jpg converter online, extract pdf pages as image',
+  },
+  '/compress-image': {
+    title: 'Compress Image (PNG, JPG, WebP) to Target KB Free - Omini PDF',
+    description: 'Reduce PNG, JPEG, and WebP image file sizes to exact KB targets (20KB, 50KB, 100KB, 200KB) cleanly inside your browser with live quality preview.',
+    canonicalPath: '/compress-image',
+    keywords: 'compress image, reduce photo size kb, compress png jpg webp, compress image to 50kb, shrink photo online free',
+  },
+  '/resize-image': {
+    title: 'Photo Aspect Ratio & Format Converter (PNG/JPG/WebP) - Omini PDF',
+    description: 'Change photo aspect ratio (1:1, 4:3, 16:9, 9:16, Custom WxH) and convert images between PNG, JPG, and WebP formats 100% free in browser.',
+    canonicalPath: '/resize-image',
+    keywords: 'change image aspect ratio, resize photo online free, convert png to webp, jpg to png converter, crop ratio 16:9',
+  },
+  '/edit-photo': {
+    title: 'Free Photo Editor (Crop, Rotate & Filters) - Omini PDF',
+    description: 'Crop images interactively, rotate, flip, adjust brightness, contrast, saturation, and apply B&W, Sepia, Warm, or Vivid filters offline in browser.',
+    canonicalPath: '/edit-photo',
+    keywords: 'photo editor online free, crop photo online, image filters sepia bw, brightness contrast photo editor',
+  },
+  '/highlight-photo': {
+    title: 'Photo Highlighter & Spotlight Tool Free - Omini PDF',
+    description: 'Highlight key areas on screenshots and photos using neon markers, highlight boxes, or spotlight dim masks cleanly in your browser.',
+    canonicalPath: '/highlight-photo',
+    keywords: 'highlight photo online, image highlighter tool, spotlight screenshot area, mark photo free',
+  },
+  '/remove-background': {
+    title: 'Remove Photo Background Free (No AI / Client-Side) - Omini PDF',
+    description: 'Remove solid or studio backgrounds from photos instantly using fast client-side edge flood-fill and chroma transparency with PNG download.',
+    canonicalPath: '/remove-background',
+    keywords: 'remove background from photo free, transparent png maker, chroma background remover, instant bg eraser',
+  },
+  '/enhance-photo': {
+    title: 'Enhance & Sharpen Photo Free (Auto-Levels & Clarity) - Omini PDF',
+    description: 'Enhance blurry scans and low-contrast photos cleanly in your browser with unsharp mask sharpening, auto-levels contrast, and vibrance.',
+    canonicalPath: '/enhance-photo',
+    keywords: 'enhance photo online free, sharpen blurry image, unblur document scan, image clarity enhancer',
+  },
+  '/rename-files': {
+    title: 'Rename PDF & Photos Online Free (Batch Renamer) - Omini PDF',
+    description: 'Rename single or multiple PDF, PNG, JPG, and WebP files with prefixes, suffixes, sequential numbering, and instant ZIP download.',
+    canonicalPath: '/rename-files',
+    keywords: 'rename pdf online, batch rename photos free, change image filename, bulk file renamer browser',
   },
   '/faqs': {
     title: 'FAQs - Omini PDF (100% Free PDF Tools)',

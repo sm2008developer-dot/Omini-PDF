@@ -44,7 +44,8 @@ export const Navbar: React.FC<NavbarProps> = ({
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
   const [userDropdownOpen, setUserDropdownOpen] = useState(false);
 
-  const pdfTools = TOOLS_CONFIG;
+  const pdfTools = TOOLS_CONFIG.filter((t) => t.category === 'pdf');
+  const photoTools = TOOLS_CONFIG.filter((t) => t.category !== 'pdf');
 
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur-md border-b border-[#FFE3EE] shadow-xs">
@@ -105,36 +106,66 @@ export const Navbar: React.FC<NavbarProps> = ({
                 className="flex items-center gap-1 px-3 py-2 rounded-lg text-sm font-medium text-[#24212A] hover:text-[#E83E8C] hover:bg-[#FFF4F8] transition-colors cursor-pointer"
                 aria-expanded={toolsDropdownOpen}
               >
-                All PDF Tools
+                All Tools ({TOOLS_CONFIG.length})
                 <ChevronDown className="w-4 h-4 opacity-70" />
               </button>
 
               {toolsDropdownOpen && (
-                <div className="absolute top-full left-0 mt-2 w-[440px] bg-white rounded-2xl shadow-xl border border-[#FFE3EE] p-4 animate-in fade-in slide-in-from-top-2 duration-150">
-                  <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-[#C92B72] uppercase tracking-wider mb-2">
-                    <FileText className="w-3.5 h-3.5 text-[#E83E8C]" />
-                    All 11 Free PDF Tools
+                <div className="absolute top-full left-0 mt-2 w-[540px] max-h-[75vh] overflow-y-auto bg-white rounded-2xl shadow-xl border border-[#FFE3EE] p-4 animate-in fade-in slide-in-from-top-2 duration-150 space-y-4">
+                  <div>
+                    <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-[#C92B72] uppercase tracking-wider mb-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#E83E8C]" />
+                      PDF Tools ({pdfTools.length})
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {pdfTools.map((t) => (
+                        <a
+                          key={t.id}
+                          href={TOOL_PATH_MAP[t.id] || '/'}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onSelectTool(t.id);
+                            setToolsDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium text-[#24212A] hover:text-[#E83E8C] hover:bg-[#FFF4F8] transition-colors flex items-center justify-between gap-2 no-underline"
+                        >
+                          <span className="truncate">{t.name}</span>
+                          {t.badge && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] font-semibold shrink-0">
+                              {t.badge}
+                            </span>
+                          )}
+                        </a>
+                      ))}
+                    </div>
                   </div>
-                  <div className="grid grid-cols-2 gap-1.5">
-                    {pdfTools.map((t) => (
-                      <a
-                        key={t.id}
-                        href={TOOL_PATH_MAP[t.id] || '/'}
-                        onClick={(e) => {
-                          e.preventDefault();
-                          onSelectTool(t.id);
-                          setToolsDropdownOpen(false);
-                        }}
-                        className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium text-[#24212A] hover:text-[#E83E8C] hover:bg-[#FFF4F8] transition-colors flex items-center justify-between no-underline"
-                      >
-                        <span>{t.name}</span>
-                        {t.badge && (
-                          <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] font-semibold">
-                            {t.badge}
-                          </span>
-                        )}
-                      </a>
-                    ))}
+
+                  <div className="pt-3 border-t border-[#FFF4F8]">
+                    <div className="flex items-center gap-1.5 px-2 py-1 text-xs font-bold text-[#C92B72] uppercase tracking-wider mb-1.5">
+                      <FileText className="w-3.5 h-3.5 text-[#E83E8C]" />
+                      Photo Studio &amp; Rename ({photoTools.length})
+                    </div>
+                    <div className="grid grid-cols-2 gap-1.5">
+                      {photoTools.map((t) => (
+                        <a
+                          key={t.id}
+                          href={TOOL_PATH_MAP[t.id] || '/'}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            onSelectTool(t.id);
+                            setToolsDropdownOpen(false);
+                          }}
+                          className="w-full text-left px-2.5 py-2 rounded-xl text-xs font-medium text-[#24212A] hover:text-[#E83E8C] hover:bg-[#FFF4F8] transition-colors flex items-center justify-between gap-2 no-underline"
+                        >
+                          <span className="truncate">{t.name}</span>
+                          {t.badge && (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] font-semibold shrink-0">
+                              {t.badge}
+                            </span>
+                          )}
+                        </a>
+                      ))}
+                    </div>
                   </div>
                 </div>
               )}
@@ -326,7 +357,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
       {/* Mobile Drawer Menu */}
       {mobileMenuOpen && (
-        <div className="md:hidden border-t border-[#FFE3EE] bg-white px-4 pt-3 pb-6 space-y-4 animate-in fade-in duration-200">
+        <div className="md:hidden border-t border-[#FFE3EE] bg-white px-4 pt-3 pb-6 space-y-4 max-h-[75vh] overflow-y-auto animate-in fade-in duration-200">
           <div className="space-y-1">
             <button
               type="button"
@@ -347,7 +378,7 @@ export const Navbar: React.FC<NavbarProps> = ({
               className="w-full text-left px-3 py-2 rounded-lg text-sm font-medium text-[#24212A] hover:bg-[#FFF4F8] flex items-center gap-2"
             >
               <History className="w-4 h-4 text-[#E83E8C]" />
-              <span>{user ? 'Dashboard & History' : 'PDF History'}</span>
+              <span>{user ? 'Dashboard & History' : 'Processing History'}</span>
             </button>
             {user?.role === 'admin' && (
               <button
@@ -365,7 +396,7 @@ export const Navbar: React.FC<NavbarProps> = ({
 
           <div>
             <p className="px-3 text-xs font-bold text-[#C92B72] uppercase tracking-wider">
-              All 11 Free PDF Tools
+              PDF Tools ({pdfTools.length})
             </p>
             <div className="mt-1 grid grid-cols-2 gap-1">
               {pdfTools.map((t) => (
@@ -377,7 +408,29 @@ export const Navbar: React.FC<NavbarProps> = ({
                     onSelectTool(t.id);
                     setMobileMenuOpen(false);
                   }}
-                  className="text-left px-3 py-2 rounded-lg text-xs font-medium text-[#24212A] hover:bg-[#FFF4F8] hover:text-[#E83E8C] no-underline"
+                  className="text-left px-3 py-2 rounded-lg text-xs font-medium text-[#24212A] hover:bg-[#FFF4F8] hover:text-[#E83E8C] no-underline truncate"
+                >
+                  {t.name}
+                </a>
+              ))}
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-[#FFF4F8]">
+            <p className="px-3 text-xs font-bold text-[#C92B72] uppercase tracking-wider">
+              Photo Studio &amp; Rename ({photoTools.length})
+            </p>
+            <div className="mt-1 grid grid-cols-2 gap-1">
+              {photoTools.map((t) => (
+                <a
+                  key={t.id}
+                  href={TOOL_PATH_MAP[t.id] || '/'}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    onSelectTool(t.id);
+                    setMobileMenuOpen(false);
+                  }}
+                  className="text-left px-3 py-2 rounded-lg text-xs font-medium text-[#24212A] hover:bg-[#FFF4F8] hover:text-[#E83E8C] no-underline truncate"
                 >
                   {t.name}
                 </a>
