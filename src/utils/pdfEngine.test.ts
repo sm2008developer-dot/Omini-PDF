@@ -40,6 +40,19 @@ test('protect-pdf encryption locks PDF so pdfjs requires exact password to open'
   }).promise;
   assert.equal(unlockedDoc.numPages, 1);
   await unlockedDoc.cleanup();
+
+  // Decrypting via @cantoo/pdf-lib and copying into a clean PDFDocument must open without any password
+  const loadedEncrypted = await PDFDocument.load(encryptedBytes, { password: 'OminiSecret99' });
+  const stripped = await PDFDocument.create();
+  const pages = await stripped.copyPages(loadedEncrypted, loadedEncrypted.getPageIndices());
+  pages.forEach((p) => stripped.addPage(p));
+  const strippedBytes = await stripped.save();
+
+  const openedWithoutPassword = await pdfjsLib.getDocument({
+    data: new Uint8Array(strippedBytes),
+  }).promise;
+  assert.equal(openedWithoutPassword.numPages, 1);
+  await openedWithoutPassword.cleanup();
 });
 
 test('UPNG palette quantization produces valid PNG smaller than raw RGBA buffer', () => {

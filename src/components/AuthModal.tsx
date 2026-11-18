@@ -106,20 +106,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/65 backdrop-blur-sm animate-in fade-in duration-200">
-      <div className="relative w-full max-w-md max-h-[94vh] overflow-y-auto bg-white rounded-3xl shadow-2xl border border-[#FFE3EE]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/75 backdrop-blur-sm animate-in fade-in duration-200">
+      <div className="relative w-full max-w-md max-h-[94vh] overflow-y-auto bg-[#16000D] rounded-3xl shadow-2xl border border-[#452035]">
         <button
           type="button"
           onClick={onClose}
-          className="absolute top-4 right-4 p-2 rounded-full text-slate-300 hover:text-white hover:bg-white/10 transition-colors z-10 cursor-pointer"
+          className="absolute top-4 right-4 p-2 rounded-full text-[#C8B8C4] hover:text-white hover:bg-[#35001F] transition-colors z-10 cursor-pointer"
           aria-label="Close dialog"
         >
           <X className="w-5 h-5" />
         </button>
 
         {/* Header Banner */}
-        <div className="bg-gradient-to-br from-[#24212A] via-[#3B1226] to-[#550B2E] p-6 text-white text-center">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/10 border border-white/20 mb-2.5 shadow-lg p-1.5 backdrop-blur-xs">
+        <div className="bg-gradient-to-br from-[#0B0007] via-[#35001F] to-[#16000D] border-b border-[#452035] p-6 text-white text-center">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#16000D] border border-[#452035] mb-2.5 shadow-lg p-1.5">
             <img src="/logo.png" alt="Omini PDF Logo" className="w-full h-full object-contain rounded-xl" />
           </div>
           <div className="mb-1.5">
@@ -130,7 +130,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <h2 className="text-xl font-black tracking-tight text-white">
             Sign In to Omini PDF
           </h2>
-          <p className="text-xs text-rose-100/90 mt-1 max-w-xs mx-auto leading-relaxed">
+          <p className="text-xs text-[#C8B8C4] mt-1 max-w-xs mx-auto leading-relaxed">
             {redirectReason || 'Signing in is completely optional — sign in to save history to your account, or use all PDF tools right away with Local Storage.'}
           </p>
         </div>
@@ -138,7 +138,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         {/* Main Content */}
         <div className="p-5 sm:p-6 space-y-4">
           {error && (
-            <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium flex items-start gap-2 animate-in fade-in">
+            <div className="p-3 rounded-xl bg-[#D9364F]/15 border border-[#D9364F]/40 text-white text-xs font-medium flex items-start gap-2 animate-in fade-in">
               <AlertCircle className="w-4 h-4 shrink-0 mt-0.5 text-[#D9364F]" />
               <span>{error}</span>
             </div>
@@ -149,10 +149,10 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             type="button"
             onClick={handleGoogleSignIn}
             disabled={loading}
-            className="w-full py-3 px-4 rounded-2xl text-sm font-bold text-[#24212A] bg-white hover:bg-[#FFF4F8] border-2 border-[#FFE3EE] hover:border-[#E83E8C] shadow-md hover:shadow-lg transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 active:scale-[0.99]"
+            className="w-full py-3 px-4 rounded-2xl text-sm font-bold text-white bg-[#35001F] hover:bg-[#E90083] border border-[#452035] hover:border-[#FF1493] shadow-sm transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-3 active:scale-[0.99]"
           >
             {loading && !showEmailFallback ? (
-              <div className="w-5 h-5 border-2 border-[#E83E8C] border-t-transparent rounded-full animate-spin"></div>
+              <div className="w-5 h-5 border-2 border-[#FF1493] border-t-transparent rounded-full animate-spin"></div>
             ) : (
               <>
                 <svg className="w-5 h-5 shrink-0" viewBox="0 0 24 24">
@@ -179,12 +179,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
 
           {/* Toggle or Always-Available Quick Email Account Sync */}
-          <div className="border border-[#FFE3EE] rounded-2xl p-3.5 bg-[#FFF4F8]/70">
+          <div className="border border-[#452035] rounded-2xl p-3.5 bg-[#0B0007]">
             {!showEmailFallback ? (
               <button
                 type="button"
                 onClick={() => setShowEmailFallback(true)}
-                className="w-full text-xs font-bold text-[#C92B72] hover:text-[#E83E8C] flex items-center justify-center gap-2 cursor-pointer"
+                className="w-full text-xs font-bold text-[#FF4DB8] hover:text-[#FF1493] flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Mail className="w-3.5 h-3.5" />
                 <span>Popup blocked or prefer email? Quick Sign-In with Email</span>
@@ -192,14 +192,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             ) : (
               <form onSubmit={handleQuickEmailSync} className="space-y-2.5">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs font-bold text-[#24212A] flex items-center gap-1.5">
-                    <Mail className="w-3.5 h-3.5 text-[#E83E8C]" />
+                  <span className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Mail className="w-3.5 h-3.5 text-[#FF4DB8]" />
                     <span>Quick Account Sync (No Password)</span>
                   </span>
                   <button
                     type="button"
                     onClick={() => setShowEmailFallback(false)}
-                    className="text-[11px] text-[#77717B] hover:text-[#24212A] cursor-pointer"
+                    className="text-[11px] text-[#91808C] hover:text-white cursor-pointer"
                   >
                     Hide
                   </button>
@@ -209,7 +209,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   value={nameInput}
                   onChange={(e) => setNameInput(e.target.value)}
                   placeholder="Your Name (optional)"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#FFE3EE] bg-white focus:outline-hidden focus:border-[#E83E8C]"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                 />
                 <input
                   type="email"
@@ -217,12 +217,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   value={emailInput}
                   onChange={(e) => setEmailInput(e.target.value)}
                   placeholder="Enter your email address"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#FFE3EE] bg-white focus:outline-hidden focus:border-[#E83E8C]"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                 />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-[#E83E8C] to-[#C92B72] hover:brightness-105 shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
+                  className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#E90083] hover:bg-[#FF1493] active:bg-[#C90070] shadow-sm transition-all flex items-center justify-center gap-1.5 cursor-pointer disabled:opacity-50"
                 >
                   <span>Sign In &amp; Save History to Account</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -232,19 +232,19 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
 
           {/* Explicit History Storage Explanation */}
-          <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-xs text-[#77717B] space-y-2">
+          <div className="p-3.5 rounded-2xl bg-[#0B0007] border border-[#452035] text-xs text-[#C8B8C4] space-y-2">
             <div className="flex items-start gap-2">
-              <Cloud className="w-4 h-4 text-[#E83E8C] shrink-0 mt-0.5" />
+              <Cloud className="w-4 h-4 text-[#FF4DB8] shrink-0 mt-0.5" />
               <p className="text-[11px] leading-relaxed">
-                <strong className="text-[#24212A]">If Logged In:</strong> Your PDF processing history is saved to your{' '}
-                <strong className="text-[#24212A]">Account</strong> for synced access.
+                <strong className="text-white">If Logged In:</strong> Your PDF processing history is saved to your{' '}
+                <strong className="text-white">Account</strong> for synced access.
               </p>
             </div>
             <div className="flex items-start gap-2">
               <HardDrive className="w-4 h-4 text-[#1FA971] shrink-0 mt-0.5" />
               <p className="text-[11px] leading-relaxed">
-                <strong className="text-[#24212A]">Without Login (Guest):</strong> Your PDF history saves automatically in your{' '}
-                <strong className="text-[#24212A]">Browser Local Storage</strong> — no account needed!
+                <strong className="text-white">Without Login (Guest):</strong> Your PDF history saves automatically in your{' '}
+                <strong className="text-white">Browser Local Storage</strong> — no account needed!
               </p>
             </div>
           </div>
@@ -252,24 +252,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={onClose}
-            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-[#24212A] bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl text-xs font-bold text-white bg-[#12000A] hover:bg-[#35001F] border border-[#452035] transition-colors cursor-pointer"
           >
             Continue Without Login (Save History Locally)
           </button>
         </div>
 
         {/* Benefits Footer */}
-        <div className="bg-[#FFF4F8] p-3.5 border-t border-[#FFE3EE] flex items-center justify-around text-[11px] text-[#77717B]">
+        <div className="bg-[#0B0007] p-3.5 border-t border-[#452035] flex items-center justify-around text-[11px] text-[#C8B8C4]">
           <div className="flex items-center gap-1">
             <CheckCircle2 className="w-3.5 h-3.5 text-[#1FA971]" />
             <span>100% Free</span>
           </div>
           <div className="flex items-center gap-1">
-            <InfinityIcon className="w-3.5 h-3.5 text-[#E83E8C]" />
+            <InfinityIcon className="w-3.5 h-3.5 text-[#FF4DB8]" />
             <span>Unlimited PDF Ops</span>
           </div>
           <div className="flex items-center gap-1">
-            <ShieldCheck className="w-3.5 h-3.5 text-[#C92B72]" />
+            <ShieldCheck className="w-3.5 h-3.5 text-[#FF1493]" />
             <span>Optional Login</span>
           </div>
         </div>

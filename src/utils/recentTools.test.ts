@@ -13,17 +13,17 @@ test('prependRecentTool limits list to 3 most recently accessed tools and moves 
   list = prependRecentTool(list, 'compress-image');
   assert.deepEqual(list, ['compress-image', 'merge-pdf']);
 
-  list = prependRecentTool(list, 'remove-bg');
-  assert.deepEqual(list, ['remove-bg', 'compress-image', 'merge-pdf']);
+  list = prependRecentTool(list, 'sign-pdf');
+  assert.deepEqual(list, ['sign-pdf', 'compress-image', 'merge-pdf']);
 
   // Adding a 4th distinct tool drops the oldest ('merge-pdf')
   list = prependRecentTool(list, 'edit-photo');
   assert.equal(list.length, MAX_RECENT_TOOLS);
-  assert.deepEqual(list, ['edit-photo', 'remove-bg', 'compress-image']);
+  assert.deepEqual(list, ['edit-photo', 'sign-pdf', 'compress-image']);
 
   // Re-opening 'compress-image' promotes it to the top without duplicating
   list = prependRecentTool(list, 'compress-image');
-  assert.deepEqual(list, ['compress-image', 'edit-photo', 'remove-bg']);
+  assert.deepEqual(list, ['compress-image', 'edit-photo', 'sign-pdf']);
 });
 
 test('parseRecentToolsJson filters invalid tool IDs and safely handles malformed JSON', () => {

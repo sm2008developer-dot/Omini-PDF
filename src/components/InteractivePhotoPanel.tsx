@@ -10,16 +10,11 @@ import {
   Square,
   Undo2,
   Trash2,
-  Pipette,
-  RotateCcw,
   Plus,
   Eye,
   Crop,
   Loader2,
   AlertCircle,
-  Brush,
-  Eraser,
-  X,
 } from 'lucide-react';
 import type { ToolId } from '../types.js';
 import {
@@ -33,11 +28,7 @@ import {
   clampCropRect,
   computeAspectSquareCrop,
   computeRatioCanvasDimensions,
-  NormalizedBrushStroke,
   NormalizedCropRect,
-  processBackgroundRemovalPixels,
-  processEnhancePhotoPixels,
-  RgbColor,
 } from '../utils/imageMath.js';
 
 interface InteractivePhotoPanelProps {
@@ -66,25 +57,6 @@ interface InteractivePhotoPanelProps {
   // Highlight Photo state
   highlights?: PhotoHighlightItem[];
   onChangeHighlights?: React.Dispatch<React.SetStateAction<PhotoHighlightItem[]>>;
-  // Remove BG state
-  bgTolerance?: number;
-  bgFeather?: number;
-  bgMode?: 'flood-edges' | 'global-color';
-  bgEdgeBarrier?: boolean;
-  bgSampleColors?: RgbColor[];
-  onChangeBgSampleColors?: React.Dispatch<React.SetStateAction<RgbColor[]>>;
-  bgKeepStrokes?: NormalizedBrushStroke[];
-  onChangeBgKeepStrokes?: React.Dispatch<React.SetStateAction<NormalizedBrushStroke[]>>;
-  bgEraseStrokes?: NormalizedBrushStroke[];
-  onChangeBgEraseStrokes?: React.Dispatch<React.SetStateAction<NormalizedBrushStroke[]>>;
-  bgFill?: 'transparent' | string;
-  // Enhance Photo state
-  enhancePreset?: 'auto' | 'document' | 'portrait' | 'vivid' | 'custom';
-  enhanceSharpen?: number;
-  enhanceContrast?: number;
-  enhanceBrightness?: number;
-  enhanceVibrance?: number;
-  enhanceDenoise?: number;
 }
 
 const HIGHLIGHT_COLORS = ['#FACC15', '#E83E8C', '#22C55E', '#38BDF8'];
@@ -111,23 +83,6 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
   saturation = 0,
   highlights = [],
   onChangeHighlights,
-  bgTolerance = 38,
-  bgFeather = 10,
-  bgMode = 'flood-edges',
-  bgEdgeBarrier = true,
-  bgSampleColors = [],
-  onChangeBgSampleColors,
-  bgKeepStrokes = [],
-  onChangeBgKeepStrokes,
-  bgEraseStrokes = [],
-  onChangeBgEraseStrokes,
-  bgFill = 'transparent',
-  enhancePreset = 'auto',
-  enhanceSharpen = 62,
-  enhanceContrast = 70,
-  enhanceBrightness = 4,
-  enhanceVibrance = 40,
-  enhanceDenoise = 12,
 }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [imgMeta, setImgMeta] = useState<{
@@ -149,18 +104,12 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
   const [showOriginalCompare, setShowOriginalCompare] = useState(false);
   const [editViewMode, setEditViewMode] = useState<'preview' | 'crop'>('preview');
 
-  // Remove BG interactive tool mode: eyedropper, keep subject brush, or erase bg brush
-  const [bgTool, setBgTool] = useState<'eyedropper' | 'keep' | 'erase'>('eyedropper');
-  const [bgBrushPts, setBgBrushPts] = useState<Array<{ x: number; y: number }>>([]);
-  const [detectedBgSwatches, setDetectedBgSwatches] = useState<RgbColor[]>([]);
-
   useEffect(() => {
     setShowOriginalCompare(false);
     setEditViewMode('preview');
     setDragStart(null);
     setDragCurr(null);
     setStrokePts([]);
-    setBgBrushPts([]);
   }, [toolId, file]);
 
   // Decode uploaded image reliably via 3-tier decoder + pre-scale fast preview canvas
@@ -304,70 +253,6 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
     ctx.clearRect(0, 0, w, h);
     ctx.drawImage(previewCanvas, 0, 0, w, h);
 
-    if (toolId === 'remove-bg') {
-      const liveKeep =
-        bgTool === 'keep' && bgBrushPts.length > 0
-          ? [...bgKeepStrokes, { points: bgBrushPts, radius: 0.04 }]
-          : bgKeepStrokes;
-      const liveErase =
-        bgTool === 'erase' && bgBrushPts.length > 0
-          ? [...bgEraseStrokes, { points: bgBrushPts, radius: 0.04 }]
-          : bgEraseStrokes;
-
-      const d = ctx.getImageData(0, 0, w, h);
-      const { samplesUsed } = processBackgroundRemovalPixels(d.data, w, h, {
-        tolerance: bgTolerance,
-        feather: bgFeather,
-        mode: bgMode,
-        edgeBarrier: bgEdgeBarrier,
-        sampleColors: bgSampleColors.length > 0 ? bgSampleColors : undefined,
-        keepStrokes: liveKeep,
-        eraseStrokes: liveErase,
-      });
-      setDetectedBgSwatches(samplesUsed);
-
-      if (!showOriginalCompare) {
-        ctx.putImageData(d, 0, 0);
-        if (bgFill && bgFill !== 'transparent') {
-          const tmp = document.createElement('canvas');
-          tmp.width = w;
-          tmp.height = h;
-          tmp.getContext('2d')!.drawImage(canvas, 0, 0);
-          ctx.fillStyle = bgFill;
-          ctx.fillRect(0, 0, w, h);
-          ctx.drawImage(tmp, 0, 0);
-        }
-      }
-
-      // Show faint touch-up feedback ring while dragging Keep/Erase brush
-      if (bgBrushPts.length > 0) {
-        const last = bgBrushPts[bgBrushPts.length - 1];
-        const rPx = Math.max(6, Math.round(0.04 * Math.min(w, h)));
-        ctx.save();
-        ctx.beginPath();
-        ctx.arc(last.x * w, last.y * h, rPx, 0, Math.PI * 2);
-        ctx.strokeStyle = bgTool === 'keep' ? '#1FA971' : '#E83E8C';
-        ctx.lineWidth = 2;
-        ctx.stroke();
-        ctx.restore();
-      }
-      return;
-    }
-
-    if (toolId === 'enhance-photo' && !showOriginalCompare) {
-      const d = ctx.getImageData(0, 0, w, h);
-      processEnhancePhotoPixels(d.data, w, h, {
-        preset: enhancePreset,
-        sharpen: enhanceSharpen,
-        autoContrast: enhanceContrast,
-        brightness: enhanceBrightness,
-        vibrance: enhanceVibrance,
-        denoise: enhanceDenoise,
-      });
-      ctx.putImageData(d, 0, 0);
-      return;
-    }
-
     if (toolId === 'highlight-photo') {
       const renderItems =
         strokePts.length > 1
@@ -451,22 +336,6 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
     highlights,
     strokePts,
     hlColor,
-    bgTolerance,
-    bgFeather,
-    bgMode,
-    bgEdgeBarrier,
-    bgSampleColors,
-    bgKeepStrokes,
-    bgEraseStrokes,
-    bgTool,
-    bgBrushPts,
-    bgFill,
-    enhancePreset,
-    enhanceSharpen,
-    enhanceContrast,
-    enhanceBrightness,
-    enhanceVibrance,
-    enhanceDenoise,
     showOriginalCompare,
   ]);
 
@@ -482,34 +351,6 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
 
   const handleCanvasPointerDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!imgMeta) return;
-
-    if (toolId === 'remove-bg') {
-      const pt = toNorm(e.clientX, e.clientY);
-      if (bgTool === 'eyedropper' && onChangeBgSampleColors) {
-        const ctx = imgMeta.img.getContext('2d', { willReadFrequently: true });
-        if (!ctx) return;
-        const px = ctx.getImageData(
-          Math.min(imgMeta.w - 1, Math.floor(pt.x * imgMeta.w)),
-          Math.min(imgMeta.h - 1, Math.floor(pt.y * imgMeta.h)),
-          1,
-          1
-        ).data;
-        const picked: RgbColor = { r: px[0], g: px[1], b: px[2] };
-        onChangeBgSampleColors((prev) => {
-          const exists = prev.some(
-            (c) => Math.abs(c.r - picked.r) + Math.abs(c.g - picked.g) + Math.abs(c.b - picked.b) < 18
-          );
-          if (exists) return prev;
-          return [...prev.slice(-3), picked];
-        });
-        return;
-      }
-      if (bgTool === 'keep' || bgTool === 'erase') {
-        e.currentTarget.setPointerCapture?.(e.pointerId);
-        setBgBrushPts([pt]);
-        return;
-      }
-    }
 
     if (toolId === 'edit-photo' && editViewMode === 'crop' && onChangeCropRect) {
       e.currentTarget.setPointerCapture?.(e.pointerId);
@@ -533,10 +374,6 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
 
   const handleCanvasPointerMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!imgMeta) return;
-    if (toolId === 'remove-bg' && (bgTool === 'keep' || bgTool === 'erase') && bgBrushPts.length > 0) {
-      setBgBrushPts((prev) => [...prev, toNorm(e.clientX, e.clientY)]);
-      return;
-    }
     if (toolId === 'edit-photo' && editViewMode === 'crop' && dragStart) {
       setDragCurr(toNorm(e.clientX, e.clientY));
       return;
@@ -551,17 +388,6 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
   };
 
   const handleCanvasPointerUp = () => {
-    if (toolId === 'remove-bg' && bgBrushPts.length > 0) {
-      const committed: NormalizedBrushStroke = { points: bgBrushPts, radius: 0.04 };
-      if (bgTool === 'keep' && onChangeBgKeepStrokes) {
-        onChangeBgKeepStrokes((prev) => [...prev, committed]);
-      } else if (bgTool === 'erase' && onChangeBgEraseStrokes) {
-        onChangeBgEraseStrokes((prev) => [...prev, committed]);
-      }
-      setBgBrushPts([]);
-      return;
-    }
-
     if (toolId === 'edit-photo' && editViewMode === 'crop' && dragStart && dragCurr && onChangeCropRect) {
       const x = Math.min(dragStart.x, dragCurr.x);
       const y = Math.min(dragStart.y, dragCurr.y);
@@ -648,14 +474,11 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
         : clampCropRect(cropRect)
       : null;
 
-  const activeSwatches = bgSampleColors.length > 0 ? bgSampleColors : detectedBgSwatches;
-  const hasBgTouchUps = bgKeepStrokes.length > 0 || bgEraseStrokes.length > 0;
-
   return (
-    <div className="bg-white rounded-2xl border border-[#FFE3EE] p-4 shadow-xs space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#FFF4F8]">
-        <span className="text-xs font-bold text-[#24212A] flex items-center gap-1.5">
-          <Eye className="w-4 h-4 text-[#E83E8C]" />
+    <div className="bg-[#16000D] rounded-2xl border border-[#452035] p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#452035]">
+        <span className="text-xs font-bold text-white flex items-center gap-1.5">
+          <Eye className="w-4 h-4 text-[#FF4DB8]" />
           Live Photo Studio (
           {decodeError
             ? 'Decode Error'
@@ -667,25 +490,25 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
 
         <div className="flex flex-wrap items-center gap-1.5">
           {toolId === 'compress-image' && imgMeta && (
-            <span className="px-2 py-0.5 rounded-full bg-[#FFF4F8] border border-[#FFE3EE] text-[11px] font-bold text-[#C92B72]">
+            <span className="px-2 py-0.5 rounded-full bg-[#35001F] border border-[#452035] text-[11px] font-bold text-[#FF4DB8]">
               {(file.size / 1024).toFixed(1)} KB →{' '}
               {compressTargetKb ? `≤ ${compressTargetKb} KB` : `${compressQuality ?? 78}%`} ({(compressFormat || 'webp').toUpperCase()})
             </span>
           )}
 
           {toolId === 'resize-image' && imgMeta && (
-            <span className="px-2 py-0.5 rounded-full bg-[#FFF4F8] border border-[#FFE3EE] text-[11px] font-bold text-[#C92B72]">
+            <span className="px-2 py-0.5 rounded-full bg-[#35001F] border border-[#452035] text-[11px] font-bold text-[#FF4DB8]">
               Ratio: {resizeRatio} • {resizeMode.toUpperCase()}
             </span>
           )}
 
           {toolId === 'edit-photo' && onChangeCropRect && imgMeta && (
-            <div className="inline-flex rounded-lg border border-[#FFE3EE] bg-[#FFF4F8] p-0.5 text-[11px]">
+            <div className="inline-flex rounded-lg border border-[#452035] bg-[#0B0007] p-0.5 text-[11px]">
               <button
                 type="button"
                 onClick={() => setEditViewMode('preview')}
                 className={`px-2 py-0.5 rounded-md font-bold cursor-pointer ${
-                  editViewMode === 'preview' ? 'bg-white text-[#C92B72] shadow-2xs' : 'text-[#77717B]'
+                  editViewMode === 'preview' ? 'bg-[#E90083] text-white' : 'text-[#C8B8C4]'
                 }`}
               >
                 Live Filter View
@@ -694,7 +517,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
                 type="button"
                 onClick={() => setEditViewMode('crop')}
                 className={`px-2 py-0.5 rounded-md font-bold flex items-center gap-1 cursor-pointer ${
-                  editViewMode === 'crop' ? 'bg-white text-[#C92B72] shadow-2xs' : 'text-[#77717B]'
+                  editViewMode === 'crop' ? 'bg-[#E90083] text-white' : 'text-[#C8B8C4]'
                 }`}
               >
                 <Crop className="w-3 h-3" />
@@ -703,17 +526,14 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
             </div>
           )}
 
-          {imgMeta &&
-            (toolId === 'remove-bg' ||
-              toolId === 'enhance-photo' ||
-              (toolId === 'edit-photo' && editViewMode === 'preview')) && (
+          {imgMeta && toolId === 'edit-photo' && editViewMode === 'preview' && (
               <button
                 type="button"
                 onClick={() => setShowOriginalCompare((v) => !v)}
                 className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer ${
                   showOriginalCompare
-                    ? 'bg-[#24212A] text-white border-[#24212A]'
-                    : 'bg-[#FFF4F8] text-[#C92B72] border-[#FDC6DD]'
+                    ? 'bg-[#E90083] text-white border-[#FF1493]'
+                    : 'bg-[#35001F] text-[#FF4DB8] border-[#452035]'
                 }`}
               >
                 {showOriginalCompare ? 'Showing Original' : 'Compare Original'}
@@ -729,7 +549,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
               type="button"
               onClick={() => setHlKind('box')}
               className={`px-2.5 py-1 rounded-lg font-bold border flex items-center gap-1 cursor-pointer ${
-                hlKind === 'box' ? 'bg-[#FFE3EE] border-[#E83E8C] text-[#C92B72]' : 'border-slate-200 text-slate-600'
+                hlKind === 'box' ? 'bg-[#35001F] border-[#FF1493] text-[#FF4DB8]' : 'bg-[#0B0007] border-[#452035] text-[#C8B8C4]'
               }`}
             >
               <Square className="w-3.5 h-3.5" />
@@ -739,7 +559,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
               type="button"
               onClick={() => setHlKind('spotlight')}
               className={`px-2.5 py-1 rounded-lg font-bold border flex items-center gap-1 cursor-pointer ${
-                hlKind === 'spotlight' ? 'bg-[#FFE3EE] border-[#E83E8C] text-[#C92B72]' : 'border-slate-200 text-slate-600'
+                hlKind === 'spotlight' ? 'bg-[#35001F] border-[#FF1493] text-[#FF4DB8]' : 'bg-[#0B0007] border-[#452035] text-[#C8B8C4]'
               }`}
             >
               <Focus className="w-3.5 h-3.5" />
@@ -749,7 +569,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
               type="button"
               onClick={() => setHlKind('stroke')}
               className={`px-2.5 py-1 rounded-lg font-bold border flex items-center gap-1 cursor-pointer ${
-                hlKind === 'stroke' ? 'bg-[#FFE3EE] border-[#E83E8C] text-[#C92B72]' : 'border-slate-200 text-slate-600'
+                hlKind === 'stroke' ? 'bg-[#35001F] border-[#FF1493] text-[#FF4DB8]' : 'bg-[#0B0007] border-[#452035] text-[#C8B8C4]'
               }`}
             >
               <Highlighter className="w-3.5 h-3.5" />
@@ -766,7 +586,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
                 style={{ backgroundColor: c }}
                 aria-label={`Highlight color ${c}`}
                 className={`w-5 h-5 rounded-full border-2 cursor-pointer ${
-                  hlColor === c ? 'border-[#24212A] scale-110' : 'border-white shadow-xs'
+                  hlColor === c ? 'border-[#FF1493] ring-2 ring-[#FF4DB8]/40 scale-110' : 'border-[#452035]'
                 }`}
               />
             ))}
@@ -774,7 +594,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
               type="button"
               disabled={!imgMeta}
               onClick={addQuickPhotoHighlight}
-              className="px-2 py-1 rounded-lg bg-[#FFF4F8] border border-[#FDC6DD] text-[#C92B72] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-40 ml-1"
+              className="px-2 py-1 rounded-lg bg-[#35001F] border border-[#452035] hover:border-[#FF1493] text-[#FF4DB8] font-bold flex items-center gap-1 cursor-pointer disabled:opacity-40 ml-1"
             >
               <Plus className="w-3 h-3" />
               Quick
@@ -783,7 +603,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
               type="button"
               disabled={highlights.length === 0}
               onClick={() => onChangeHighlights((prev) => prev.slice(0, -1))}
-              className="p-1 rounded-lg border border-slate-200 disabled:opacity-40 cursor-pointer"
+              className="p-1 rounded-lg border border-[#452035] bg-[#0B0007] text-[#C8B8C4] hover:text-white disabled:opacity-40 cursor-pointer"
               aria-label="Undo highlight"
             >
               <Undo2 className="w-3.5 h-3.5" />
@@ -792,7 +612,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
               type="button"
               disabled={highlights.length === 0}
               onClick={() => onChangeHighlights([])}
-              className="p-1 rounded-lg border border-slate-200 text-[#D9364F] disabled:opacity-40 cursor-pointer"
+              className="p-1 rounded-lg border border-[#452035] bg-[#0B0007] text-[#D9364F] disabled:opacity-40 cursor-pointer"
               aria-label="Clear highlights"
             >
               <Trash2 className="w-3.5 h-3.5" />
@@ -801,122 +621,35 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
         </div>
       )}
 
-      {toolId === 'remove-bg' && imgMeta && (
-        <div className="space-y-2">
-          <div className="flex flex-wrap items-center justify-between gap-1.5 text-[11px]">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <button
-                type="button"
-                onClick={() => setBgTool('eyedropper')}
-                className={`px-2 py-1 rounded-lg font-bold border flex items-center gap-1 cursor-pointer ${
-                  bgTool === 'eyedropper' ? 'bg-[#FFE3EE] border-[#E83E8C] text-[#C92B72]' : 'border-slate-200 text-slate-600'
-                }`}
-              >
-                <Pipette className="w-3 h-3" />
-                Pick BG Color
-              </button>
-              <button
-                type="button"
-                onClick={() => setBgTool('keep')}
-                className={`px-2 py-1 rounded-lg font-bold border flex items-center gap-1 cursor-pointer ${
-                  bgTool === 'keep' ? 'bg-emerald-50 border-[#1FA971] text-[#1FA971]' : 'border-slate-200 text-slate-600'
-                }`}
-              >
-                <Brush className="w-3 h-3" />
-                Keep Subject
-              </button>
-              <button
-                type="button"
-                onClick={() => setBgTool('erase')}
-                className={`px-2 py-1 rounded-lg font-bold border flex items-center gap-1 cursor-pointer ${
-                  bgTool === 'erase' ? 'bg-[#FFE3EE] border-[#E83E8C] text-[#C92B72]' : 'border-slate-200 text-slate-600'
-                }`}
-              >
-                <Eraser className="w-3 h-3" />
-                Erase BG
-              </button>
-            </div>
-
-            {(bgSampleColors.length > 0 || hasBgTouchUps) && (
-              <button
-                type="button"
-                onClick={() => {
-                  onChangeBgSampleColors?.([]);
-                  onChangeBgKeepStrokes?.([]);
-                  onChangeBgEraseStrokes?.([]);
-                }}
-                className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold flex items-center gap-1 cursor-pointer"
-              >
-                <RotateCcw className="w-3 h-3" />
-                Reset Picks
-              </button>
-            )}
-          </div>
-
-          <div className="text-[11px] text-[#77717B] flex flex-wrap items-center gap-1.5">
-            <span>
-              {bgTool === 'eyedropper'
-                ? 'Tap background areas to pick exact colors:'
-                : bgTool === 'keep'
-                ? 'Paint over subject parts to protect/restore them.'
-                : 'Paint over missed background spots to erase them cleanly.'}
-            </span>
-            {activeSwatches.map((sw, idx) => (
-              <span
-                key={`${sw.r}-${sw.g}-${sw.b}-${idx}`}
-                className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-50 border border-slate-200 text-[10px] font-mono text-[#24212A]"
-              >
-                <span
-                  className="inline-block w-3 h-3 rounded-xs border border-slate-300"
-                  style={{ backgroundColor: `rgb(${sw.r}, ${sw.g}, ${sw.b})` }}
-                />
-                {bgSampleColors.length > 0 && onChangeBgSampleColors && (
-                  <button
-                    type="button"
-                    aria-label="Remove color swatch"
-                    onClick={() =>
-                      onChangeBgSampleColors((prev) => prev.filter((_, i) => i !== idx))
-                    }
-                    className="text-slate-400 hover:text-[#D9364F] cursor-pointer"
-                  >
-                    <X className="w-2.5 h-2.5" />
-                  </button>
-                )}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
       {toolId === 'edit-photo' && editViewMode === 'crop' && (
-        <p className="text-[11px] text-[#C92B72] font-medium">
+        <p className="text-[11px] text-[#FF4DB8] font-medium">
           Drag directly across the photo below to select a custom crop area, then switch to <strong>Live Filter View</strong> or click Process.
         </p>
       )}
 
       {/* Checkerboard Canvas Stage */}
       <div
-        className="rounded-xl p-2 sm:p-3 flex justify-center items-center min-h-[200px] overflow-auto border border-slate-200 relative"
+        className="rounded-xl p-2 sm:p-3 flex justify-center items-center min-h-[200px] overflow-auto border border-[#452035] relative"
         style={{
           backgroundImage:
-            'linear-gradient(45deg, #e2e8f0 25%, transparent 25%), linear-gradient(-45deg, #e2e8f0 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #e2e8f0 75%), linear-gradient(-45deg, transparent 75%, #e2e8f0 75%)',
+            'linear-gradient(45deg, #250819 25%, transparent 25%), linear-gradient(-45deg, #250819 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #250819 75%), linear-gradient(-45deg, transparent 75%, #250819 75%)',
           backgroundSize: '16px 16px',
           backgroundPosition: '0 0, 0 8px, 8px -8px, -8px 0px',
-          backgroundColor: '#ffffff',
+          backgroundColor: '#12000A',
         }}
       >
         {isDecoding && (
-          <div className="flex flex-col items-center justify-center gap-2 py-10 px-4 bg-white/90 rounded-xl shadow-xs border border-[#FFE3EE]">
-            <Loader2 className="w-6 h-6 text-[#E83E8C] animate-spin" />
-            <p className="text-xs font-bold text-[#24212A]">Decoding high-resolution photo...</p>
+          <div className="flex flex-col items-center justify-center gap-2 py-10 px-4 bg-[#16000D]/90 rounded-xl shadow-xs border border-[#452035]">
+            <Loader2 className="w-6 h-6 text-[#FF1493] animate-spin" />
+            <p className="text-xs font-bold text-white">Decoding high-resolution photo...</p>
           </div>
         )}
 
         {!isDecoding && decodeError && (
-          <div className="max-w-sm bg-white rounded-2xl border border-rose-200 p-4 text-center space-y-2 shadow-sm">
+          <div className="max-w-sm bg-[#16000D] rounded-2xl border border-[#D9364F]/50 p-4 text-center space-y-2 shadow-sm">
             <AlertCircle className="w-6 h-6 text-[#D9364F] mx-auto" />
-            <p className="text-xs font-bold text-[#24212A]">Could not decode image</p>
-            <p className="text-[11px] text-[#77717B]">{decodeError}</p>
+            <p className="text-xs font-bold text-white">Could not decode image</p>
+            <p className="text-[11px] text-[#C8B8C4]">{decodeError}</p>
           </div>
         )}
 
@@ -930,7 +663,6 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
               onPointerUp={handleCanvasPointerUp}
               onPointerCancel={handleCanvasPointerUp}
               className={`block max-w-full h-auto rounded-lg shadow-sm touch-none ${
-                toolId === 'remove-bg' ||
                 toolId === 'highlight-photo' ||
                 (toolId === 'edit-photo' && editViewMode === 'crop')
                   ? 'cursor-crosshair'
@@ -945,9 +677,9 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
                   top: `${activeCropBox.y * 100}%`,
                   width: `${activeCropBox.w * 100}%`,
                   height: `${activeCropBox.h * 100}%`,
-                  boxShadow: '0 0 0 9999px rgba(15, 23, 42, 0.45)',
+                  boxShadow: '0 0 0 9999px rgba(5, 0, 5, 0.55)',
                 }}
-                className="absolute pointer-events-none border-2 border-dashed border-[#E83E8C] rounded-xs"
+                className="absolute pointer-events-none border-2 border-dashed border-[#FF1493] rounded-xs"
               />
             )}
 
@@ -969,7 +701,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
 
       {toolId === 'edit-photo' && onChangeCropRect && (
         <div className="flex flex-wrap items-center gap-1.5 pt-1 text-[11px]">
-          <span className="font-bold text-[#77717B] mr-1">Quick Crop:</span>
+          <span className="font-bold text-[#91808C] mr-1">Quick Crop:</span>
           {[
             { label: 'Full (100%)', rect: { x: 0, y: 0, w: 1, h: 1 } },
             { label: 'Center 80%', rect: { x: 0.1, y: 0.1, w: 0.8, h: 0.8 } },
@@ -983,7 +715,7 @@ export const InteractivePhotoPanel: React.FC<InteractivePhotoPanelProps> = ({
               key={preset.label}
               type="button"
               onClick={() => onChangeCropRect(preset.rect)}
-              className="px-2 py-1 rounded-lg bg-[#FFF4F8] border border-[#FFE3EE] hover:border-[#E83E8C] text-[#24212A] font-semibold cursor-pointer"
+              className="px-2 py-1 rounded-lg bg-[#0B0007] border border-[#452035] hover:border-[#FF1493] text-[#C8B8C4] hover:text-white font-semibold cursor-pointer"
             >
               {preset.label}
             </button>

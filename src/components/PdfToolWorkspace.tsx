@@ -36,8 +36,14 @@ import {
   Highlighter,
   Scaling,
   SlidersHorizontal,
-  Eraser,
-  Wand2,
+  PenTool,
+  FileSignature,
+  Unlock,
+  ScanText,
+  FileSpreadsheet,
+  Table,
+  Copy,
+  Check,
   PenLine,
   FlipHorizontal2,
   FlipVertical2,
@@ -64,12 +70,25 @@ import {
   ProcessedPdfResult,
 } from '../utils/pdfEngine.js';
 import {
+  pdfToWordDocx,
+  wordToPdfFile,
+  pdfToExcelFile,
+  unlockPdfFile,
+  editPdfFullFile,
+  signPdfFile,
+  ocrPdfOrImageFile,
+  generateSampleDocxFile,
+  generateSampleEncryptedPdfFile,
+  generateSampleTablePdfFile,
+  generateSampleScanOcrImageFile,
+  FullPdfEditItem,
+  PdfSignaturePlacement,
+} from '../utils/pdfConversionEngine.js';
+import {
   compressImageFile,
   resizeAndConvertImage,
   editPhotoFile,
   highlightPhotoFile,
-  removeBackgroundAlgorithmic,
-  enhancePhotoAlgorithmic,
   renameFilesClient,
   generateSamplePhotoFile,
   ImageOutputFormat,
@@ -78,9 +97,7 @@ import {
 } from '../utils/imageEngine.js';
 import {
   buildBatchRenamePlan,
-  NormalizedBrushStroke,
   NormalizedCropRect,
-  RgbColor,
 } from '../utils/imageMath.js';
 import {
   addLocalHistoryItem,
@@ -90,6 +107,8 @@ import { PdfPreviewModal } from './PdfPreviewModal.js';
 import { PdfCanvasViewer } from './PdfCanvasViewer.js';
 import { MonetagDownloadLink } from './MonetagDownloadLink.js';
 import { InteractivePdfHighlightPanel } from './InteractivePdfHighlightPanel.js';
+import { InteractivePdfEditorPanel } from './InteractivePdfEditorPanel.js';
+import { InteractiveSignPdfPanel } from './InteractiveSignPdfPanel.js';
 import { InteractivePhotoPanel } from './InteractivePhotoPanel.js';
 
 interface PdfToolWorkspaceProps {
@@ -156,8 +175,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   const [watermarkPlacement, setWatermarkPlacement] = useState<'diagonal' | 'center' | 'top-right' | 'bottom-center'>('diagonal');
 
   // 5. Image to PDF
-  const [imagePageSize, setImagePageSize] = useState<'fit' | 'a4'>('fit');
-  const [imageOrientation] = useState<'auto' | 'portrait' | 'landscape'>('auto');
+  const [imagePageSize, setImagePageSize] = useState<'fit' | 'a4' | 'letter'>('fit');
+  const [imageOrientation, setImageOrientation] = useState<'auto' | 'portrait' | 'landscape'>('auto');
 
   // 6. PDF to Image
   const [imageFormat, setImageFormat] = useState<'png' | 'jpeg'>('png');
@@ -183,7 +202,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   // 10. Remove Pages
   const [pagesToRemove, setPagesToRemove] = useState('1');
 
-  // 11. PDF Highlight & Edit
+  // 11. PDF Highlight
   const [pdfAnnotations, setPdfAnnotations] = useState<PdfAnnotation[]>([]);
 
   // 12. Compress Photo (PNG/JPG/WebP)
@@ -216,27 +235,23 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   const [photoHighlights, setPhotoHighlights] = useState<PhotoHighlightItem[]>([]);
   const [photoHlFormat, setPhotoHlFormat] = useState<ImageOutputFormat>('png');
 
-  // 16. Remove Background (Pure Algorithmic Edge-Barrier Flood-Fill + Chroma Key + Brush Masks)
-  const [bgMode, setBgMode] = useState<'flood-edges' | 'global-color'>('flood-edges');
-  const [bgTolerance, setBgTolerance] = useState<number>(38);
-  const [bgFeather, setBgFeather] = useState<number>(10);
-  const [bgEdgeBarrier, setBgEdgeBarrier] = useState<boolean>(true);
-  const [bgSampleColors, setBgSampleColors] = useState<RgbColor[]>([]);
-  const [bgKeepStrokes, setBgKeepStrokes] = useState<NormalizedBrushStroke[]>([]);
-  const [bgEraseStrokes, setBgEraseStrokes] = useState<NormalizedBrushStroke[]>([]);
-  const [bgFill, setBgFill] = useState<string>('transparent');
-  const [bgFormat, setBgFormat] = useState<ImageOutputFormat>('png');
+  // 16. PDF to Word / Word to PDF / PDF to Excel / Unlock PDF / Edit PDF / Sign PDF / OCR PDF
+  const [pdfToWordPageBreaks, setPdfToWordPageBreaks] = useState<boolean>(true);
+  const [wordToPdfPageSize, setWordToPdfPageSize] = useState<'a4' | 'letter'>('a4');
+  const [wordToPdfFontSize, setWordToPdfFontSize] = useState<number>(11);
+  const [excelFormat, setExcelFormat] = useState<'xlsx' | 'csv'>('xlsx');
+  const [excelSplitSheets, setExcelSplitSheets] = useState<boolean>(true);
+  const [unlockPassword, setUnlockPassword] = useState<string>('');
+  const [showUnlockPassword, setShowUnlockPassword] = useState<boolean>(false);
+  const [pdfFullEdits, setPdfFullEdits] = useState<FullPdfEditItem[]>([]);
+  const [pdfSignatures, setPdfSignatures] = useState<PdfSignaturePlacement[]>([]);
+  const [ocrLanguage, setOcrLanguage] = useState<string>('eng');
+  const [ocrOutputFormat, setOcrOutputFormat] = useState<'pdf' | 'txt'>('pdf');
+  const [ocrPageRange, setOcrPageRange] = useState<string>('');
+  const [ocrProgress, setOcrProgress] = useState<{ pct: number; status: string } | null>(null);
+  const [copiedOcrText, setCopiedOcrText] = useState<boolean>(false);
 
-  // 17. Enhance Photo (Adaptive Auto-Levels + Multi-Pixel Unsharp Mask)
-  const [enhancePreset, setEnhancePreset] = useState<'auto' | 'document' | 'portrait' | 'vivid' | 'custom'>('auto');
-  const [enhanceSharpen, setEnhanceSharpen] = useState<number>(62);
-  const [enhanceContrast, setEnhanceContrast] = useState<number>(70);
-  const [enhanceBrightness, setEnhanceBrightness] = useState<number>(4);
-  const [enhanceVibrance, setEnhanceVibrance] = useState<number>(40);
-  const [enhanceDenoise, setEnhanceDenoise] = useState<number>(12);
-  const [enhanceFormat, setEnhanceFormat] = useState<ImageOutputFormat>('png');
-
-  // 18. Rename PDF & Photos
+  // 17. Rename PDF & Photos
   const [renameBaseName, setRenameBaseName] = useState('');
   const [renamePrefix, setRenamePrefix] = useState('');
   const [renameSuffix, setRenameSuffix] = useState('');
@@ -252,10 +267,12 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     setResult(null);
     setError(null);
     setPdfAnnotations([]);
+    setPdfFullEdits([]);
+    setPdfSignatures([]);
+    setUnlockPassword('');
+    setOcrProgress(null);
+    setCopiedOcrText(false);
     setPhotoHighlights([]);
-    setBgSampleColors([]);
-    setBgKeepStrokes([]);
-    setBgEraseStrokes([]);
     setEditCrop({ x: 0, y: 0, w: 1, h: 1 });
     setEditRotate(0);
     setEditFlipH(false);
@@ -327,13 +344,13 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     toolId === 'compress-image' ||
     toolId === 'resize-image' ||
     toolId === 'edit-photo' ||
-    toolId === 'highlight-photo' ||
-    toolId === 'remove-bg' ||
-    toolId === 'enhance-photo';
+    toolId === 'highlight-photo';
 
   const isMultiple = toolId === 'merge-pdf' || toolId === 'image-to-pdf' || toolId === 'rename-files';
   const acceptedTypes =
-    toolId === 'rename-files'
+    toolId === 'word-to-pdf'
+      ? '.docx,.doc,application/vnd.openxmlformats-officedocument.wordprocessingml.document,application/msword'
+      : toolId === 'ocr-pdf' || toolId === 'rename-files'
       ? '.pdf,application/pdf,image/*'
       : isPhotoOnlyTool
       ? 'image/*'
@@ -343,10 +360,16 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     const mime = (f.type || '').toLowerCase();
     const name = f.name.toLowerCase();
     const isPdf = mime.includes('pdf') || name.endsWith('.pdf');
+    const isWord =
+      mime.includes('wordprocessingml') ||
+      mime.includes('msword') ||
+      name.endsWith('.docx') ||
+      name.endsWith('.doc');
     const isImg =
       mime.startsWith('image/') ||
       /\.(png|jpe?g|webp|gif|bmp|avif|svg)$/i.test(name);
-    if (toolId === 'rename-files') return isPdf || isImg;
+    if (toolId === 'word-to-pdf') return isWord;
+    if (toolId === 'ocr-pdf' || toolId === 'rename-files') return isPdf || isImg;
     if (isPhotoOnlyTool) return isImg;
     return isPdf;
   };
@@ -355,7 +378,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     const valid = incoming.filter(isFileValidForTool);
     if (valid.length === 0) {
       setError(
-        toolId === 'rename-files'
+        toolId === 'word-to-pdf'
+          ? 'Please upload a valid Word (.docx or .doc) file.'
+          : toolId === 'ocr-pdf' || toolId === 'rename-files'
           ? 'Unsupported file type. Please upload PDF, PNG, JPG, or WebP files.'
           : isPhotoOnlyTool
           ? 'Please upload a valid PNG, JPG, or WebP image file.'
@@ -368,15 +393,14 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     } else {
       setFiles([valid[0]]);
       setPdfAnnotations([]);
+      setPdfFullEdits([]);
+      setPdfSignatures([]);
       setPhotoHighlights([]);
-      setBgSampleColors([]);
-      setBgKeepStrokes([]);
-      setBgEraseStrokes([]);
     }
     setResult(null);
     setError(
       valid.length < incoming.length
-        ? 'Skipped unsupported files — only matching PDF/Image files were added.'
+        ? 'Skipped unsupported files — only matching files were added.'
         : null
     );
   };
@@ -400,10 +424,43 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
     setFiles(copy);
   };
 
-  // Generate a crisp sample file directly in the browser (Photos for photo tools, mixed for rename, PDF otherwise)
+  // Generate a crisp sample file directly in the browser for instant testing
   const loadSamplePdf = async () => {
     try {
-      if (toolId === 'compress-image' || toolId === 'resize-image' || toolId === 'edit-photo' || toolId === 'remove-bg') {
+      if (toolId === 'word-to-pdf') {
+        const sampleDocx = await generateSampleDocxFile();
+        setFiles([sampleDocx]);
+        setResult(null);
+        setError(null);
+        return;
+      }
+
+      if (toolId === 'unlock-pdf') {
+        const sampleLocked = await generateSampleEncryptedPdfFile();
+        setFiles([sampleLocked]);
+        setUnlockPassword('1234');
+        setResult(null);
+        setError(null);
+        return;
+      }
+
+      if (toolId === 'pdf-to-excel') {
+        const sampleTable = await generateSampleTablePdfFile();
+        setFiles([sampleTable]);
+        setResult(null);
+        setError(null);
+        return;
+      }
+
+      if (toolId === 'ocr-pdf') {
+        const sampleScan = await generateSampleScanOcrImageFile();
+        setFiles([sampleScan]);
+        setResult(null);
+        setError(null);
+        return;
+      }
+
+      if (toolId === 'compress-image' || toolId === 'resize-image' || toolId === 'edit-photo') {
         const samplePhoto = await generateSamplePhotoFile('studio');
         setFiles([samplePhoto]);
         setResult(null);
@@ -411,7 +468,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
         return;
       }
 
-      if (toolId === 'highlight-photo' || toolId === 'enhance-photo') {
+      if (toolId === 'highlight-photo') {
         const sampleDocPhoto = await generateSamplePhotoFile('document');
         setFiles([sampleDocPhoto]);
         setResult(null);
@@ -630,29 +687,45 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
           });
           break;
 
-        case 'remove-bg':
-          output = await removeBackgroundAlgorithmic(files[0], {
-            tolerance: bgTolerance,
-            feather: bgFeather,
-            mode: bgMode,
-            edgeBarrier: bgEdgeBarrier,
-            sampleColors: bgSampleColors.length > 0 ? bgSampleColors : undefined,
-            keepStrokes: bgKeepStrokes,
-            eraseStrokes: bgEraseStrokes,
-            bgFill,
-            format: bgFormat,
+        case 'pdf-to-word':
+          output = await pdfToWordDocx(files[0], {
+            pageBreaks: pdfToWordPageBreaks,
           });
           break;
 
-        case 'enhance-photo':
-          output = await enhancePhotoAlgorithmic(files[0], {
-            preset: enhancePreset,
-            sharpen: enhanceSharpen,
-            autoContrast: enhanceContrast,
-            brightness: enhanceBrightness,
-            vibrance: enhanceVibrance,
-            denoise: enhanceDenoise,
-            format: enhanceFormat,
+        case 'word-to-pdf':
+          output = await wordToPdfFile(files[0], {
+            pageSize: wordToPdfPageSize,
+            fontSize: wordToPdfFontSize,
+          });
+          break;
+
+        case 'pdf-to-excel':
+          output = await pdfToExcelFile(files[0], {
+            format: excelFormat,
+            splitSheets: excelSplitSheets,
+          });
+          break;
+
+        case 'unlock-pdf':
+          output = await unlockPdfFile(files[0], unlockPassword);
+          break;
+
+        case 'edit-pdf':
+          output = await editPdfFullFile(files[0], pdfFullEdits);
+          break;
+
+        case 'sign-pdf':
+          output = await signPdfFile(files[0], pdfSignatures);
+          break;
+
+        case 'ocr-pdf':
+          setOcrProgress({ pct: 5, status: 'Preparing OCR engine...' });
+          output = await ocrPdfOrImageFile(files[0], {
+            language: ocrLanguage,
+            outputFormat: ocrOutputFormat,
+            pageRange: ocrPageRange,
+            onProgress: (pct, status) => setOcrProgress({ pct, status }),
           });
           break;
 
@@ -794,60 +867,70 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
   const getToolIcon = () => {
     switch (toolId) {
       case 'merge-pdf':
-        return <Combine className="w-6 h-6 text-rose-600" />;
+        return <Combine className="w-6 h-6 text-[#FF4DB8]" />;
       case 'split-pdf':
-        return <Split className="w-6 h-6 text-rose-600" />;
+        return <Split className="w-6 h-6 text-[#FF4DB8]" />;
       case 'compress-pdf':
       case 'compress-image':
-        return <Minimize2 className="w-6 h-6 text-rose-600" />;
+        return <Minimize2 className="w-6 h-6 text-[#FF4DB8]" />;
       case 'protect-pdf':
-        return <Lock className="w-6 h-6 text-rose-600" />;
+        return <Lock className="w-6 h-6 text-[#FF4DB8]" />;
       case 'watermark-pdf':
-        return <Stamp className="w-6 h-6 text-rose-600" />;
+        return <Stamp className="w-6 h-6 text-[#FF4DB8]" />;
       case 'image-to-pdf':
-        return <FileImage className="w-6 h-6 text-rose-600" />;
+        return <FileImage className="w-6 h-6 text-[#FF4DB8]" />;
       case 'pdf-to-image':
-        return <ImageDown className="w-6 h-6 text-rose-600" />;
+        return <ImageDown className="w-6 h-6 text-[#FF4DB8]" />;
       case 'edit-metadata':
-        return <FileEdit className="w-6 h-6 text-rose-600" />;
+        return <FileEdit className="w-6 h-6 text-[#FF4DB8]" />;
       case 'rotate-pdf':
-        return <RotateCw className="w-6 h-6 text-rose-600" />;
+        return <RotateCw className="w-6 h-6 text-[#FF4DB8]" />;
       case 'page-numbers':
-        return <Hash className="w-6 h-6 text-rose-600" />;
+        return <Hash className="w-6 h-6 text-[#FF4DB8]" />;
       case 'remove-pages':
-        return <Trash2 className="w-6 h-6 text-rose-600" />;
+        return <Trash2 className="w-6 h-6 text-[#FF4DB8]" />;
       case 'highlight-pdf':
       case 'highlight-photo':
-        return <Highlighter className="w-6 h-6 text-rose-600" />;
+        return <Highlighter className="w-6 h-6 text-[#FF4DB8]" />;
       case 'resize-image':
-        return <Scaling className="w-6 h-6 text-rose-600" />;
+        return <Scaling className="w-6 h-6 text-[#FF4DB8]" />;
       case 'edit-photo':
-        return <SlidersHorizontal className="w-6 h-6 text-rose-600" />;
-      case 'remove-bg':
-        return <Eraser className="w-6 h-6 text-rose-600" />;
-      case 'enhance-photo':
-        return <Wand2 className="w-6 h-6 text-rose-600" />;
+        return <SlidersHorizontal className="w-6 h-6 text-[#FF4DB8]" />;
+      case 'pdf-to-word':
+        return <FileText className="w-6 h-6 text-[#FF4DB8]" />;
+      case 'word-to-pdf':
+        return <FileSpreadsheet className="w-6 h-6 text-[#FF4DB8]" />;
+      case 'pdf-to-excel':
+        return <Table className="w-6 h-6 text-[#FF4DB8]" />;
+      case 'edit-pdf':
+        return <PenTool className="w-6 h-6 text-[#FF4DB8]" />;
+      case 'sign-pdf':
+        return <FileSignature className="w-6 h-6 text-[#FF4DB8]" />;
+      case 'unlock-pdf':
+        return <Unlock className="w-6 h-6 text-[#FF4DB8]" />;
+      case 'ocr-pdf':
+        return <ScanText className="w-6 h-6 text-[#FF4DB8]" />;
       case 'rename-files':
-        return <PenLine className="w-6 h-6 text-rose-600" />;
+        return <PenLine className="w-6 h-6 text-[#FF4DB8]" />;
       default:
-        return <FileText className="w-6 h-6 text-rose-600" />;
+        return <FileText className="w-6 h-6 text-[#FF4DB8]" />;
     }
   };
 
   return (
     <div className="max-w-5xl mx-auto px-4 sm:px-6 py-8">
       {/* Top Header */}
-      <div className="flex items-center justify-between mb-8 pb-4 border-b border-slate-200">
+      <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#452035]">
         <button
           onClick={onBack}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-slate-600 hover:text-rose-600 transition-colors cursor-pointer"
+          className="inline-flex items-center gap-2 text-sm font-semibold text-[#C8B8C4] hover:text-[#FF4DB8] transition-colors cursor-pointer"
         >
           <ArrowLeft className="w-4 h-4" />
           <span>All Tools</span>
         </button>
 
         <div className="flex items-center gap-2">
-          <span className="text-xs font-bold text-[#1FA971] bg-[#1FA971]/10 px-3 py-1 rounded-full border border-[#1FA971]/25">
+          <span className="text-xs font-bold text-[#1FA971] bg-[#1FA971]/15 px-3 py-1 rounded-full border border-[#1FA971]/35">
             100% Free • Unlimited Operations
           </span>
         </div>
@@ -855,11 +938,11 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
       {/* Tool Title & Description */}
       <div className="text-center max-w-2xl mx-auto mb-8">
-        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-rose-50 border border-rose-200 shadow-xs mb-3">
+        <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-[#35001F] border border-[#452035] shadow-md shadow-[#E90083]/15 mb-3">
           {getToolIcon()}
         </div>
-        <h1 className="text-3xl font-extrabold text-slate-900 tracking-tight">{tool?.name}</h1>
-        <p className="text-slate-600 text-sm mt-1.5">{tool?.description}</p>
+        <h1 className="text-3xl font-extrabold text-white tracking-tight">{tool?.name}</h1>
+        <p className="text-[#C8B8C4] text-sm mt-1.5">{tool?.description}</p>
       </div>
 
       {/* Workspace Body */}
@@ -876,7 +959,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 acceptIncomingFiles(Array.from(e.dataTransfer.files));
               }
             }}
-            className="border-2 border-dashed border-slate-300 hover:border-rose-400 bg-slate-50/70 hover:bg-rose-50/30 rounded-3xl p-8 text-center cursor-pointer transition-all group"
+            className="border-2 border-dashed border-[#452035] hover:border-[#FF1493] bg-[#0B0007] hover:bg-[#16000D] rounded-3xl p-8 text-center cursor-pointer transition-all group"
           >
             <input
               type="file"
@@ -886,23 +969,29 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               multiple={isMultiple}
               className="hidden"
             />
-            <div className="w-14 h-14 rounded-full bg-white shadow-md mx-auto flex items-center justify-center text-slate-400 group-hover:text-rose-600 group-hover:scale-110 transition-all mb-4">
+            <div className="w-14 h-14 rounded-full bg-[#35001F] border border-[#452035] shadow-md shadow-black/40 mx-auto flex items-center justify-center text-[#C8B8C4] group-hover:text-[#FF4DB8] group-hover:border-[#FF1493]/60 group-hover:scale-110 transition-all mb-4">
               <Upload className="w-7 h-7 stroke-[2.2]" />
             </div>
-            <h3 className="text-base font-bold text-slate-800">
+            <h3 className="text-base font-bold text-white">
               {files.length > 0
                 ? isMultiple
                   ? 'Add more files'
                   : 'Change selected file'
+                : toolId === 'word-to-pdf'
+                ? 'Upload Word File (.docx / .doc)'
+                : toolId === 'ocr-pdf'
+                ? 'Upload Scanned PDF or Image'
                 : toolId === 'rename-files'
                 ? 'Upload PDF or Photo Files'
                 : isPhotoOnlyTool
                 ? 'Upload Photo (PNG, JPG, WebP)'
                 : 'Upload PDF'}
             </h3>
-            <p className="text-xs text-slate-500 mt-1 max-w-sm mx-auto">
+            <p className="text-xs text-[#91808C] mt-1 max-w-sm mx-auto">
               Drag &amp; drop{' '}
-              {toolId === 'rename-files'
+              {toolId === 'word-to-pdf'
+                ? 'DOCX or DOC files'
+                : toolId === 'ocr-pdf' || toolId === 'rename-files'
                 ? 'PDF, PNG, JPG, or WebP files'
                 : isPhotoOnlyTool
                 ? 'PNG, JPG, or WebP files'
@@ -917,11 +1006,19 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   e.stopPropagation();
                   loadSamplePdf();
                 }}
-                className="text-xs font-semibold px-3 py-1.5 rounded-full bg-white border border-slate-200 hover:border-rose-300 text-slate-700 hover:text-rose-600 shadow-2xs transition-colors flex items-center gap-1.5 cursor-pointer"
+                className="text-xs font-semibold px-3 py-1.5 rounded-full bg-[#16000D] border border-[#452035] hover:border-[#FF1493] text-[#C8B8C4] hover:text-[#FF4DB8] shadow-xs transition-colors flex items-center gap-1.5 cursor-pointer"
               >
-                <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+                <Sparkles className="w-3.5 h-3.5 text-[#FF4DB8]" />
                 <span>
-                  {toolId === 'rename-files'
+                  {toolId === 'word-to-pdf'
+                    ? 'Load Sample DOCX'
+                    : toolId === 'unlock-pdf'
+                    ? 'Load Sample Locked PDF'
+                    : toolId === 'pdf-to-excel'
+                    ? 'Load Sample Table PDF'
+                    : toolId === 'ocr-pdf'
+                    ? 'Load Sample Scan Image'
+                    : toolId === 'rename-files'
                     ? 'Load Sample Files'
                     : toolId === 'image-to-pdf'
                     ? 'Load Sample Images'
@@ -935,15 +1032,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
           {/* Files List */}
           {files.length > 0 && (
-            <div className="bg-white rounded-2xl border border-slate-200 p-4 shadow-xs">
+            <div className="bg-[#16000D] rounded-2xl border border-[#452035] p-4 shadow-xs">
               <div className="flex items-center justify-between mb-3">
-                <span className="text-xs font-bold text-slate-700 uppercase tracking-wider">
+                <span className="text-xs font-bold text-[#C8B8C4] uppercase tracking-wider">
                   Selected {files.length === 1 ? 'Document' : `Documents (${files.length})`}
                 </span>
                 {files.length > 1 && (
                   <button
                     onClick={() => setFiles([])}
-                    className="text-xs text-rose-600 hover:underline font-medium"
+                    className="text-xs text-[#FF4DB8] hover:underline font-medium cursor-pointer"
                   >
                     Clear All
                   </button>
@@ -954,15 +1051,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 {files.map((file, idx) => (
                   <div
                     key={`${file.name}-${idx}`}
-                    className="flex items-center justify-between p-3 rounded-xl bg-slate-50 border border-slate-100 text-xs"
+                    className="flex items-center justify-between p-3 rounded-xl bg-[#0B0007] border border-[#452035] text-xs"
                   >
                     <div className="flex items-center gap-3 overflow-hidden">
-                      <div className="w-8 h-8 rounded-lg bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                      <div className="w-8 h-8 rounded-lg bg-[#35001F] text-[#FF4DB8] border border-[#452035] flex items-center justify-center shrink-0">
                         <FileText className="w-4 h-4" />
                       </div>
                       <div className="truncate">
-                        <p className="font-semibold text-slate-900 truncate">{file.name}</p>
-                        <p className="text-[11px] text-slate-500">
+                        <p className="font-semibold text-white truncate">{file.name}</p>
+                        <p className="text-[11px] text-[#91808C]">
                           {(file.size / 1024).toFixed(1)} KB
                           {pdfPageCounts[`${file.name}_${file.size}`]
                             ? ` • ${pdfPageCounts[`${file.name}_${file.size}`]} page${
@@ -980,7 +1077,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                             type="button"
                             disabled={idx === 0}
                             onClick={() => moveFile(idx, 'up')}
-                            className="p-1 rounded-md text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
+                            className="p-1 rounded-md text-[#91808C] hover:text-white disabled:opacity-20 cursor-pointer"
                             aria-label="Move file up"
                           >
                             <MoveUp className="w-4 h-4" />
@@ -989,7 +1086,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                             type="button"
                             disabled={idx === files.length - 1}
                             onClick={() => moveFile(idx, 'down')}
-                            className="p-1 rounded-md text-slate-400 hover:text-slate-700 disabled:opacity-20 cursor-pointer"
+                            className="p-1 rounded-md text-[#91808C] hover:text-white disabled:opacity-20 cursor-pointer"
                             aria-label="Move file down"
                           >
                             <MoveDown className="w-4 h-4" />
@@ -999,7 +1096,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       <button
                         type="button"
                         onClick={() => setPreviewTarget({ file, name: file.name })}
-                        className="px-2 py-1 rounded-md text-[#E83E8C] bg-[#FFF4F8] border border-[#FFE3EE] hover:bg-[#FFE3EE] font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer"
+                        className="px-2 py-1 rounded-md text-[#FF4DB8] bg-[#35001F] border border-[#452035] hover:border-[#FF1493] font-bold text-[11px] inline-flex items-center gap-1 cursor-pointer transition-colors"
                         title={`Preview ${file.name}`}
                         aria-label={`Preview ${file.name}`}
                       >
@@ -1009,7 +1106,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       <button
                         type="button"
                         onClick={() => removeFile(idx)}
-                        className="p-1 rounded-md text-rose-400 hover:text-rose-600 cursor-pointer ml-1"
+                        className="p-1 rounded-md text-[#91808C] hover:text-[#D9364F] cursor-pointer ml-1 transition-colors"
                         aria-label="Remove file"
                       >
                         <Trash2 className="w-4 h-4" />
@@ -1030,14 +1127,30 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             />
           )}
 
-          {/* Interactive Photo Studio Canvas (live preview across all photo tools) */}
+          {/* Full Interactive PDF Editor (edit-pdf) */}
+          {toolId === 'edit-pdf' && files.length > 0 && (
+            <InteractivePdfEditorPanel
+              file={files[0]}
+              edits={pdfFullEdits}
+              onChangeEdits={setPdfFullEdits}
+            />
+          )}
+
+          {/* Interactive Sign PDF Studio & Page Placement (sign-pdf) */}
+          {toolId === 'sign-pdf' && files.length > 0 && (
+            <InteractiveSignPdfPanel
+              file={files[0]}
+              placements={pdfSignatures}
+              onChangePlacements={setPdfSignatures}
+            />
+          )}
+
+          {/* Interactive Photo Studio Canvas (live preview across remaining photo tools) */}
           {files.length > 0 &&
             (toolId === 'compress-image' ||
               toolId === 'resize-image' ||
               toolId === 'edit-photo' ||
-              toolId === 'highlight-photo' ||
-              toolId === 'remove-bg' ||
-              toolId === 'enhance-photo') && (
+              toolId === 'highlight-photo') && (
               <InteractivePhotoPanel
                 toolId={toolId}
                 file={files[0]}
@@ -1060,31 +1173,14 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 saturation={editSaturation}
                 highlights={photoHighlights}
                 onChangeHighlights={setPhotoHighlights}
-                bgTolerance={bgTolerance}
-                bgFeather={bgFeather}
-                bgMode={bgMode}
-                bgEdgeBarrier={bgEdgeBarrier}
-                bgSampleColors={bgSampleColors}
-                onChangeBgSampleColors={setBgSampleColors}
-                bgKeepStrokes={bgKeepStrokes}
-                onChangeBgKeepStrokes={setBgKeepStrokes}
-                bgEraseStrokes={bgEraseStrokes}
-                onChangeBgEraseStrokes={setBgEraseStrokes}
-                bgFill={bgFill}
-                enhancePreset={enhancePreset}
-                enhanceSharpen={enhanceSharpen}
-                enhanceContrast={enhanceContrast}
-                enhanceBrightness={enhanceBrightness}
-                enhanceVibrance={enhanceVibrance}
-                enhanceDenoise={enhanceDenoise}
               />
             )}
         </div>
 
         {/* Right Column: Settings & Process Action */}
         <div className="lg:col-span-5 space-y-6">
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-xs">
-            <h3 className="text-base font-bold text-slate-900 mb-4 pb-2 border-b border-slate-100">
+          <div className="bg-[#16000D] rounded-3xl border border-[#452035] p-6 shadow-xs">
+            <h3 className="text-base font-bold text-white mb-4 pb-2 border-b border-[#452035]">
               Tool Settings
             </h3>
 
@@ -1092,15 +1188,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'split-pdf' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Split Mode</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-2">Split Mode</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setSplitMode('range')}
                       className={`p-2 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
                         splitMode === 'range'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4] hover:border-[#FF1493]/50'
                       }`}
                     >
                       Extract Range
@@ -1110,8 +1206,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       onClick={() => setSplitMode('all')}
                       className={`p-2 rounded-xl text-xs font-medium border text-center transition-all cursor-pointer ${
                         splitMode === 'all'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4] hover:border-[#FF1493]/50'
                       }`}
                     >
                       Extract All Pages (ZIP)
@@ -1121,7 +1217,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
                 {splitMode === 'range' && (
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">
+                    <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                       Pages to Extract (e.g. 1-2, 4)
                     </label>
                     <input
@@ -1129,9 +1225,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       value={splitRange}
                       onChange={(e) => setSplitRange(e.target.value)}
                       placeholder="e.g. 1-3, 5"
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                      className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                     />
-                    <p className="text-[11px] text-slate-400 mt-1">
+                    <p className="text-[11px] text-[#91808C] mt-1">
                       Enter page numbers or intervals separated by commas.
                     </p>
                   </div>
@@ -1142,7 +1238,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {/* Compress PDF Settings */}
             {toolId === 'compress-pdf' && (
               <div className="space-y-3">
-                <label className="block text-xs font-semibold text-slate-700">Compression Level</label>
+                <label className="block text-xs font-semibold text-[#C8B8C4]">Compression Level</label>
                 <div className="space-y-2">
                   {[
                     { id: 'recommended', label: 'Recommended (Lossless)', desc: 'Clean PDF stream & metadata optimization preserving sharp vector text' },
@@ -1154,8 +1250,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       key={lvl.id}
                       className={`flex items-start gap-3 p-3 rounded-xl border cursor-pointer transition-all ${
                         compressLevel === lvl.id
-                          ? 'border-rose-500 bg-rose-50/60 ring-1 ring-rose-500'
-                          : 'border-slate-200 hover:bg-slate-50'
+                          ? 'border-[#FF1493] bg-[#35001F] ring-1 ring-[#FF1493]'
+                          : 'border-[#452035] bg-[#0B0007] hover:border-[#FF1493]/50'
                       }`}
                     >
                       <input
@@ -1165,18 +1261,18 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onChange={() =>
                           setCompressLevel(lvl.id as 'recommended' | 'extreme' | 'light' | 'target-kb')
                         }
-                        className="mt-0.5 text-rose-600 focus:ring-rose-500"
+                        className="mt-0.5 accent-[#FF1493]"
                       />
                       <div>
-                        <div className="text-xs font-bold text-slate-900">{lvl.label}</div>
-                        <div className="text-[11px] text-slate-500">{lvl.desc}</div>
+                        <div className="text-xs font-bold text-white">{lvl.label}</div>
+                        <div className="text-[11px] text-[#91808C]">{lvl.desc}</div>
                       </div>
                     </label>
                   ))}
                 </div>
 
                 {compressLevel === 'target-kb' && (
-                  <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] space-y-2">
+                  <div className="p-3 rounded-xl bg-[#0B0007] border border-[#452035] space-y-2">
                     <div className="flex flex-wrap gap-1.5">
                       {[100, 200, 500].map((kb) => (
                         <button
@@ -1185,8 +1281,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                           onClick={() => setPdfTargetKb(kb)}
                           className={`px-2.5 py-1 rounded-lg text-xs font-bold border cursor-pointer ${
                             pdfTargetKb === kb
-                              ? 'bg-[#E83E8C] text-white border-[#C92B72]'
-                              : 'bg-white text-[#24212A] border-[#FFE3EE]'
+                              ? 'bg-[#E90083] text-white border-[#FF1493]'
+                              : 'bg-[#16000D] text-[#C8B8C4] border-[#452035] hover:border-[#FF1493]'
                           }`}
                         >
                           {kb} KB
@@ -1194,7 +1290,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       ))}
                     </div>
                     <div className="flex items-center gap-2">
-                      <label className="text-[11px] font-semibold text-slate-700 whitespace-nowrap">
+                      <label className="text-[11px] font-semibold text-[#C8B8C4] whitespace-nowrap">
                         Custom KB:
                       </label>
                       <input
@@ -1203,7 +1299,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         max={10000}
                         value={pdfTargetKb}
                         onChange={(e) => setPdfTargetKb(Math.max(20, parseInt(e.target.value, 10) || 100))}
-                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-slate-200 bg-white focus:outline-hidden focus:border-[#E83E8C]"
+                        className="w-full px-2.5 py-1.5 text-xs rounded-lg border border-[#452035] bg-[#12000A] text-white focus:outline-hidden focus:border-[#FF1493]"
                       />
                     </div>
                   </div>
@@ -1215,7 +1311,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'protect-pdf' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                     Document Password
                   </label>
                   <div className="relative">
@@ -1224,12 +1320,12 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="Enter strong password"
-                      className="w-full px-3 py-2 pr-9 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500"
+                      className="w-full px-3 py-2 pr-9 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600"
+                      className="absolute right-2.5 top-2.5 text-[#91808C] hover:text-[#FF4DB8] cursor-pointer"
                     >
                       {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                     </button>
@@ -1237,7 +1333,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                     Confirm Password
                   </label>
                   <input
@@ -1245,26 +1341,26 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     value={confirmPassword}
                     onChange={(e) => setConfirmPassword(e.target.value)}
                     placeholder="Repeat password"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
 
-                <div className="pt-2 border-t border-slate-100 space-y-2 text-xs">
-                  <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
+                <div className="pt-2 border-t border-[#452035] space-y-2 text-xs">
+                  <label className="flex items-center gap-2 text-[#C8B8C4] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={allowPrinting}
                       onChange={(e) => setAllowPrinting(e.target.checked)}
-                      className="rounded-sm text-rose-600 focus:ring-rose-500"
+                      className="rounded-sm accent-[#FF1493]"
                     />
                     <span>Allow Printing</span>
                   </label>
-                  <label className="flex items-center gap-2 text-slate-700 cursor-pointer">
+                  <label className="flex items-center gap-2 text-[#C8B8C4] cursor-pointer">
                     <input
                       type="checkbox"
                       checked={allowCopying}
                       onChange={(e) => setAllowCopying(e.target.checked)}
-                      className="rounded-sm text-rose-600 focus:ring-rose-500"
+                      className="rounded-sm accent-[#FF1493]"
                     />
                     <span>Allow Copying Text &amp; Graphics</span>
                   </label>
@@ -1276,7 +1372,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'watermark-pdf' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                     Watermark Text
                   </label>
                   <input
@@ -1284,13 +1380,13 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     value={watermarkText}
                     onChange={(e) => setWatermarkText(e.target.value)}
                     placeholder="e.g. CONFIDENTIAL / DRAFT"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:ring-2 focus:ring-rose-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">
                       Opacity: {Math.round(watermarkOpacity * 100)}%
                     </label>
                     <input
@@ -1300,11 +1396,11 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       step="0.05"
                       value={watermarkOpacity}
                       onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
-                      className="w-full accent-rose-600"
+                      className="w-full accent-[#FF1493]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700 mb-1">
+                    <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">
                       Font Size: {watermarkFontSize}px
                     </label>
                     <input
@@ -1314,13 +1410,13 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       step="4"
                       value={watermarkFontSize}
                       onChange={(e) => setWatermarkFontSize(parseInt(e.target.value, 10))}
-                      className="w-full accent-rose-600"
+                      className="w-full accent-[#FF1493]"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Placement</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Placement</label>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     {(['diagonal', 'center', 'top-right', 'bottom-center'] as const).map((pos) => (
                       <button
@@ -1331,10 +1427,10 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                           if (pos === 'diagonal') setWatermarkAngle(45);
                           else setWatermarkAngle(0);
                         }}
-                        className={`p-2 rounded-lg border capitalize text-center ${
+                        className={`p-2 rounded-lg border capitalize text-center cursor-pointer ${
                           watermarkPlacement === pos
-                            ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {pos.replace('-', ' ')}
@@ -1344,7 +1440,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Color</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Color</label>
                   <div className="flex items-center gap-2">
                     {[
                       { name: 'Red', color: '#e11d48' },
@@ -1358,7 +1454,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setWatermarkColor(c.color)}
                         style={{ backgroundColor: c.color }}
                         className={`w-7 h-7 rounded-full border-2 transition-all cursor-pointer ${
-                          watermarkColor === c.color ? 'border-black scale-110' : 'border-transparent'
+                          watermarkColor === c.color ? 'border-white ring-2 ring-[#FF1493] scale-110' : 'border-transparent'
                         }`}
                         title={c.name}
                       />
@@ -1370,34 +1466,58 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
             {/* Image to PDF Settings */}
             {toolId === 'image-to-pdf' && (
-              <div className="space-y-3">
+              <div className="space-y-3 text-xs">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Page Sizing</label>
-                  <div className="grid grid-cols-2 gap-2 text-xs">
-                    <button
-                      type="button"
-                      onClick={() => setImagePageSize('fit')}
-                      className={`p-2 rounded-lg border text-center ${
-                        imagePageSize === 'fit'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      Fit to Image
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setImagePageSize('a4')}
-                      className={`p-2 rounded-lg border text-center ${
-                        imagePageSize === 'a4'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      Standard A4
-                    </button>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Page Sizing</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { id: 'fit' as const, label: 'Fit Image' },
+                      { id: 'a4' as const, label: 'Standard A4' },
+                      { id: 'letter' as const, label: 'US Letter' },
+                    ].map((sz) => (
+                      <button
+                        key={sz.id}
+                        type="button"
+                        onClick={() => setImagePageSize(sz.id)}
+                        className={`p-2 rounded-xl border font-bold text-center cursor-pointer ${
+                          imagePageSize === sz.id
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
+                        }`}
+                      >
+                        {sz.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
+
+                {imagePageSize !== 'fit' && (
+                  <div>
+                    <label className="block font-semibold text-[#C8B8C4] mb-1.5">Page Orientation</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(
+                        [
+                          { id: 'auto', label: 'Auto' },
+                          { id: 'portrait', label: 'Portrait' },
+                          { id: 'landscape', label: 'Landscape' },
+                        ] as const
+                      ).map((or) => (
+                        <button
+                          key={or.id}
+                          type="button"
+                          onClick={() => setImageOrientation(or.id)}
+                          className={`p-2 rounded-xl border font-bold text-center cursor-pointer ${
+                            imageOrientation === or.id
+                              ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                              : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
+                          }`}
+                        >
+                          {or.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -1405,15 +1525,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'pdf-to-image' && (
               <div className="space-y-3">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Image Format</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Image Format</label>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <button
                       type="button"
                       onClick={() => setImageFormat('png')}
-                      className={`p-2 rounded-lg border text-center ${
+                      className={`p-2 rounded-lg border text-center cursor-pointer ${
                         imageFormat === 'png'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                       }`}
                     >
                       PNG (Lossless)
@@ -1421,10 +1541,10 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     <button
                       type="button"
                       onClick={() => setImageFormat('jpeg')}
-                      className={`p-2 rounded-lg border text-center ${
+                      className={`p-2 rounded-lg border text-center cursor-pointer ${
                         imageFormat === 'jpeg'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                       }`}
                     >
                       JPEG (Compact)
@@ -1433,15 +1553,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Resolution</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Resolution</label>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <button
                       type="button"
                       onClick={() => setImageScale(1.0)}
-                      className={`p-2 rounded-lg border text-center ${
+                      className={`p-2 rounded-lg border text-center cursor-pointer ${
                         imageScale === 1.0
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                       }`}
                     >
                       Standard (1x)
@@ -1449,10 +1569,10 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     <button
                       type="button"
                       onClick={() => setImageScale(1.8)}
-                      className={`p-2 rounded-lg border text-center ${
+                      className={`p-2 rounded-lg border text-center cursor-pointer ${
                         imageScale === 1.8
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                       }`}
                     >
                       Crisp HD (1.8x)
@@ -1464,7 +1584,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
             {/* Merge PDF info */}
             {toolId === 'merge-pdf' && (
-              <div className="text-xs text-slate-500">
+              <div className="text-xs text-[#91808C]">
                 <p>Upload 2 or more PDFs. You can reorder the documents on the left before merging.</p>
               </div>
             )}
@@ -1473,59 +1593,59 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'edit-metadata' && (
               <div className="space-y-3.5">
                 {isLoadingMetadata && (
-                  <div className="p-2.5 rounded-xl bg-rose-50/70 border border-rose-200 text-rose-700 text-xs flex items-center gap-2">
+                  <div className="p-2.5 rounded-xl bg-[#35001F] border border-[#FF1493]/40 text-[#FF4DB8] text-xs flex items-center gap-2">
                     <RefreshCw className="w-3.5 h-3.5 animate-spin" />
                     <span>Reading current PDF metadata properties...</span>
                   </div>
                 )}
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Document Title</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Document Title</label>
                   <input
                     type="text"
                     value={metaTitle}
                     onChange={(e) => setMetaTitle(e.target.value)}
                     placeholder="e.g. Official Annual Report 2026"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Author / Organization</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Author / Organization</label>
                   <input
                     type="text"
                     value={metaAuthor}
                     onChange={(e) => setMetaAuthor(e.target.value)}
                     placeholder="e.g. Sanjib Mukherjee"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Subject / Description</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Subject / Description</label>
                   <input
                     type="text"
                     value={metaSubject}
                     onChange={(e) => setMetaSubject(e.target.value)}
                     placeholder="e.g. Academic Exam Result / Marks Verification"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Keywords (Comma-separated)</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Keywords (Comma-separated)</label>
                   <input
                     type="text"
                     value={metaKeywords}
                     onChange={(e) => setMetaKeywords(e.target.value)}
                     placeholder="e.g. result, exam, 2026, verification"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">Creator Application</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Creator Application</label>
                   <input
                     type="text"
                     value={metaCreator}
                     onChange={(e) => setMetaCreator(e.target.value)}
                     placeholder="e.g. Omini PDF Suite"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
                 <div className="flex items-center gap-2 pt-1">
@@ -1538,7 +1658,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       setMetaKeywords('');
                       setMetaCreator('Omini PDF');
                     }}
-                    className="text-[11px] font-semibold text-slate-500 hover:text-rose-600 transition-colors cursor-pointer"
+                    className="text-[11px] font-semibold text-[#91808C] hover:text-[#FF4DB8] transition-colors cursor-pointer"
                   >
                     Clear All Fields
                   </button>
@@ -1550,7 +1670,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'rotate-pdf' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Rotation Angle</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-2">Rotation Angle</label>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     {[
                       { deg: 90 as const, label: '90° Clockwise' },
@@ -1563,8 +1683,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setRotateAngle(item.deg)}
                         className={`p-2.5 rounded-xl border text-center transition-all cursor-pointer ${
                           rotateAngle === item.deg
-                            ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4] hover:border-[#FF1493]/50'
                         }`}
                       >
                         {item.label}
@@ -1574,7 +1694,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                     Pages to Rotate (Leave empty for All Pages)
                   </label>
                   <input
@@ -1582,7 +1702,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     value={rotateRange}
                     onChange={(e) => setRotateRange(e.target.value)}
                     placeholder="e.g. 1, 3-5 or leave empty for all"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
               </div>
@@ -1592,7 +1712,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'page-numbers' && (
               <div className="space-y-4">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Position</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-2">Position</label>
                   <div className="grid grid-cols-3 gap-2 text-xs">
                     {[
                       { pos: 'bottom-center' as const, label: 'Bottom Center' },
@@ -1605,8 +1725,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setPageNumberPos(item.pos)}
                         className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                           pageNumberPos === item.pos
-                            ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                            : 'border-slate-200 text-slate-600 hover:bg-slate-50'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4] hover:border-[#FF1493]/50'
                         }`}
                       >
                         {item.label}
@@ -1616,15 +1736,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-2">Format</label>
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-2">Format</label>
                   <div className="grid grid-cols-2 gap-2 text-xs">
                     <button
                       type="button"
                       onClick={() => setPageNumberFormat('page-of-total')}
                       className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                         pageNumberFormat === 'page-of-total'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                       }`}
                     >
                       "Page 1 of N"
@@ -1634,8 +1754,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       onClick={() => setPageNumberFormat('simple')}
                       className={`p-2 rounded-xl border text-center transition-all cursor-pointer ${
                         pageNumberFormat === 'simple'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700 font-bold'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8] font-bold'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                       }`}
                     >
                       "1" (Number only)
@@ -1644,7 +1764,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                     Font Size: {pageNumberFontSize}px
                   </label>
                   <input
@@ -1654,7 +1774,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     step="1"
                     value={pageNumberFontSize}
                     onChange={(e) => setPageNumberFontSize(parseInt(e.target.value, 10))}
-                    className="w-full accent-rose-600"
+                    className="w-full accent-[#FF1493]"
                   />
                 </div>
               </div>
@@ -1663,7 +1783,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {/* Remove Pages Settings */}
             {toolId === 'remove-pages' && (
               <div className="space-y-3">
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                   Pages to Delete (e.g. 1, 3-5)
                 </label>
                 <input
@@ -1671,9 +1791,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   value={pagesToRemove}
                   onChange={(e) => setPagesToRemove(e.target.value)}
                   placeholder="e.g. 1, 3-5"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-rose-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                 />
-                <p className="text-[11px] text-slate-500">
+                <p className="text-[11px] text-[#91808C]">
                   Specify 1-based page numbers or intervals to permanently remove from the document.
                 </p>
               </div>
@@ -1682,15 +1802,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {/* PDF Edit & Highlight Settings */}
             {toolId === 'highlight-pdf' && (
               <div className="space-y-3 text-xs">
-                <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] text-[#24212A] space-y-1">
+                <div className="p-3 rounded-xl bg-[#0B0007] border border-[#452035] text-white space-y-1">
                   <p className="font-bold">How to Highlight &amp; Edit PDF:</p>
-                  <p className="text-[11px] text-[#77717B]">
+                  <p className="text-[11px] text-[#C8B8C4]">
                     Upload or load a PDF on the left, then drag across any line or tap <strong>Quick Mark</strong> to draw permanent highlights or text notes onto the page.
                   </p>
                 </div>
-                <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50">
-                  <span className="font-semibold text-slate-700">Active Highlights / Notes:</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] font-bold">
+                <div className="flex items-center justify-between p-2.5 rounded-xl border border-[#452035] bg-[#0B0007]">
+                  <span className="font-semibold text-[#C8B8C4]">Active Highlights / Notes:</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#35001F] text-[#FF4DB8] border border-[#452035] font-bold">
                     {pdfAnnotations.length}
                   </span>
                 </div>
@@ -1701,7 +1821,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'compress-image' && (
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Output Format</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Output Format</label>
                   <div className="grid grid-cols-3 gap-2">
                     {(['webp', 'jpeg', 'png'] as const).map((fmt) => (
                       <button
@@ -1710,8 +1830,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setImgCompressFormat(fmt)}
                         className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
                           imgCompressFormat === fmt
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {fmt === 'jpeg' ? 'JPG' : fmt}
@@ -1721,15 +1841,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Compression Mode</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Compression Mode</label>
                   <div className="grid grid-cols-2 gap-2">
                     <button
                       type="button"
                       onClick={() => setImgCompressMode('quality')}
                       className={`p-2 rounded-xl border font-bold cursor-pointer ${
                         imgCompressMode === 'quality'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                       }`}
                     >
                       Quality Slider
@@ -1739,8 +1859,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       onClick={() => setImgCompressMode('target-kb')}
                       className={`p-2 rounded-xl border font-bold cursor-pointer ${
                         imgCompressMode === 'target-kb'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700'
-                          : 'border-slate-200 text-slate-600'
+                          ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                          : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                       }`}
                     >
                       Exact Target KB
@@ -1750,7 +1870,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
                 {imgCompressMode === 'quality' ? (
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">
+                    <label className="block font-semibold text-[#C8B8C4] mb-1">
                       Quality: {imgCompressQuality}%
                     </label>
                     <input
@@ -1759,12 +1879,12 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       max={98}
                       value={imgCompressQuality}
                       onChange={(e) => setImgCompressQuality(parseInt(e.target.value, 10))}
-                      className="w-full accent-rose-600"
+                      className="w-full accent-[#FF1493]"
                     />
                   </div>
                 ) : (
-                  <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] space-y-2">
-                    <label className="block font-bold text-[#24212A]">Target File Size (KB)</label>
+                  <div className="p-3 rounded-xl bg-[#0B0007] border border-[#452035] space-y-2">
+                    <label className="block font-bold text-white">Target File Size (KB)</label>
                     <div className="flex flex-wrap gap-1.5">
                       {[20, 50, 100, 200].map((kb) => (
                         <button
@@ -1773,8 +1893,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                           onClick={() => setImgTargetKb(kb)}
                           className={`px-2.5 py-1 rounded-lg font-bold border cursor-pointer ${
                             imgTargetKb === kb
-                              ? 'bg-[#E83E8C] text-white border-[#C92B72]'
-                              : 'bg-white text-[#24212A] border-[#FFE3EE]'
+                              ? 'bg-[#E90083] text-white border-[#FF1493]'
+                              : 'bg-[#16000D] text-[#C8B8C4] border-[#452035] hover:border-[#FF1493]'
                           }`}
                         >
                           {kb} KB
@@ -1788,13 +1908,13 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       value={imgTargetKb}
                       onChange={(e) => setImgTargetKb(Math.max(5, parseInt(e.target.value, 10) || 50))}
                       placeholder="Custom target KB"
-                      className="w-full px-3 py-1.5 rounded-lg border border-slate-200 bg-white"
+                      className="w-full px-3 py-1.5 rounded-lg border border-[#452035] bg-[#12000A] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
+                  <label className="block font-semibold text-[#C8B8C4] mb-1">
                     Max Width (px, optional)
                   </label>
                   <input
@@ -1804,7 +1924,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     value={imgMaxWidth}
                     onChange={(e) => setImgMaxWidth(e.target.value)}
                     placeholder="Keep original width"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-[#E83E8C]"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
               </div>
@@ -1814,7 +1934,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'resize-image' && (
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Aspect Ratio</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Aspect Ratio</label>
                   <div className="grid grid-cols-4 gap-1.5">
                     {['Original', '1:1', '4:3', '16:9', '9:16', '3:2', '3:4', 'custom'].map((r) => (
                       <button
@@ -1823,8 +1943,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setResizeRatio(r)}
                         className={`p-2 rounded-lg border font-bold cursor-pointer ${
                           resizeRatio === r
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {r === 'custom' ? 'Custom' : r}
@@ -1836,32 +1956,32 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 {resizeRatio === 'custom' && (
                   <div className="grid grid-cols-2 gap-2">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Width (px)</label>
+                      <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">Width (px)</label>
                       <input
                         type="number"
                         min={16}
                         max={6000}
                         value={resizeCustomW}
                         onChange={(e) => setResizeCustomW(Math.max(16, parseInt(e.target.value, 10) || 800))}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#12000A] border border-[#452035] text-white focus:outline-hidden focus:border-[#FF1493]"
                       />
                     </div>
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-700 mb-1">Height (px)</label>
+                      <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">Height (px)</label>
                       <input
                         type="number"
                         min={16}
                         max={6000}
                         value={resizeCustomH}
                         onChange={(e) => setResizeCustomH(Math.max(16, parseInt(e.target.value, 10) || 800))}
-                        className="w-full px-2.5 py-1.5 rounded-lg border border-slate-200"
+                        className="w-full px-2.5 py-1.5 rounded-lg bg-[#12000A] border border-[#452035] text-white focus:outline-hidden focus:border-[#FF1493]"
                       />
                     </div>
                   </div>
                 )}
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Fit Mode</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Fit Mode</label>
                   <div className="grid grid-cols-3 gap-2">
                     {[
                       { id: 'crop' as const, label: 'Crop to Fill' },
@@ -1874,8 +1994,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setResizeMode(m.id)}
                         className={`p-2 rounded-xl border font-bold cursor-pointer ${
                           resizeMode === m.id
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {m.label}
@@ -1886,18 +2006,18 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
                 {resizeMode === 'fit' && (
                   <div className="flex items-center justify-between">
-                    <span className="font-semibold text-slate-700">Padding Color:</span>
+                    <span className="font-semibold text-[#C8B8C4]">Padding Color:</span>
                     <input
                       type="color"
                       value={resizeBgColor}
                       onChange={(e) => setResizeBgColor(e.target.value)}
-                      className="w-10 h-8 rounded cursor-pointer border border-slate-200"
+                      className="w-10 h-8 rounded cursor-pointer border border-[#452035] bg-[#12000A]"
                     />
                   </div>
                 )}
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Download Format</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Download Format</label>
                   <div className="grid grid-cols-3 gap-2">
                     {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
                       <button
@@ -1906,8 +2026,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setResizeFormat(fmt)}
                         className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
                           resizeFormat === fmt
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {fmt === 'jpeg' ? 'JPG' : fmt}
@@ -1925,16 +2045,16 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={() => setEditRotate((r) => (((r + 90) % 360) as 0 | 90 | 180 | 270))}
-                    className="px-3 py-2 rounded-xl border border-slate-200 hover:border-rose-400 font-bold flex items-center gap-1.5 cursor-pointer"
+                    className="px-3 py-2 rounded-xl border border-[#452035] bg-[#0B0007] text-[#C8B8C4] hover:border-[#FF1493] hover:text-white font-bold flex items-center gap-1.5 cursor-pointer"
                   >
-                    <RotateCw className="w-3.5 h-3.5 text-rose-600" />
+                    <RotateCw className="w-3.5 h-3.5 text-[#FF4DB8]" />
                     Rotate ({editRotate}°)
                   </button>
                   <button
                     type="button"
                     onClick={() => setEditFlipH((v) => !v)}
                     className={`px-3 py-2 rounded-xl border font-bold flex items-center gap-1 cursor-pointer ${
-                      editFlipH ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-slate-200'
+                      editFlipH ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]' : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                     }`}
                   >
                     <FlipHorizontal2 className="w-3.5 h-3.5" />
@@ -1944,7 +2064,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     type="button"
                     onClick={() => setEditFlipV((v) => !v)}
                     className={`px-3 py-2 rounded-xl border font-bold flex items-center gap-1 cursor-pointer ${
-                      editFlipV ? 'border-rose-500 bg-rose-50 text-rose-700' : 'border-slate-200'
+                      editFlipV ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]' : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                     }`}
                   >
                     <FlipVertical2 className="w-3.5 h-3.5" />
@@ -1953,7 +2073,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Filter Presets (16 Looks)</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Filter Presets (16 Looks)</label>
                   <div className="grid grid-cols-4 gap-1.5">
                     {(
                       [
@@ -1981,8 +2101,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setEditPreset(p.id)}
                         className={`p-1.5 rounded-lg border text-[11px] font-bold cursor-pointer ${
                           editPreset === p.id
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {p.label}
@@ -1993,7 +2113,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
                 <div className="space-y-2">
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700">
+                    <label className="block text-[11px] font-semibold text-[#C8B8C4]">
                       Brightness: {editBrightness}
                     </label>
                     <input
@@ -2002,11 +2122,11 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       max={60}
                       value={editBrightness}
                       onChange={(e) => setEditBrightness(parseInt(e.target.value, 10))}
-                      className="w-full accent-rose-600"
+                      className="w-full accent-[#FF1493]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700">
+                    <label className="block text-[11px] font-semibold text-[#C8B8C4]">
                       Contrast: {editContrast}
                     </label>
                     <input
@@ -2015,11 +2135,11 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       max={60}
                       value={editContrast}
                       onChange={(e) => setEditContrast(parseInt(e.target.value, 10))}
-                      className="w-full accent-rose-600"
+                      className="w-full accent-[#FF1493]"
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-semibold text-slate-700">
+                    <label className="block text-[11px] font-semibold text-[#C8B8C4]">
                       Saturation: {editSaturation}
                     </label>
                     <input
@@ -2028,13 +2148,13 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       max={80}
                       value={editSaturation}
                       onChange={(e) => setEditSaturation(parseInt(e.target.value, 10))}
-                      className="w-full accent-rose-600"
+                      className="w-full accent-[#FF1493]"
                     />
                   </div>
                 </div>
 
                 <div className="flex items-center justify-between pt-1">
-                  <span className="text-[11px] text-[#77717B]">
+                  <span className="text-[11px] text-[#91808C]">
                     Crop region: {Math.round(editCrop.w * 100)}% × {Math.round(editCrop.h * 100)}%
                   </span>
                   <button
@@ -2049,14 +2169,14 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       setEditContrast(0);
                       setEditSaturation(0);
                     }}
-                    className="text-[11px] font-bold text-[#E83E8C] hover:underline cursor-pointer"
+                    className="text-[11px] font-bold text-[#FF4DB8] hover:underline cursor-pointer"
                   >
                     Reset Crop &amp; Filters
                   </button>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Export Format</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Export Format</label>
                   <div className="grid grid-cols-3 gap-2">
                     {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
                       <button
@@ -2065,8 +2185,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setEditFormat(fmt)}
                         className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
                           editFormat === fmt
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {fmt === 'jpeg' ? 'JPG' : fmt}
@@ -2080,20 +2200,20 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {/* Highlight Photo Settings */}
             {toolId === 'highlight-photo' && (
               <div className="space-y-3 text-xs">
-                <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] text-[#24212A] space-y-1">
+                <div className="p-3 rounded-xl bg-[#0B0007] border border-[#452035] text-white space-y-1">
                   <p className="font-bold">Highlight &amp; Spotlight Canvas Ready</p>
-                  <p className="text-[11px] text-[#77717B]">
+                  <p className="text-[11px] text-[#C8B8C4]">
                     Choose <strong>Box</strong>, <strong>Spotlight</strong>, or <strong>Marker</strong> on the left studio and draw directly over the photo (or tap <strong>Quick</strong>).
                   </p>
                 </div>
-                <div className="flex items-center justify-between p-2.5 rounded-xl border border-slate-200 bg-slate-50">
-                  <span className="font-semibold text-slate-700">Active Photo Highlights:</span>
-                  <span className="px-2.5 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] font-bold">
+                <div className="flex items-center justify-between p-2.5 rounded-xl border border-[#452035] bg-[#0B0007]">
+                  <span className="font-semibold text-[#C8B8C4]">Active Photo Highlights:</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#35001F] text-[#FF4DB8] border border-[#452035] font-bold">
                     {photoHighlights.length}
                   </span>
                 </div>
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Export Format</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Export Format</label>
                   <div className="grid grid-cols-3 gap-2">
                     {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
                       <button
@@ -2102,8 +2222,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setPhotoHlFormat(fmt)}
                         className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
                           photoHlFormat === fmt
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {fmt === 'jpeg' ? 'JPG' : fmt}
@@ -2114,257 +2234,241 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               </div>
             )}
 
-            {/* Remove Background Settings (Algorithmic Flood-Fill + Chroma Key) */}
-            {toolId === 'remove-bg' && (
+            {/* PDF to Word (.docx) Settings */}
+            {toolId === 'pdf-to-word' && (
+              <div className="space-y-3 text-xs">
+                <label className="flex items-center justify-between gap-2 p-3 rounded-xl bg-[#0B0007] border border-[#452035] cursor-pointer">
+                  <span className="font-semibold text-white">Insert Page Breaks between PDF pages</span>
+                  <input
+                    type="checkbox"
+                    checked={pdfToWordPageBreaks}
+                    onChange={(e) => setPdfToWordPageBreaks(e.target.checked)}
+                    className="accent-[#FF1493] w-4 h-4"
+                  />
+                </label>
+                <p className="text-[11px] text-[#91808C]">
+                  Extracts headings and text paragraphs from each PDF page into a clean editable Microsoft Word (.docx) document.
+                </p>
+              </div>
+            )}
+
+            {/* Word to PDF Settings */}
+            {toolId === 'word-to-pdf' && (
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Detection Mode (No AI)</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">PDF Page Size</label>
                   <div className="grid grid-cols-2 gap-2">
-                    <button
-                      type="button"
-                      onClick={() => setBgMode('flood-edges')}
-                      className={`p-2 rounded-xl border font-bold cursor-pointer ${
-                        bgMode === 'flood-edges'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700'
-                          : 'border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      Edge Flood-Fill
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setBgMode('global-color')}
-                      className={`p-2 rounded-xl border font-bold cursor-pointer ${
-                        bgMode === 'global-color'
-                          ? 'border-rose-500 bg-rose-50 text-rose-700'
-                          : 'border-slate-200 text-slate-600'
-                      }`}
-                    >
-                      Global Chroma Key
-                    </button>
+                    {[
+                      { id: 'a4' as const, label: 'Standard A4' },
+                      { id: 'letter' as const, label: 'US Letter' },
+                    ].map((sz) => (
+                      <button
+                        key={sz.id}
+                        type="button"
+                        onClick={() => setWordToPdfPageSize(sz.id)}
+                        className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                          wordToPdfPageSize === sz.id
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
+                        }`}
+                      >
+                        {sz.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
-                {bgMode === 'flood-edges' && (
-                  <label className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] cursor-pointer">
-                    <span className="font-semibold text-[#24212A]">Edge Shield (Stop at subject outlines)</span>
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">
+                    Body Font Size: {wordToPdfFontSize}pt
+                  </label>
+                  <input
+                    type="range"
+                    min={9}
+                    max={16}
+                    value={wordToPdfFontSize}
+                    onChange={(e) => setWordToPdfFontSize(parseInt(e.target.value, 10))}
+                    className="w-full accent-[#FF1493]"
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* PDF to Excel Settings */}
+            {toolId === 'pdf-to-excel' && (
+              <div className="space-y-4 text-xs">
+                <div>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Spreadsheet Format</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'xlsx' as const, label: 'Excel (.xlsx)' },
+                      { id: 'csv' as const, label: 'CSV (.csv)' },
+                    ].map((fmt) => (
+                      <button
+                        key={fmt.id}
+                        type="button"
+                        onClick={() => setExcelFormat(fmt.id)}
+                        className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                          excelFormat === fmt.id
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
+                        }`}
+                      >
+                        {fmt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {excelFormat === 'xlsx' && (
+                  <label className="flex items-center justify-between gap-2 p-3 rounded-xl bg-[#0B0007] border border-[#452035] cursor-pointer">
+                    <span className="font-semibold text-white">Separate Excel sheet per PDF page</span>
                     <input
                       type="checkbox"
-                      checked={bgEdgeBarrier}
-                      onChange={(e) => setBgEdgeBarrier(e.target.checked)}
-                      className="accent-rose-600 w-4 h-4"
+                      checked={excelSplitSheets}
+                      onChange={(e) => setExcelSplitSheets(e.target.checked)}
+                      className="accent-[#FF1493] w-4 h-4"
                     />
                   </label>
                 )}
+              </div>
+            )}
 
+            {/* Unlock PDF Settings */}
+            {toolId === 'unlock-pdf' && (
+              <div className="space-y-3 text-xs">
                 <div>
-                  <label className="block text-[11px] font-semibold text-slate-700">
-                    Color Tolerance: {bgTolerance}
+                  <label className="block font-semibold text-[#C8B8C4] mb-1">
+                    PDF Open / Owner Password
                   </label>
-                  <input
-                    type="range"
-                    min={8}
-                    max={110}
-                    value={bgTolerance}
-                    onChange={(e) => setBgTolerance(parseInt(e.target.value, 10))}
-                    className="w-full accent-rose-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-slate-700">
-                    Edge Feathering: {bgFeather}px
-                  </label>
-                  <input
-                    type="range"
-                    min={0}
-                    max={30}
-                    value={bgFeather}
-                    onChange={(e) => setBgFeather(parseInt(e.target.value, 10))}
-                    className="w-full accent-rose-600"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">New Backdrop</label>
-                  <div className="flex flex-wrap items-center gap-2">
-                    {[
-                      { val: 'transparent', label: 'Transparent' },
-                      { val: '#FFFFFF', label: 'White' },
-                      { val: '#FFF4F8', label: 'Soft Pink' },
-                      { val: '#E0F2FE', label: 'Sky Blue' },
-                    ].map((bg) => (
-                      <button
-                        key={bg.val}
-                        type="button"
-                        onClick={() => {
-                          setBgFill(bg.val);
-                          if (bg.val === 'transparent' && bgFormat === 'jpeg') {
-                            setBgFormat('png');
-                          }
-                        }}
-                        className={`px-2.5 py-1.5 rounded-lg border font-bold cursor-pointer ${
-                          bgFill === bg.val
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        {bg.label}
-                      </button>
-                    ))}
+                  <div className="relative">
                     <input
-                      type="color"
-                      value={bgFill === 'transparent' ? '#ffffff' : bgFill}
-                      onChange={(e) => setBgFill(e.target.value)}
-                      title="Custom solid backdrop color"
-                      className="w-8 h-8 rounded border border-slate-200 cursor-pointer"
+                      type={showUnlockPassword ? 'text' : 'password'}
+                      value={unlockPassword}
+                      onChange={(e) => setUnlockPassword(e.target.value)}
+                      placeholder="Enter password (e.g. 1234 for sample PDF)"
+                      className="w-full px-3 py-2 pr-9 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowUnlockPassword((v) => !v)}
+                      className="absolute right-2.5 top-2.5 text-[#91808C] hover:text-[#FF4DB8] cursor-pointer"
+                      aria-label="Toggle password visibility"
+                    >
+                      {showUnlockPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
                   </div>
-                </div>
-
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Output Format</label>
-                  <div className={`grid gap-2 ${bgFill !== 'transparent' ? 'grid-cols-3' : 'grid-cols-2'}`}>
-                    {(bgFill !== 'transparent' ? (['png', 'webp', 'jpeg'] as const) : (['png', 'webp'] as const)).map((fmt) => (
-                      <button
-                        key={fmt}
-                        type="button"
-                        onClick={() => setBgFormat(fmt)}
-                        className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
-                          bgFormat === fmt
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        {fmt === 'jpeg' ? 'JPG' : `${fmt} (Alpha)`}
-                      </button>
-                    ))}
-                  </div>
+                  <p className="text-[11px] text-[#91808C] mt-1.5">
+                    If the PDF only restricts copying/printing (no open password), leave blank and click Process.
+                  </p>
                 </div>
               </div>
             )}
 
-            {/* Enhance Photo Settings (Pure Algorithmic Auto-Levels & Unsharp Mask) */}
-            {toolId === 'enhance-photo' && (
+            {/* Full Edit PDF Settings */}
+            {toolId === 'edit-pdf' && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-[#0B0007] border border-[#452035] text-white space-y-1">
+                  <p className="font-bold">Interactive PDF Page Editor Ready</p>
+                  <p className="text-[11px] text-[#C8B8C4]">
+                    Use <strong>Text</strong>, <strong>Whiteout</strong>, <strong>Highlight</strong>, <strong>Box</strong>, or <strong>Draw</strong> on the left canvas (or tap <strong>Quick Stamp</strong>), then click Process below.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-xl border border-[#452035] bg-[#0B0007]">
+                  <span className="font-semibold text-[#C8B8C4]">Active Edits Added:</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#35001F] text-[#FF4DB8] border border-[#452035] font-bold">
+                    {pdfFullEdits.length}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Sign PDF Settings */}
+            {toolId === 'sign-pdf' && (
+              <div className="space-y-3 text-xs">
+                <div className="p-3 rounded-xl bg-[#0B0007] border border-[#452035] text-white space-y-1">
+                  <p className="font-bold">E-Signature Studio Ready</p>
+                  <p className="text-[11px] text-[#C8B8C4]">
+                    Type, draw, or upload your signature on the left, click <strong>Place Signature on Page</strong> (or drag a box), and download your signed PDF.
+                  </p>
+                </div>
+                <div className="flex items-center justify-between p-2.5 rounded-xl border border-[#452035] bg-[#0B0007]">
+                  <span className="font-semibold text-[#C8B8C4]">Placed Signatures:</span>
+                  <span className="px-2.5 py-0.5 rounded-full bg-[#35001F] text-[#FF4DB8] border border-[#452035] font-bold">
+                    {pdfSignatures.length}
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* OCR PDF Settings (Tesseract.js Client-Side WASM) */}
+            {toolId === 'ocr-pdf' && (
               <div className="space-y-4 text-xs">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Enhancement Preset</label>
-                  <div className="grid grid-cols-2 gap-2">
-                    {[
-                      { id: 'auto' as const, label: 'Auto HD', sh: 62, ct: 70, br: 4, vb: 40, dn: 12 },
-                      { id: 'document' as const, label: 'Crisp Document Scan', sh: 80, ct: 88, br: 6, vb: 12, dn: 8 },
-                      { id: 'portrait' as const, label: 'Smooth Portrait', sh: 40, ct: 50, br: 6, vb: 32, dn: 34 },
-                      { id: 'vivid' as const, label: 'Vivid Color Boost', sh: 60, ct: 72, br: 4, vb: 70, dn: 10 },
-                    ].map((p) => (
-                      <button
-                        key={p.id}
-                        type="button"
-                        onClick={() => {
-                          setEnhancePreset(p.id);
-                          setEnhanceSharpen(p.sh);
-                          setEnhanceContrast(p.ct);
-                          setEnhanceBrightness(p.br);
-                          setEnhanceVibrance(p.vb);
-                          setEnhanceDenoise(p.dn);
-                        }}
-                        className={`p-2 rounded-xl border font-bold cursor-pointer ${
-                          enhancePreset === p.id
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        {p.label}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Recognition Language (Tesseract)</label>
+                  <select
+                    value={ocrLanguage}
+                    onChange={(e) => setOcrLanguage(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-[#452035] bg-[#12000A] text-white font-semibold focus:outline-hidden focus:border-[#FF1493]"
+                  >
+                    <option value="eng">English (eng)</option>
+                    <option value="ben">Bengali / বাংলা (ben)</option>
+                    <option value="hin">Hindi / हिन्दी (hin)</option>
+                    <option value="eng+ben">English + Bengali (eng+ben)</option>
+                    <option value="eng+hin">English + Hindi (eng+hin)</option>
+                  </select>
                 </div>
 
-                <div className="space-y-2">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700">
-                      Unsharp Mask Sharpen: {enhanceSharpen}%
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={enhanceSharpen}
-                      onChange={(e) => {
-                        setEnhancePreset('custom');
-                        setEnhanceSharpen(parseInt(e.target.value, 10));
-                      }}
-                      className="w-full accent-rose-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700">
-                      Auto-Levels &amp; Clarity: {enhanceContrast}%
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={enhanceContrast}
-                      onChange={(e) => {
-                        setEnhancePreset('custom');
-                        setEnhanceContrast(parseInt(e.target.value, 10));
-                      }}
-                      className="w-full accent-rose-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700">
-                      Vibrance: {enhanceVibrance}%
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={enhanceVibrance}
-                      onChange={(e) => {
-                        setEnhancePreset('custom');
-                        setEnhanceVibrance(parseInt(e.target.value, 10));
-                      }}
-                      className="w-full accent-rose-600"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-[11px] font-semibold text-slate-700">
-                      Noise Reduction (Denoise): {enhanceDenoise}%
-                    </label>
-                    <input
-                      type="range"
-                      min={0}
-                      max={100}
-                      value={enhanceDenoise}
-                      onChange={(e) => {
-                        setEnhancePreset('custom');
-                        setEnhanceDenoise(parseInt(e.target.value, 10));
-                      }}
-                      className="w-full accent-rose-600"
-                    />
+                <div>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1.5">Output Format</label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { id: 'pdf' as const, label: 'Searchable PDF' },
+                      { id: 'txt' as const, label: 'Text File (.txt)' },
+                    ].map((out) => (
+                      <button
+                        key={out.id}
+                        type="button"
+                        onClick={() => setOcrOutputFormat(out.id)}
+                        className={`p-2 rounded-xl border font-bold cursor-pointer ${
+                          ocrOutputFormat === out.id
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
+                        }`}
+                      >
+                        {out.label}
+                      </button>
+                    ))}
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1.5">Export Format</label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {(['png', 'jpeg', 'webp'] as const).map((fmt) => (
-                      <button
-                        key={fmt}
-                        type="button"
-                        onClick={() => setEnhanceFormat(fmt)}
-                        className={`p-2 rounded-xl border font-bold uppercase cursor-pointer ${
-                          enhanceFormat === fmt
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
-                        }`}
-                      >
-                        {fmt === 'jpeg' ? 'JPG' : fmt}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">
+                    Pages (For PDFs — leave blank for all pages)
+                  </label>
+                  <input
+                    type="text"
+                    value={ocrPageRange}
+                    onChange={(e) => setOcrPageRange(e.target.value)}
+                    placeholder="e.g. 1-2 or leave blank"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
+                  />
                 </div>
+
+                {isProcessing && ocrProgress && (
+                  <div className="p-3 rounded-xl bg-[#0B0007] border border-[#452035] space-y-1.5">
+                    <div className="flex items-center justify-between text-[11px] font-bold text-[#FF4DB8]">
+                      <span>{ocrProgress.status}</span>
+                      <span>{ocrProgress.pct}%</span>
+                    </div>
+                    <div className="w-full h-2 rounded-full bg-[#12000A] overflow-hidden border border-[#452035]">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#E90083] to-[#FF1493] transition-all duration-300"
+                        style={{ width: `${ocrProgress.pct}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 
@@ -2372,7 +2476,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             {toolId === 'rename-files' && (
               <div className="space-y-3 text-xs">
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">
+                  <label className="block font-semibold text-[#C8B8C4] mb-1">
                     New Base Name (Optional — keeps original if empty)
                   </label>
                   <input
@@ -2380,62 +2484,62 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     value={renameBaseName}
                     onChange={(e) => setRenameBaseName(e.target.value)}
                     placeholder="e.g. Omini_Invoice"
-                    className="w-full px-3 py-2 rounded-xl border border-slate-200 focus:outline-hidden focus:border-[#E83E8C]"
+                    className="w-full px-3 py-2 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                   />
                 </div>
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Prefix</label>
+                    <label className="block font-semibold text-[#C8B8C4] mb-1">Prefix</label>
                     <input
                       type="text"
                       value={renamePrefix}
                       onChange={(e) => setRenamePrefix(e.target.value)}
                       placeholder="e.g. 2026_"
-                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Suffix</label>
+                    <label className="block font-semibold text-[#C8B8C4] mb-1">Suffix</label>
                     <input
                       type="text"
                       value={renameSuffix}
                       onChange={(e) => setRenameSuffix(e.target.value)}
                       placeholder="e.g. _final"
-                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Find Text</label>
+                    <label className="block font-semibold text-[#C8B8C4] mb-1">Find Text</label>
                     <input
                       type="text"
                       value={renameFind}
                       onChange={(e) => setRenameFind(e.target.value)}
                       placeholder="e.g. raw "
-                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Replace With</label>
+                    <label className="block font-semibold text-[#C8B8C4] mb-1">Replace With</label>
                     <input
                       type="text"
                       value={renameReplace}
                       onChange={(e) => setRenameReplace(e.target.value)}
                       placeholder="e.g. clean_"
-                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
                     />
                   </div>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Numbering</label>
+                    <label className="block font-semibold text-[#C8B8C4] mb-1">Numbering</label>
                     <select
                       value={renameNumbering}
                       onChange={(e) => setRenameNumbering(e.target.value as 'none' | 'suffix' | 'prefix')}
-                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200 bg-white"
+                      className="w-full px-2.5 py-1.5 rounded-xl border border-[#452035] bg-[#12000A] text-white focus:outline-hidden focus:border-[#FF1493]"
                     >
                       <option value="suffix">Suffix (_1, _2)</option>
                       <option value="prefix">Prefix (1_, 2_)</option>
@@ -2443,19 +2547,19 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     </select>
                   </div>
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">Start At</label>
+                    <label className="block font-semibold text-[#C8B8C4] mb-1">Start At</label>
                     <input
                       type="number"
                       min={1}
                       value={renameStartNum}
                       onChange={(e) => setRenameStartNum(Math.max(1, parseInt(e.target.value, 10) || 1))}
-                      className="w-full px-2.5 py-1.5 rounded-xl border border-slate-200"
+                      className="w-full px-2.5 py-1.5 rounded-xl bg-[#12000A] border border-[#452035] text-white focus:outline-hidden focus:border-[#FF1493]"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Filename Casing</label>
+                  <label className="block font-semibold text-[#C8B8C4] mb-1">Filename Casing</label>
                   <div className="grid grid-cols-3 gap-1.5">
                     {[
                       { id: 'keep' as const, label: 'Keep' },
@@ -2468,8 +2572,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         onClick={() => setRenameCasing(c.id)}
                         className={`p-1.5 rounded-lg border font-bold cursor-pointer ${
                           renameCasing === c.id
-                            ? 'border-rose-500 bg-rose-50 text-rose-700'
-                            : 'border-slate-200 text-slate-600'
+                            ? 'border-[#FF1493] bg-[#35001F] text-[#FF4DB8]'
+                            : 'border-[#452035] bg-[#0B0007] text-[#C8B8C4]'
                         }`}
                       >
                         {c.label}
@@ -2479,8 +2583,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 {files.length > 0 && (
-                  <div className="p-3 rounded-xl bg-[#FFF4F8] border border-[#FFE3EE] space-y-1">
-                    <span className="text-[11px] font-bold text-[#C92B72] uppercase">
+                  <div className="p-3 rounded-xl bg-[#0B0007] border border-[#452035] space-y-1">
+                    <span className="text-[11px] font-bold text-[#FF4DB8] uppercase">
                       Live Filename Preview
                     </span>
                     <div className="space-y-1 max-h-28 overflow-y-auto text-[11px]">
@@ -2500,9 +2604,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                         .slice(0, 6)
                         .map((nextName, idx) => (
                           <div key={idx} className="flex items-center gap-1.5 truncate">
-                            <span className="text-[#77717B] truncate max-w-[40%]">{files[idx].name}</span>
-                            <span className="text-[#E83E8C] font-bold">→</span>
-                            <span className="font-bold text-[#24212A] truncate">{nextName}</span>
+                            <span className="text-[#91808C] truncate max-w-[40%]">{files[idx].name}</span>
+                            <span className="text-[#FF4DB8] font-bold">→</span>
+                            <span className="font-bold text-white truncate">{nextName}</span>
                           </div>
                         ))}
                     </div>
@@ -2513,8 +2617,8 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
             {/* Error banner */}
             {error && (
-              <div className="mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs flex items-start gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
+              <div className="mt-4 p-3 rounded-xl bg-[#D9364F]/15 border border-[#D9364F]/45 text-white text-xs flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 text-[#D9364F] shrink-0 mt-0.5" />
                 <span>{error}</span>
               </div>
             )}
@@ -2525,7 +2629,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 type="button"
                 onClick={handleProcess}
                 disabled={isProcessing || files.length === 0}
-                className="w-full py-3.5 px-6 rounded-2xl font-bold text-sm text-white bg-gradient-to-r from-rose-600 to-rose-700 hover:from-rose-500 hover:to-rose-600 shadow-lg shadow-rose-600/25 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3.5 px-6 rounded-2xl font-bold text-sm text-white bg-[#E90083] hover:bg-[#FF1493] active:bg-[#C90070] shadow-lg shadow-[#E90083]/30 transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
               >
                 {isProcessing ? (
                   <>
@@ -2544,12 +2648,12 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
           {/* Results Card */}
           {result && (
-            <div className="bg-[#FFF4F8] border-2 border-[#FFE3EE] rounded-3xl p-6 text-center animate-in zoom-in-95 duration-200 shadow-lg">
-              <div className="w-12 h-12 rounded-full bg-[#FFE3EE] text-[#1FA971] mx-auto flex items-center justify-center mb-3 shadow-xs">
+            <div className="bg-[#16000D] border-2 border-[#452035] rounded-3xl p-6 text-center animate-in zoom-in-95 duration-200 shadow-xl shadow-black/40">
+              <div className="w-12 h-12 rounded-full bg-[#1FA971]/15 border border-[#1FA971]/40 text-[#1FA971] mx-auto flex items-center justify-center mb-3">
                 <CheckCircle2 className="w-6 h-6 stroke-[2.5]" />
               </div>
-              <h4 className="text-base font-black text-[#24212A]">Processing Completed!</h4>
-              <p className="text-xs text-[#77717B] mt-1">{result.summary}</p>
+              <h4 className="text-base font-black text-white">Processing Completed!</h4>
+              <p className="text-xs text-[#C8B8C4] mt-1">{result.summary}</p>
 
               {/* Action Buttons: Live Preview & Download */}
               <div className="mt-4 grid grid-cols-1 gap-3">
@@ -2563,11 +2667,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                       extraFiles: result.extraFiles,
                     })
                   }
-                  className="inline-flex items-center justify-center gap-2 w-full min-w-0 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-[#24212A] bg-white border-2 border-[#E83E8C] hover:bg-[#FFE3EE] shadow-xs transition-all whitespace-nowrap cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 w-full min-w-0 py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#0B0007] border-2 border-[#E90083] hover:bg-[#35001F] hover:border-[#FF1493] shadow-xs transition-all whitespace-nowrap cursor-pointer"
                 >
-                  <Eye className="w-4 h-4 text-[#E83E8C] shrink-0" />
+                  <Eye className="w-4 h-4 text-[#FF4DB8] shrink-0" />
                   <span className="truncate">
-                    {isPhotoOnlyTool || toolId === 'rename-files'
+                    {isPhotoOnlyTool ||
+                    toolId === 'rename-files' ||
+                    toolId === 'pdf-to-word' ||
+                    toolId === 'pdf-to-excel' ||
+                    (toolId === 'ocr-pdf' && ocrOutputFormat === 'txt')
                       ? 'Live Preview Updated File'
                       : 'Live Preview Updated PDF'}
                   </span>
@@ -2576,7 +2684,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 <MonetagDownloadLink
                   downloadUrl={result.downloadUrl}
                   fileName={result.fileName}
-                  className="inline-flex items-center justify-center gap-2 w-full min-w-0 overflow-hidden py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#1FA971] hover:bg-[#168a5c] shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
+                  className="inline-flex items-center justify-center gap-2 w-full min-w-0 overflow-hidden py-3 px-4 rounded-xl font-bold text-xs sm:text-sm text-white bg-[#1FA971] hover:bg-[#198E5E] shadow-md shadow-[#1FA971]/25 transition-all cursor-pointer"
                   title={`Watch Ad & Download ${result.fileName} (Ad opens in a new tab)`}
                 >
                   {({ downloading, completed }) => (
@@ -2595,10 +2703,36 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </MonetagDownloadLink>
               </div>
 
-              <p className="mt-2.5 text-[11px] font-medium text-[#77717B] bg-white/80 border border-[#FFE3EE] rounded-xl px-3 py-1.5 inline-flex items-center gap-1.5 max-w-full">
-                <ExternalLink className="w-3 h-3 text-[#E83E8C] shrink-0" />
+              {result.extractedText && (
+                <div className="mt-4 p-3 rounded-2xl bg-[#0B0007] border border-[#452035] text-left space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="text-[11px] font-bold text-white uppercase tracking-wide">
+                      Extracted Text Preview
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(result.extractedText || '').then(() => {
+                          setCopiedOcrText(true);
+                          setTimeout(() => setCopiedOcrText(false), 1800);
+                        });
+                      }}
+                      className="px-2.5 py-1 rounded-lg bg-[#35001F] border border-[#452035] hover:border-[#FF1493] text-[#FF4DB8] text-[11px] font-bold flex items-center gap-1 cursor-pointer"
+                    >
+                      {copiedOcrText ? <Check className="w-3 h-3 text-[#1FA971]" /> : <Copy className="w-3 h-3" />}
+                      <span>{copiedOcrText ? 'Copied!' : 'Copy Text'}</span>
+                    </button>
+                  </div>
+                  <pre className="text-[11px] font-mono text-[#C8B8C4] whitespace-pre-wrap break-words max-h-36 overflow-y-auto bg-[#12000A] p-2.5 rounded-xl border border-[#452035]">
+                    {result.extractedText}
+                  </pre>
+                </div>
+              )}
+
+              <p className="mt-2.5 text-[11px] font-medium text-[#91808C] bg-[#0B0007] border border-[#452035] rounded-xl px-3 py-1.5 inline-flex items-center gap-1.5 max-w-full">
+                <ExternalLink className="w-3 h-3 text-[#FF4DB8] shrink-0" />
                 <span>
-                  <strong className="text-[#24212A]">Watch Ad &amp; Download:</strong> Clicking Download opens a sponsor ad in a new tab &amp; downloads your file automatically.
+                  <strong className="text-white">Watch Ad &amp; Download:</strong> Clicking Download opens a sponsor ad in a new tab &amp; downloads your file automatically.
                 </span>
               </p>
 
@@ -2607,22 +2741,22 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={onOpenHistory}
-                    className="text-xs font-semibold text-[#C92B72] hover:text-[#E83E8C] hover:underline cursor-pointer"
+                    className="text-xs font-semibold text-[#FF4DB8] hover:text-[#FF1493] hover:underline cursor-pointer"
                   >
                     Saved to History • View All Operations →
                   </button>
-                  <p className="text-[11px] text-[#77717B]">
+                  <p className="text-[11px] text-[#91808C]">
                     {user ? (
                       <>
-                        Saved to your <strong className="text-[#24212A]">Account History</strong> ({user.email}).
+                        Saved to your <strong className="text-white">Account History</strong> ({user.email}).
                       </>
                     ) : (
                       <>
-                        Saved in <strong className="text-[#24212A]">Browser Local Storage</strong>.{' '}
+                        Saved in <strong className="text-white">Browser Local Storage</strong>.{' '}
                         <button
                           type="button"
                           onClick={() => onRequireAuth('Optional: Sign in to save your PDF history to your Account.')}
-                          className="text-[#E83E8C] font-semibold hover:underline cursor-pointer"
+                          className="text-[#FF4DB8] font-semibold hover:underline cursor-pointer"
                         >
                           Sign in (optional)
                         </button>{' '}
@@ -2634,12 +2768,12 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
               )}
 
               {/* Embedded Interactive Live Preview Container */}
-              <div className="mt-5 border border-[#FFE3EE] rounded-2xl bg-white p-3 sm:p-4 shadow-xs text-left">
-                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-slate-100">
+              <div className="mt-5 border border-[#452035] rounded-2xl bg-[#0B0007] p-3 sm:p-4 shadow-xs text-left">
+                <div className="flex flex-wrap items-center justify-between gap-2 pb-3 border-b border-[#452035]">
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="w-2.5 h-2.5 rounded-full bg-[#1FA971] animate-pulse shrink-0"></span>
-                    <span className="font-extrabold text-xs text-[#24212A]">Live Updated Document</span>
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#FFE3EE] text-[#C92B72] shrink-0">
+                    <span className="font-extrabold text-xs text-white">Live Updated Document</span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#35001F] text-[#FF4DB8] border border-[#452035] shrink-0">
                       Verify Updates
                     </span>
                   </div>
@@ -2647,7 +2781,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     <button
                       type="button"
                       onClick={() => setShowResultInlinePreview(!showResultInlinePreview)}
-                      className="text-xs text-[#77717B] hover:text-[#24212A] font-semibold cursor-pointer"
+                      className="text-xs text-[#91808C] hover:text-white font-semibold cursor-pointer"
                     >
                       {showResultInlinePreview ? 'Hide View' : 'Show View'}
                     </button>
@@ -2661,7 +2795,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                           extraFiles: result.extraFiles,
                         })
                       }
-                      className="text-xs font-bold text-[#E83E8C] hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-xs font-bold text-[#FF4DB8] hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <span>Full Screen</span>
                       <Maximize2 className="w-3.5 h-3.5" />
@@ -2670,7 +2804,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                 </div>
 
                 {showResultInlinePreview && (
-                  <div className="mt-3 w-full rounded-xl overflow-hidden border border-slate-200 bg-slate-50">
+                  <div className="mt-3 w-full rounded-xl overflow-hidden border border-[#452035] bg-[#050005]">
                     <PdfCanvasViewer
                       file={result.blob}
                       fileName={result.fileName}
@@ -2694,15 +2828,15 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
 
               {/* Multi-file list if split or pdf-to-image */}
               {result.extraFiles && result.extraFiles.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-[#FFE3EE] text-left">
+                <div className="mt-4 pt-4 border-t border-[#452035] text-left">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="text-[11px] font-bold text-[#24212A] uppercase">
+                    <span className="text-[11px] font-bold text-white uppercase">
                       Individual Pages / Files ({result.extraFiles.length})
                     </span>
                     <MonetagDownloadLink
                       downloadUrl={result.downloadUrl}
                       fileName={result.fileName}
-                      className="text-[11px] font-semibold text-[#E83E8C] hover:underline flex items-center gap-1 cursor-pointer"
+                      className="text-[11px] font-semibold text-[#FF4DB8] hover:underline flex items-center gap-1 cursor-pointer"
                     >
                       <FolderArchive className="w-3 h-3" />
                       <span>Watch Ad &amp; Download ZIP</span>
@@ -2712,9 +2846,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                     {result.extraFiles.map((f, i) => (
                       <div
                         key={i}
-                        className="flex items-center justify-between p-2.5 rounded-xl bg-white border border-[#FFE3EE] text-xs shadow-2xs"
+                        className="flex items-center justify-between p-2.5 rounded-xl bg-[#0B0007] border border-[#452035] text-xs"
                       >
-                        <span className="truncate max-w-[160px] font-medium text-slate-700">{f.name}</span>
+                        <span className="truncate max-w-[160px] font-medium text-[#C8B8C4]">{f.name}</span>
                         <div className="flex items-center gap-2">
                           <button
                             type="button"
@@ -2726,7 +2860,7 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
                                 downloadUrl: f.url,
                               })
                             }
-                            className="text-[11px] font-bold text-[#E83E8C] hover:bg-[#FFE3EE] px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
+                            className="text-[11px] font-bold text-[#FF4DB8] hover:bg-[#35001F] px-2 py-1 rounded-md transition-colors flex items-center gap-1 cursor-pointer"
                           >
                             <Eye className="w-3 h-3" />
                             Preview

@@ -196,16 +196,16 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
   const pageAnnotations = annotations.filter((a) => a.pageIndex === pageNum - 1);
 
   return (
-    <div className="bg-white rounded-2xl border border-[#FFE3EE] p-4 shadow-xs space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#FFF4F8]">
+    <div className="bg-[#16000D] rounded-2xl border border-[#452035] p-4 space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2 pb-2 border-b border-[#452035]">
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={() => setMode('highlight')}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer border ${
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer border transition-colors ${
               mode === 'highlight'
-                ? 'bg-[#FFE3EE] border-[#E83E8C] text-[#C92B72]'
-                : 'bg-white border-slate-200 text-slate-600'
+                ? 'bg-[#35001F] border-[#FF1493] text-[#FF4DB8]'
+                : 'bg-[#0B0007] border-[#452035] text-[#C8B8C4] hover:text-white'
             }`}
           >
             <Highlighter className="w-3.5 h-3.5" />
@@ -214,10 +214,10 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
           <button
             type="button"
             onClick={() => setMode('note')}
-            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer border ${
+            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1 cursor-pointer border transition-colors ${
               mode === 'note'
-                ? 'bg-[#FFE3EE] border-[#E83E8C] text-[#C92B72]'
-                : 'bg-white border-slate-200 text-slate-600'
+                ? 'bg-[#35001F] border-[#FF1493] text-[#FF4DB8]'
+                : 'bg-[#0B0007] border-[#452035] text-[#C8B8C4] hover:text-white'
             }`}
           >
             <Type className="w-3.5 h-3.5" />
@@ -234,7 +234,7 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
               style={{ backgroundColor: c.hex }}
               aria-label={`Select ${c.name} highlighter`}
               className={`w-6 h-6 rounded-full border-2 cursor-pointer transition-transform ${
-                activeColor === c.hex ? 'border-[#24212A] scale-110' : 'border-white shadow-xs'
+                activeColor === c.hex ? 'border-[#FF1493] ring-2 ring-[#FF4DB8]/40 scale-110' : 'border-[#452035]'
               }`}
             />
           ))}
@@ -248,20 +248,20 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
             value={noteText}
             onChange={(e) => setNoteText(e.target.value)}
             placeholder="Enter note text to stamp onto page..."
-            className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-[#FFE3EE] focus:outline-hidden focus:border-[#E83E8C]"
+            className="flex-1 px-3 py-1.5 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
           />
         </div>
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-        <span className="text-[#77717B]">
+        <span className="text-[#C8B8C4]">
           Drag or tap directly on the PDF page below ({annotations.length} mark{annotations.length === 1 ? '' : 's'})
         </span>
         <div className="flex items-center gap-1.5">
           <button
             type="button"
             onClick={addQuickHighlight}
-            className="px-2.5 py-1 rounded-lg bg-[#FFF4F8] border border-[#FDC6DD] text-[#C92B72] font-bold hover:bg-[#FFE3EE] flex items-center gap-1 cursor-pointer"
+            className="px-2.5 py-1 rounded-lg bg-[#35001F] border border-[#452035] hover:border-[#FF1493] text-[#FF4DB8] font-bold flex items-center gap-1 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5" />
             <span>Quick Mark</span>
@@ -270,7 +270,7 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
             type="button"
             disabled={annotations.length === 0}
             onClick={() => onChangeAnnotations((prev) => prev.slice(0, -1))}
-            className="px-2 py-1 rounded-lg border border-slate-200 text-slate-600 hover:bg-slate-50 disabled:opacity-40 cursor-pointer flex items-center gap-1"
+            className="px-2 py-1 rounded-lg border border-[#452035] bg-[#0B0007] text-[#C8B8C4] hover:text-white disabled:opacity-40 cursor-pointer flex items-center gap-1"
           >
             <Undo2 className="w-3.5 h-3.5" />
             <span>Undo</span>
@@ -279,7 +279,7 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
             type="button"
             disabled={annotations.length === 0}
             onClick={() => onChangeAnnotations([])}
-            className="px-2 py-1 rounded-lg border border-slate-200 text-[#D9364F] hover:bg-[#FFF4F8] disabled:opacity-40 cursor-pointer flex items-center gap-1"
+            className="px-2 py-1 rounded-lg border border-[#452035] bg-[#0B0007] text-[#D9364F] hover:bg-[#35001F] disabled:opacity-40 cursor-pointer flex items-center gap-1"
           >
             <Trash2 className="w-3.5 h-3.5" />
             <span>Clear</span>
@@ -288,24 +288,24 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
       </div>
 
       {numPages > 1 && (
-        <div className="flex items-center justify-between px-3 py-1.5 bg-[#FFF4F8] rounded-xl border border-[#FFE3EE] text-xs">
+        <div className="flex items-center justify-between px-3 py-1.5 bg-[#0B0007] rounded-xl border border-[#452035] text-xs">
           <button
             type="button"
             disabled={pageNum <= 1}
             onClick={() => setPageNum((p) => Math.max(1, p - 1))}
-            className="px-2 py-1 rounded-lg bg-white border border-[#FFE3EE] font-semibold disabled:opacity-40 cursor-pointer flex items-center gap-1"
+            className="px-2 py-1 rounded-lg bg-[#16000D] border border-[#452035] text-white font-semibold disabled:opacity-40 cursor-pointer flex items-center gap-1"
           >
             <ChevronLeft className="w-3.5 h-3.5" />
             Prev
           </button>
-          <span className="font-bold text-[#24212A]">
+          <span className="font-bold text-white">
             Page {pageNum} of {numPages}
           </span>
           <button
             type="button"
             disabled={pageNum >= numPages}
             onClick={() => setPageNum((p) => Math.min(numPages, p + 1))}
-            className="px-2 py-1 rounded-lg bg-white border border-[#FFE3EE] font-semibold disabled:opacity-40 cursor-pointer flex items-center gap-1"
+            className="px-2 py-1 rounded-lg bg-[#16000D] border border-[#452035] text-white font-semibold disabled:opacity-40 cursor-pointer flex items-center gap-1"
           >
             Next
             <ChevronRight className="w-3.5 h-3.5" />
@@ -314,7 +314,7 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
       )}
 
       {/* Interactive PDF Canvas Surface */}
-      <div className="overflow-auto bg-slate-100 rounded-xl p-2 sm:p-3 flex justify-center">
+      <div className="overflow-auto bg-[#0B0007] border border-[#452035] rounded-xl p-2 sm:p-3 flex justify-center">
         <div
           ref={overlayRef}
           onPointerDown={(e) => {
@@ -324,7 +324,7 @@ export const InteractivePdfHighlightPanel: React.FC<InteractivePdfHighlightPanel
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          className="relative inline-block shadow-md rounded border border-slate-200 bg-white select-none touch-none cursor-crosshair"
+          className="relative inline-block shadow-md rounded border border-[#452035] bg-white select-none touch-none cursor-crosshair"
         >
           <canvas ref={canvasRef} className="block max-w-full h-auto" />
 

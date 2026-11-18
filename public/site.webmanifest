@@ -4,8 +4,8 @@
   "description": "100% free online PDF editor. Merge, split, compress, protect, watermark, rotate, add page numbers, and convert PDFs directly in your browser.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFF4F8",
-  "theme_color": "#E83E8C",
+  "background_color": "#050005",
+  "theme_color": "#E90083",
   "icons": [
     {
       "src": "/logo.png",

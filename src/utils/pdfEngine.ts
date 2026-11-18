@@ -21,6 +21,7 @@ export interface ProcessedPdfResult {
   fileSize: number;
   pageCount?: number;
   summary: string;
+  extractedText?: string;
   extraFiles?: { name: string; url: string; size: number; blob?: Blob }[];
 }
 
@@ -471,9 +472,9 @@ export async function imagesToPdf(
     let pageWidth = imgWidth + margin * 2;
     let pageHeight = imgHeight + margin * 2;
 
-    if (options.pageSize === 'a4') {
-      pageWidth = 595.28;
-      pageHeight = 841.89;
+    if (options.pageSize === 'a4' || options.pageSize === 'letter') {
+      pageWidth = options.pageSize === 'letter' ? 612 : 595.28;
+      pageHeight = options.pageSize === 'letter' ? 792 : 841.89;
       if (options.orientation === 'landscape' || (options.orientation === 'auto' && imgWidth > imgHeight)) {
         [pageWidth, pageHeight] = [pageHeight, pageWidth];
       }

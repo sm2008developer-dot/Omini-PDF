@@ -7,7 +7,14 @@ export type ToolId =
   | 'merge-pdf'
   | 'split-pdf'
   | 'compress-pdf'
+  | 'pdf-to-word'
+  | 'word-to-pdf'
+  | 'pdf-to-excel'
+  | 'edit-pdf'
+  | 'sign-pdf'
+  | 'unlock-pdf'
   | 'protect-pdf'
+  | 'ocr-pdf'
   | 'watermark-pdf'
   | 'edit-metadata'
   | 'rotate-pdf'
@@ -20,8 +27,6 @@ export type ToolId =
   | 'resize-image'
   | 'edit-photo'
   | 'highlight-photo'
-  | 'remove-bg'
-  | 'enhance-photo'
   | 'rename-files';
 
 export interface ToolDefinition {
@@ -63,13 +68,58 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     badge: 'Popular',
   },
   {
-    id: 'highlight-pdf',
-    name: 'PDF Edit & Highlight',
+    id: 'pdf-to-word',
+    name: 'PDF to Word',
     category: 'pdf',
-    tagline: 'Highlight sections and add notes directly on PDF pages',
-    description: 'Draw crisp yellow, pink, green, or cyan highlights and text annotations right on PDF pages.',
-    iconName: 'Highlighter',
+    tagline: 'Convert PDF documents into editable Word (.docx) files',
+    description: 'Extract headings, paragraphs, and page structure from PDFs into genuine editable DOCX files.',
+    iconName: 'FileText',
     badge: 'New',
+  },
+  {
+    id: 'word-to-pdf',
+    name: 'Word to PDF',
+    category: 'pdf',
+    tagline: 'Convert Word (.docx / .doc) documents into clean PDFs',
+    description: 'Turn DOCX documents into crisp, multi-page PDFs with tables, headings, and Unicode support.',
+    iconName: 'FileSpreadsheet',
+    badge: 'New',
+  },
+  {
+    id: 'pdf-to-excel',
+    name: 'PDF to Excel',
+    category: 'pdf',
+    tagline: 'Extract PDF tables & rows into Excel (.xlsx) or CSV spreadsheets',
+    description: 'Detect columns and rows from PDF invoices, statements, and reports into multi-sheet XLSX.',
+    iconName: 'Table',
+    badge: 'New',
+  },
+  {
+    id: 'edit-pdf',
+    name: 'Edit PDF',
+    category: 'pdf',
+    tagline: 'Add text boxes, whiteout erasers, shapes, highlights & drawings',
+    description: 'Full interactive PDF page editor to type text, whiteout mistakes, draw, and annotate cleanly.',
+    iconName: 'PenTool',
+    badge: 'Popular',
+  },
+  {
+    id: 'sign-pdf',
+    name: 'Sign PDF',
+    category: 'pdf',
+    tagline: 'Draw, type, or upload a signature and stamp it onto PDF pages',
+    description: 'Create handwritten or typed e-signatures, place them anywhere on any page, and download PDF.',
+    iconName: 'FileSignature',
+    badge: 'New',
+  },
+  {
+    id: 'unlock-pdf',
+    name: 'Unlock PDF',
+    category: 'pdf',
+    tagline: 'Remove PDF password security and owner copy/print restrictions',
+    description: 'Unlock password-protected PDFs with your password into a restriction-free standard PDF.',
+    iconName: 'Unlock',
+    badge: 'Essential',
   },
   {
     id: 'protect-pdf',
@@ -79,6 +129,42 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     description: 'Add secure 256-bit password protection and restrict unauthorized copying or printing.',
     iconName: 'Lock',
     badge: 'Essential',
+  },
+  {
+    id: 'ocr-pdf',
+    name: 'OCR PDF',
+    category: 'pdf',
+    tagline: 'Extract text from scanned PDFs & images into searchable PDF or TXT',
+    description: 'Pure browser Tesseract OCR supporting English, Bengali & Hindi — zero AI servers, 100% private.',
+    iconName: 'ScanText',
+    badge: 'New',
+  },
+  {
+    id: 'image-to-pdf',
+    name: 'JPG, PNG & WebP to PDF',
+    category: 'pdf',
+    tagline: 'Convert JPG, PNG, or WebP photos into clean multi-page PDFs',
+    description: 'Turn your JPG, PNG, and WebP photos or scans into A4, Letter, or Fit PDF documents in seconds.',
+    iconName: 'FileImage',
+    badge: 'Popular',
+  },
+  {
+    id: 'pdf-to-image',
+    name: 'PDF to Image',
+    category: 'pdf',
+    tagline: 'Extract pages as high-resolution PNG or JPEG images',
+    description: 'Render every PDF page into crisp image files downloadable individually or as a ZIP archive.',
+    iconName: 'ImageDown',
+    badge: 'Free',
+  },
+  {
+    id: 'highlight-pdf',
+    name: 'Highlight PDF',
+    category: 'pdf',
+    tagline: 'Highlight sections and add notes directly on PDF pages',
+    description: 'Draw crisp yellow, pink, green, or cyan highlights and text annotations right on PDF pages.',
+    iconName: 'Highlighter',
+    badge: 'Free',
   },
   {
     id: 'watermark-pdf',
@@ -105,7 +191,7 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     tagline: 'Rotate PDF pages permanently by 90°, 180°, or 270°',
     description: 'Fix upside-down scans and orientation issues on all or selected pages.',
     iconName: 'RotateCw',
-    badge: 'Popular',
+    badge: 'Free',
   },
   {
     id: 'page-numbers',
@@ -124,24 +210,6 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     description: 'Instantly strip specific pages or page ranges from your document with zero quality loss.',
     iconName: 'Trash2',
     badge: 'Essential',
-  },
-  {
-    id: 'image-to-pdf',
-    name: 'Image to PDF',
-    category: 'pdf',
-    tagline: 'Convert PNG, JPG, or WebP images into clean PDFs',
-    description: 'Turn your photos, scans, and graphic documents into a crisp multi-page PDF in seconds.',
-    iconName: 'FileImage',
-    badge: 'Free',
-  },
-  {
-    id: 'pdf-to-image',
-    name: 'PDF to Image',
-    category: 'pdf',
-    tagline: 'Extract pages as high-resolution PNG or JPEG images',
-    description: 'Render every PDF page into crisp image files downloadable individually or as a ZIP archive.',
-    iconName: 'ImageDown',
-    badge: 'Free',
   },
   {
     id: 'compress-image',
@@ -163,12 +231,12 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
   },
   {
     id: 'edit-photo',
-    name: 'Photo Editor (Crop & Filters)',
+    name: 'Photo Editor (Crop & 16 Filters)',
     category: 'image',
-    tagline: 'Crop, rotate, flip, and apply B&W, Sepia, Vivid, or Warm filters',
-    description: 'Interactive crop box, rotation, brightness, contrast, saturation & filters — 100% client-side.',
+    tagline: 'Crop, rotate, flip, and apply 16 tonal filters offline',
+    description: 'Interactive crop box, rotation, brightness, contrast, saturation & 16 filters — 100% client-side.',
     iconName: 'SlidersHorizontal',
-    badge: 'New',
+    badge: 'Popular',
   },
   {
     id: 'highlight-photo',
@@ -177,25 +245,7 @@ export const TOOLS_CONFIG: ToolDefinition[] = [
     tagline: 'Highlight areas with neon markers or spotlight focus on photos',
     description: 'Draw highlighter strokes, boxes, or spotlight dim masks directly onto images & screenshots.',
     iconName: 'Highlighter',
-    badge: 'New',
-  },
-  {
-    id: 'remove-bg',
-    name: 'Remove Photo Background',
-    category: 'image',
-    tagline: 'Algorithmic chroma & edge flood-fill background remover',
-    description: 'Pick background color or auto-remove edges cleanly with feathering & transparent PNG export.',
-    iconName: 'Eraser',
-    badge: 'Popular',
-  },
-  {
-    id: 'enhance-photo',
-    name: 'Photo Enhance & Sharpen',
-    category: 'image',
-    tagline: 'Auto-levels contrast, unsharp mask sharpening & clarity boost',
-    description: 'Make blurry scans and dim photos crisp using deterministic pixel histogram & sharpening math.',
-    iconName: 'Wand2',
-    badge: 'New',
+    badge: 'Free',
   },
   {
     id: 'rename-files',

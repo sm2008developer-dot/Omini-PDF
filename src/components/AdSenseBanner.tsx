@@ -88,18 +88,18 @@ export const AdSenseBanner: React.FC<AdSenseBannerProps> = ({
 
   return (
     <div
-      className={`w-full my-6 p-3 bg-[#FFF4F8]/60 rounded-2xl border border-[#FFE3EE] shadow-xs overflow-hidden transition-all text-center ${className}`}
+      className={`w-full my-6 p-3 bg-[#16000D] rounded-2xl border border-[#452035] overflow-hidden transition-all text-center ${className}`}
     >
-      <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-[#FFE3EE] text-[10px] text-[#77717B] font-medium tracking-wider">
+      <div className="flex items-center justify-between px-2 pb-2 mb-2 border-b border-[#452035] text-[10px] text-[#91808C] font-medium tracking-wider">
         <span className="uppercase tracking-widest font-semibold">SPONSORED</span>
         <span className="text-[10px] font-semibold text-[#1FA971]">Keeps OminiPDF 100% Free</span>
       </div>
 
       <div className="min-h-[90px] flex flex-col items-center justify-center overflow-hidden">
         {!isFilled && (
-          <div className="w-full py-3 px-3 rounded-xl border border-dashed border-[#FDC6DD] bg-white/80 flex flex-col items-center justify-center text-center space-y-1 mb-2">
-            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#FFE3EE] border border-[#FDC6DD] text-[#C92B72] text-[10px] font-bold">
-              <CheckCircle2 className="w-3 h-3 text-[#E83E8C]" />
+          <div className="w-full py-3 px-3 rounded-xl border border-dashed border-[#452035] bg-[#0B0007] flex flex-col items-center justify-center text-center space-y-1 mb-2">
+            <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-[#35001F] border border-[#452035] text-[#FF4DB8] text-[10px] font-bold">
+              <CheckCircle2 className="w-3 h-3 text-[#FF1493]" />
               <span>Google AdSense Slot #{slotId}</span>
             </div>
           </div>

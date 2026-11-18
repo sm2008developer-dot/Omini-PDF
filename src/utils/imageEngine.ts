@@ -12,12 +12,8 @@ import {
   buildBatchRenamePlan,
   clampCropRect,
   computeRatioCanvasDimensions,
-  NormalizedBrushStroke,
   NormalizedCropRect,
   PhotoFilterPresetMath,
-  processBackgroundRemovalPixels,
-  processEnhancePhotoPixels,
-  RgbColor,
 } from './imageMath.js';
 
 export type ImageOutputFormat = 'png' | 'jpeg' | 'webp';
@@ -638,138 +634,6 @@ export async function highlightPhotoFile(
   };
 }
 
-/**
- * 5. REMOVE BACKGROUND: Shared perceptual YCbCr edge-barrier flood-fill + chroma key + touch-up masks (NO AI)
- */
-export async function removeBackgroundAlgorithmic(
-  file: File,
-  options: {
-    tolerance?: number; // 8 - 110
-    feather?: number; // 0 - 30
-    mode?: 'flood-edges' | 'global-color';
-    sampleColor?: RgbColor | null;
-    sampleColors?: RgbColor[];
-    edgeBarrier?: boolean;
-    keepStrokes?: NormalizedBrushStroke[];
-    eraseStrokes?: NormalizedBrushStroke[];
-    bgFill?: 'transparent' | string;
-    format?: ImageOutputFormat;
-  }
-): Promise<ProcessedPdfResult> {
-  const { img, width, height } = await loadImageElement(file);
-  const format: ImageOutputFormat =
-    options.bgFill && options.bgFill !== 'transparent'
-      ? options.format || 'png'
-      : options.format === 'jpeg'
-      ? 'png'
-      : options.format || 'png';
-
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  if (!ctx) throw new Error('Canvas 2D context is not available.');
-  ctx.drawImage(img, 0, 0, width, height);
-
-  const imgData = ctx.getImageData(0, 0, width, height);
-  const { removedCount } = processBackgroundRemovalPixels(imgData.data, width, height, {
-    tolerance: options.tolerance ?? 38,
-    feather: options.feather ?? 10,
-    mode: options.mode || 'flood-edges',
-    sampleColor: options.sampleColor ?? null,
-    sampleColors: options.sampleColors,
-    edgeBarrier: options.edgeBarrier !== false,
-    keepStrokes: options.keepStrokes,
-    eraseStrokes: options.eraseStrokes,
-  });
-
-  ctx.putImageData(imgData, 0, 0);
-
-  let outCanvas = canvas;
-  if (options.bgFill && options.bgFill !== 'transparent') {
-    const bgCanvas = document.createElement('canvas');
-    bgCanvas.width = width;
-    bgCanvas.height = height;
-    const bgCtx = bgCanvas.getContext('2d')!;
-    bgCtx.fillStyle = options.bgFill;
-    bgCtx.fillRect(0, 0, width, height);
-    bgCtx.drawImage(canvas, 0, 0);
-    outCanvas = bgCanvas;
-  }
-
-  const blob = await canvasToBlob(outCanvas, format, 0.94);
-  const downloadUrl = URL.createObjectURL(blob);
-  const pctRemoved = Math.round((removedCount / Math.max(1, width * height)) * 100);
-
-  return {
-    blob,
-    downloadUrl,
-    fileName: `nobg_${stripExt(file.name)}.${formatToExt(format)}`,
-    fileSize: blob.size,
-    pageCount: 1,
-    summary: `Removed background (${pctRemoved}% pixels cleared) using client-side ${
-      options.mode === 'global-color' ? 'chroma key' : 'edge-aware flood-fill'
-    }.`,
-  };
-}
-
-/**
- * 6. PHOTO ENHANCE & SHARPEN: Adaptive Auto-Levels, Gamma Lift, Document Cleanup & Multi-Pixel Unsharp Mask (NO AI)
- */
-export async function enhancePhotoAlgorithmic(
-  file: File,
-  options: {
-    preset?: 'auto' | 'document' | 'portrait' | 'vivid' | 'custom';
-    sharpen?: number; // 0 - 100
-    autoContrast?: number; // 0 - 100
-    brightness?: number; // -50 to 50
-    vibrance?: number; // 0 - 100
-    denoise?: number; // 0 - 100
-    format?: ImageOutputFormat;
-    quality?: number;
-  }
-): Promise<ProcessedPdfResult> {
-  const { img, width, height } = await loadImageElement(file);
-  const format = options.format || 'png';
-  const { canvas, ctx } = drawCanvasWithBackground(width, height, format, '#ffffff');
-  ctx.drawImage(img, 0, 0, width, height);
-
-  const preset = options.preset || 'auto';
-  const sharpenAmt =
-    options.sharpen ??
-    (preset === 'document' ? 80 : preset === 'portrait' ? 40 : preset === 'vivid' ? 60 : 62);
-  const autoContrastAmt =
-    options.autoContrast ??
-    (preset === 'document' ? 88 : preset === 'portrait' ? 50 : preset === 'vivid' ? 72 : 70);
-  const vibranceAmt =
-    options.vibrance ??
-    (preset === 'document' ? 12 : preset === 'portrait' ? 32 : preset === 'vivid' ? 70 : 40);
-  const brightnessVal = options.brightness ?? (preset === 'document' ? 6 : 4);
-  const denoiseAmt = options.denoise ?? (preset === 'portrait' ? 34 : 12);
-
-  const imgData = ctx.getImageData(0, 0, width, height);
-  processEnhancePhotoPixels(imgData.data, width, height, {
-    preset,
-    sharpen: sharpenAmt,
-    autoContrast: autoContrastAmt,
-    brightness: brightnessVal,
-    vibrance: vibranceAmt,
-    denoise: denoiseAmt,
-  });
-
-  ctx.putImageData(imgData, 0, 0);
-  const blob = await canvasToBlob(canvas, format, options.quality ?? 0.92);
-  const downloadUrl = URL.createObjectURL(blob);
-
-  return {
-    blob,
-    downloadUrl,
-    fileName: `enhanced_${stripExt(file.name)}.${formatToExt(format)}`,
-    fileSize: blob.size,
-    pageCount: 1,
-    summary: `Enhanced clarity (${preset} • sharpen ${sharpenAmt}%, auto-levels ${autoContrastAmt}%, vibrance ${vibranceAmt}%).`,
-  };
-}
 
 /**
  * 7. RENAME PDF & PHOTOS: Renames single file cleanly or multi-file ZIP archive

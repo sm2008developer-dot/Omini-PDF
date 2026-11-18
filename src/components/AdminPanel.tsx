@@ -480,19 +480,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
   return (
     <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8 py-8 space-y-8 animate-in fade-in duration-200">
       {/* Top Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#FFE3EE]">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 pb-6 border-b border-[#452035]">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white flex items-center justify-center shadow-md shadow-[#E83E8C]/25 shrink-0">
+          <div className="w-12 h-12 rounded-2xl bg-gradient-to-r from-[#E90083] to-[#FF1493] text-white flex items-center justify-center shadow-md shadow-[#E90083]/30 shrink-0">
             <ShieldAlert className="w-6 h-6 stroke-[2.2]" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-2xl font-serif font-black italic text-[#24212A] tracking-tight">Admin Command Center</h1>
-              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-serif font-bold italic uppercase tracking-wider bg-[#FFE3EE] text-[#C92B72] border border-[#FDC6DD]">
+              <h1 className="text-2xl font-serif font-black italic text-white tracking-tight">Admin Command Center</h1>
+              <span className="px-2.5 py-0.5 rounded-md text-[10px] font-serif font-bold italic uppercase tracking-wider bg-[#35001F] text-[#FF4DB8] border border-[#452035]">
                 Primary Admin
               </span>
             </div>
-            <p className="text-xs text-[#77717B] font-serif italic mt-0.5">
+            <p className="text-xs text-[#C8B8C4] font-serif italic mt-0.5">
               Manage platform metrics, users, ZapPay subscriptions, vouchers, audit logs &amp; policies
             </p>
           </div>
@@ -501,15 +501,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
         <div className="flex items-center gap-2 w-full sm:w-auto justify-between sm:justify-end">
           <button
             onClick={() => loadAdminData(true)}
-            className="p-2.5 rounded-xl border border-[#FFE3EE] bg-white text-[#24212A] hover:bg-[#FFF4F8] hover:border-[#E83E8C] cursor-pointer flex items-center gap-1.5 text-xs font-serif font-bold italic transition-colors shadow-2xs"
+            className="p-2.5 rounded-xl border border-[#452035] bg-[#16000D] text-white hover:bg-[#35001F] hover:border-[#FF1493] cursor-pointer flex items-center gap-1.5 text-xs font-serif font-bold italic transition-colors shadow-xs"
             title="Refresh All Data"
           >
-            <RefreshCw className={`w-4 h-4 text-[#E83E8C] ${loading ? 'animate-spin' : ''}`} />
+            <RefreshCw className={`w-4 h-4 text-[#FF4DB8] ${loading ? 'animate-spin' : ''}`} />
             <span>Sync</span>
           </button>
           <button
             onClick={onBackToHome}
-            className="px-4 py-2.5 rounded-xl text-xs font-serif font-bold italic text-white bg-gradient-to-r from-[#E83E8C] to-[#C92B72] hover:brightness-105 shadow-xs transition-all cursor-pointer"
+            className="px-4 py-2.5 rounded-xl text-xs font-serif font-bold italic text-white bg-[#E90083] hover:bg-[#FF1493] active:bg-[#C90070] shadow-xs transition-all cursor-pointer"
           >
             Back to App
           </button>
@@ -517,26 +517,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       </div>
 
       {error && (
-        <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-[#D9364F] text-xs font-serif italic flex items-center justify-between gap-2 shadow-xs">
+        <div className="p-4 rounded-2xl bg-[#D9364F]/15 border border-[#D9364F]/45 text-white text-xs font-serif italic flex items-center justify-between gap-2 shadow-xs">
           <div className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0" />
+            <AlertTriangle className="w-4 h-4 text-[#D9364F] shrink-0" />
             <span>{error}</span>
           </div>
-          <button onClick={() => setError(null)} className="text-xs font-serif font-bold italic hover:underline cursor-pointer">
+          <button onClick={() => setError(null)} className="text-xs font-serif font-bold italic text-[#FF4DB8] hover:underline cursor-pointer">
             Dismiss
           </button>
         </div>
       )}
 
       {grantMsg && (
-        <div className="p-4 rounded-2xl bg-emerald-50 border border-emerald-200 text-[#1FA971] text-xs font-serif font-bold italic flex items-center gap-2 shadow-xs">
+        <div className="p-4 rounded-2xl bg-[#1FA971]/15 border border-[#1FA971]/40 text-[#1FA971] text-xs font-serif font-bold italic flex items-center gap-2 shadow-xs">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{grantMsg}</span>
         </div>
       )}
 
       {/* Navigation Tabs */}
-      <div className="flex items-center gap-2 border-b border-[#FFE3EE] pb-2 overflow-x-auto scrollbar-none">
+      <div className="flex items-center gap-2 border-b border-[#452035] pb-2 overflow-x-auto scrollbar-none">
         {[
           { id: 'overview', label: 'Platform Analytics', icon: TrendingUp },
           { id: 'users', label: `Users (${usersList.length})`, icon: Users },
@@ -552,8 +552,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
               onClick={() => setActiveTab(tab.id as typeof activeTab)}
               className={`px-4 py-2 rounded-xl text-xs font-serif font-bold italic flex items-center gap-2 transition-all cursor-pointer shrink-0 whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white shadow-xs'
-                  : 'text-[#77717B] hover:bg-[#FFE3EE]/60 hover:text-[#24212A]'
+                  ? 'bg-[#E90083] text-white shadow-xs shadow-[#E90083]/25'
+                  : 'text-[#C8B8C4] hover:bg-[#35001F] hover:text-white'
               }`}
             >
               <Icon className="w-3.5 h-3.5" />
@@ -568,68 +568,68 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
         <div className="space-y-6 animate-in fade-in duration-150">
           {/* Top 4 Metrics */}
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs flex items-center justify-between">
+            <div className="bg-[#16000D] p-5 rounded-3xl border border-[#452035] shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Total Users</span>
-                <p className="text-3xl font-black text-slate-900 mt-1">{stats.totalUsers}</p>
-                <span className="text-[11px] text-emerald-600 font-semibold mt-1 block">
+                <span className="text-[11px] font-bold text-[#91808C] uppercase tracking-wider">Total Users</span>
+                <p className="text-3xl font-black text-white mt-1">{stats.totalUsers}</p>
+                <span className="text-[11px] text-[#1FA971] font-semibold mt-1 block">
                   {stats.proUsers} Pro ({Math.round((stats.proUsers / Math.max(1, stats.totalUsers)) * 100)}%)
                 </span>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#35001F] border border-[#452035] text-[#FF4DB8] flex items-center justify-center">
                 <Users className="w-6 h-6" />
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs flex items-center justify-between">
+            <div className="bg-[#16000D] p-5 rounded-3xl border border-[#452035] shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Gross Revenue</span>
-                <p className="text-3xl font-black text-emerald-600 mt-1">{formatINR(stats.totalRevenue)}</p>
-                <span className="text-[11px] text-slate-500 font-medium mt-1 block">
+                <span className="text-[11px] font-bold text-[#91808C] uppercase tracking-wider">Gross Revenue</span>
+                <p className="text-3xl font-black text-[#1FA971] mt-1">{formatINR(stats.totalRevenue)}</p>
+                <span className="text-[11px] text-[#C8B8C4] font-medium mt-1 block">
                   {stats.transactionsCount} Verified Transactions
                 </span>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#1FA971]/15 border border-[#1FA971]/35 text-[#1FA971] flex items-center justify-center">
                 <DollarSign className="w-6 h-6" />
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs flex items-center justify-between">
+            <div className="bg-[#16000D] p-5 rounded-3xl border border-[#452035] shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">PDF Operations</span>
-                <p className="text-3xl font-black text-rose-600 mt-1">{stats.totalPdfOps}</p>
-                <span className="text-[11px] text-slate-500 font-medium mt-1 block">
+                <span className="text-[11px] font-bold text-[#91808C] uppercase tracking-wider">PDF Operations</span>
+                <p className="text-3xl font-black text-[#FF4DB8] mt-1">{stats.totalPdfOps}</p>
+                <span className="text-[11px] text-[#C8B8C4] font-medium mt-1 block">
                   Merge, Split, Protect &amp; Compress
                 </span>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#35001F] border border-[#452035] text-[#FF1493] flex items-center justify-center">
                 <FileText className="w-6 h-6" />
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs flex items-center justify-between">
+            <div className="bg-[#16000D] p-5 rounded-3xl border border-[#452035] shadow-xs flex items-center justify-between">
               <div>
-                <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">AI Queries</span>
-                <p className="text-3xl font-black text-purple-600 mt-1">{stats.totalAiQueries}</p>
-                <span className="text-[11px] text-slate-500 font-medium mt-1 block">
+                <span className="text-[11px] font-bold text-[#91808C] uppercase tracking-wider">AI Queries</span>
+                <p className="text-3xl font-black text-[#FF4DB8] mt-1">{stats.totalAiQueries}</p>
+                <span className="text-[11px] text-[#C8B8C4] font-medium mt-1 block">
                   Gemini 3.8 Flash Engine
                 </span>
               </div>
-              <div className="w-12 h-12 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-2xl bg-[#35001F] border border-[#452035] text-[#FF4DB8] flex items-center justify-center">
                 <Sparkles className="w-6 h-6" />
               </div>
             </div>
           </div>
 
           {/* Quick Manual Pro Grant Box */}
-          <div className="bg-gradient-to-r from-purple-900 via-slate-900 to-indigo-950 p-6 rounded-3xl text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+          <div className="bg-gradient-to-r from-[#16000D] via-[#35001F] to-[#16000D] border border-[#452035] p-6 rounded-3xl text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
             <div className="space-y-1 text-center md:text-left">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/30 text-purple-200 text-[11px] font-bold uppercase">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[#E90083]/25 border border-[#FF1493]/40 text-[#FF4DB8] text-[11px] font-bold uppercase">
                 <Crown className="w-3.5 h-3.5" />
                 <span>Customer Support Quick Grant</span>
               </div>
-              <h3 className="text-xl font-bold">Manually Activate Pro for Any User</h3>
-              <p className="text-xs text-slate-300 max-w-md">
+              <h3 className="text-xl font-bold text-white">Manually Activate Pro for Any User</h3>
+              <p className="text-xs text-[#C8B8C4] max-w-md">
                 Easily grant a 30-Day, 90-Day, or 1-Year subscription pass to a user who paid via offline UPI or requires support.
               </p>
             </div>
@@ -641,20 +641,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                 placeholder="User Email Address"
                 value={grantEmail}
                 onChange={(e) => setGrantEmail(e.target.value)}
-                className="px-3.5 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white placeholder-slate-400 text-xs focus:ring-2 focus:ring-purple-400 outline-hidden flex-1 sm:w-64"
+                className="px-3.5 py-2.5 rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] text-xs focus:border-[#FF1493] outline-hidden flex-1 sm:w-64"
               />
               <select
                 value={grantDays}
                 onChange={(e) => setGrantDays(Number(e.target.value))}
-                className="px-3 py-2.5 rounded-xl bg-white/10 border border-white/20 text-white text-xs focus:ring-2 focus:ring-purple-400 outline-hidden"
+                className="px-3 py-2.5 rounded-xl bg-[#12000A] border border-[#452035] text-white text-xs focus:border-[#FF1493] outline-hidden"
               >
-                <option value={30} className="text-slate-900">30 Days (1 Month)</option>
-                <option value={90} className="text-slate-900">90 Days (3 Months)</option>
-                <option value={365} className="text-slate-900">365 Days (1 Year)</option>
+                <option value={30} className="bg-[#16000D] text-white">30 Days (1 Month)</option>
+                <option value={90} className="bg-[#16000D] text-white">90 Days (3 Months)</option>
+                <option value={365} className="bg-[#16000D] text-white">365 Days (1 Year)</option>
               </select>
               <button
                 type="submit"
-                className="px-4 py-2.5 rounded-xl bg-purple-500 hover:bg-purple-400 text-white font-bold text-xs shadow-md transition-colors cursor-pointer"
+                className="px-4 py-2.5 rounded-xl bg-[#E90083] hover:bg-[#FF1493] active:bg-[#C90070] text-white font-bold text-xs shadow-md shadow-[#E90083]/25 transition-colors cursor-pointer"
               >
                 Grant Pass
               </button>
@@ -663,35 +663,35 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
 
           {/* Gateway Status & Health */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 space-y-3">
+            <div className="bg-[#16000D] p-5 rounded-3xl border border-[#452035] space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-slate-800">ZapPay Payment Gateway Health</h4>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                <h4 className="text-sm font-bold text-white">ZapPay Payment Gateway Health</h4>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1FA971]/20 text-[#1FA971] border border-[#1FA971]/35">
                   Operational
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
-                Official gateway link active with merchant ID <code>f66a2d52</code>. Real-time verification checks API connectivity with <code>zappay-beta.vercel.app</code>.
+              <p className="text-xs text-[#C8B8C4]">
+                Official gateway link active with merchant ID <code className="text-[#FF4DB8]">f66a2d52</code>. Real-time verification checks API connectivity with <code className="text-[#FF4DB8]">zappay-beta.vercel.app</code>.
               </p>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-slate-500">Default Price:</span>
-                <span className="font-bold text-slate-900">₹{settings.proPriceINR} / 30 Days</span>
+              <div className="pt-2 border-t border-[#452035] flex items-center justify-between text-xs">
+                <span className="text-[#91808C]">Default Price:</span>
+                <span className="font-bold text-white">₹{settings.proPriceINR} / 30 Days</span>
               </div>
             </div>
 
-            <div className="bg-white p-5 rounded-3xl border border-slate-200 space-y-3">
+            <div className="bg-[#16000D] p-5 rounded-3xl border border-[#452035] space-y-3">
               <div className="flex items-center justify-between">
-                <h4 className="text-sm font-bold text-slate-800">Gemini AI Model Status</h4>
-                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-purple-100 text-purple-800">
+                <h4 className="text-sm font-bold text-white">Gemini AI Model Status</h4>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#35001F] text-[#FF4DB8] border border-[#452035]">
                   Online
                 </span>
               </div>
-              <p className="text-xs text-slate-500">
-                Connected to Google Gemini API (<code>{settings.geminiModel}</code>). Handling PDF summaries, document analysis, Q&amp;A generation, and interactive chat.
+              <p className="text-xs text-[#C8B8C4]">
+                Connected to Google Gemini API (<code className="text-[#FF4DB8]">{settings.geminiModel}</code>). Handling PDF summaries, document analysis, Q&amp;A generation, and interactive chat.
               </p>
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-xs">
-                <span className="text-slate-500">Free AI Quota:</span>
-                <span className="font-bold text-slate-900">{settings.freeAiLimit} Queries / User</span>
+              <div className="pt-2 border-t border-[#452035] flex items-center justify-between text-xs">
+                <span className="text-[#91808C]">Free AI Quota:</span>
+                <span className="font-bold text-white">{settings.freeAiLimit} Queries / User</span>
               </div>
             </div>
           </div>
@@ -701,15 +701,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       {/* Tab 2: User Directory & Access Management */}
       {activeTab === 'users' && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-white p-4 rounded-2xl border border-slate-200">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-[#16000D] p-4 rounded-2xl border border-[#452035]">
             <div className="relative flex-1">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <Search className="w-4 h-4 text-[#91808C] absolute left-3 top-3" />
               <input
                 type="text"
                 placeholder="Search user by name or email..."
                 value={searchUserQuery}
                 onChange={(e) => setSearchUserQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 focus:outline-hidden focus:ring-2 focus:ring-purple-500"
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
               />
             </div>
 
@@ -720,8 +720,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   onClick={() => setUserFilterPlan(filter)}
                   className={`px-3 py-1.5 rounded-lg text-xs font-bold capitalize transition-colors cursor-pointer ${
                     userFilterPlan === filter
-                      ? 'bg-purple-600 text-white'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-[#E90083] text-white'
+                      : 'bg-[#0B0007] border border-[#452035] text-[#C8B8C4] hover:bg-[#35001F] hover:text-white'
                   }`}
                 >
                   {filter}
@@ -730,10 +730,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
             </div>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-[#16000D] rounded-3xl border border-[#452035] overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <table className="w-full text-left text-xs text-[#C8B8C4]">
+                <thead className="bg-[#0B0007] text-[11px] uppercase tracking-wider text-[#91808C] border-b border-[#452035]">
                   <tr>
                     <th className="py-3 px-4">User</th>
                     <th className="py-3 px-4">Role</th>
@@ -744,24 +744,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#452035]/60">
                   {filteredUsers.map((u) => {
                     const isPrimaryAdmin = u.email.toLowerCase() === 'codegarage1@gmail.com';
                     const expiryDate = u.proExpiresAt ? new Date(u.proExpiresAt) : null;
                     const isExpired = expiryDate ? expiryDate.getTime() <= Date.now() : false;
 
                     return (
-                      <tr key={u.id} className="hover:bg-slate-50/70 transition-colors">
+                      <tr key={u.id} className="hover:bg-[#35001F]/35 transition-colors">
                         <td className="py-3.5 px-4">
-                          <div className="font-bold text-slate-900">{u.name}</div>
-                          <div className="text-[11px] text-slate-400 font-mono">{u.email}</div>
+                          <div className="font-bold text-white">{u.name}</div>
+                          <div className="text-[11px] text-[#91808C] font-mono">{u.email}</div>
                         </td>
                         <td className="py-3.5 px-4">
                           <span
                             className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase ${
                               u.role === 'admin'
-                                ? 'bg-purple-100 text-purple-800 border border-purple-200'
-                                : 'bg-slate-100 text-slate-700'
+                                ? 'bg-[#35001F] text-[#FF4DB8] border border-[#FF1493]/40'
+                                : 'bg-[#0B0007] text-[#C8B8C4] border border-[#452035]'
                             }`}
                           >
                             {u.role}
@@ -771,8 +771,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                           <span
                             className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
                               u.plan === 'pro'
-                                ? 'bg-amber-100 text-amber-800 border border-amber-300'
-                                : 'bg-slate-100 text-slate-600'
+                                ? 'bg-[#E90083]/20 text-[#FF4DB8] border border-[#FF1493]/40'
+                                : 'bg-[#0B0007] text-[#91808C] border border-[#452035]'
                             }`}
                           >
                             {u.plan === 'pro' ? 'Pro (30 Days)' : 'Free Tier'}
@@ -780,33 +780,33 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                         </td>
                         <td className="py-3.5 px-4 font-mono text-[11px]">
                           {expiryDate ? (
-                            <span className={isExpired ? 'text-rose-600 font-bold' : 'text-emerald-700 font-medium'}>
+                            <span className={isExpired ? 'text-[#D9364F] font-bold' : 'text-[#1FA971] font-medium'}>
                               {expiryDate.toLocaleDateString()} {isExpired ? '(Expired)' : ''}
                             </span>
                           ) : (
-                            <span className="text-slate-400">N/A (Free)</span>
+                            <span className="text-[#91808C]">N/A (Free)</span>
                           )}
                         </td>
-                        <td className="py-3.5 px-4 font-mono">{u.pdfOperationsUsed}</td>
-                        <td className="py-3.5 px-4 font-mono">{u.aiQueriesUsed}</td>
+                        <td className="py-3.5 px-4 font-mono text-white">{u.pdfOperationsUsed}</td>
+                        <td className="py-3.5 px-4 font-mono text-white">{u.aiQueriesUsed}</td>
                         <td className="py-3.5 px-4 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
                               onClick={() => handleGrantProDays(u.id, 30)}
-                              className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[11px] font-bold cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-[#1FA971]/15 border border-[#1FA971]/35 text-[#1FA971] hover:bg-[#1FA971]/25 text-[11px] font-bold cursor-pointer"
                               title="Grant +30 Days of Pro"
                             >
                               +30d
                             </button>
                             <button
                               onClick={() => handleTogglePlan(u)}
-                              className="px-2 py-1 rounded-lg bg-slate-100 text-slate-700 hover:bg-slate-200 text-[11px] font-semibold cursor-pointer"
+                              className="px-2 py-1 rounded-lg bg-[#0B0007] border border-[#452035] text-[#C8B8C4] hover:bg-[#35001F] hover:text-white text-[11px] font-semibold cursor-pointer"
                             >
                               {u.plan === 'pro' ? 'Downgrade' : 'Upgrade'}
                             </button>
                             <button
                               onClick={() => handleResetUserQuota(u)}
-                              className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-slate-600 cursor-pointer"
+                              className="p-1 rounded-lg hover:bg-[#35001F] text-[#91808C] hover:text-white cursor-pointer"
                               title="Reset usage limits"
                             >
                               <RotateCcw className="w-3.5 h-3.5" />
@@ -814,7 +814,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                             {!isPrimaryAdmin && (
                               <button
                                 onClick={() => handleDeleteUser(u.id, u.email)}
-                                className="p-1 rounded-lg hover:bg-rose-50 text-rose-400 hover:text-rose-600 cursor-pointer"
+                                className="p-1 rounded-lg hover:bg-[#D9364F]/20 text-[#91808C] hover:text-[#D9364F] cursor-pointer"
                                 title="Delete User Account"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
@@ -835,15 +835,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       {/* Tab 3: ZapPay Transactions & Ledger */}
       {activeTab === 'transactions' && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="bg-white p-5 rounded-3xl border border-slate-200">
-            <h3 className="text-sm font-bold text-slate-800 mb-1">ZapPay Payment &amp; Subscription Ledger</h3>
-            <p className="text-xs text-slate-500 mb-4">
+          <div className="bg-[#16000D] p-5 rounded-3xl border border-[#452035]">
+            <h3 className="text-sm font-bold text-white mb-1">ZapPay Payment &amp; Subscription Ledger</h3>
+            <p className="text-xs text-[#91808C] mb-4">
               Real-time records of all completed and verified subscriptions processed via ZapPay and promotional vouchers.
             </p>
 
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <table className="w-full text-left text-xs text-[#C8B8C4]">
+                <thead className="bg-[#0B0007] text-[11px] uppercase tracking-wider text-[#91808C] border-b border-[#452035]">
                   <tr>
                     <th className="py-3 px-4">Order / Payment ID</th>
                     <th className="py-3 px-4">User Email</th>
@@ -854,21 +854,21 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     <th className="py-3 px-4">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#452035]/60">
                   {transactionsList.map((tx) => (
-                    <tr key={tx.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-indigo-700">{tx.paymentId}</td>
-                      <td className="py-3.5 px-4 font-medium text-slate-900">{tx.userEmail}</td>
-                      <td className="py-3.5 px-4 font-bold text-emerald-600">
+                    <tr key={tx.id} className="hover:bg-[#35001F]/35 transition-colors">
+                      <td className="py-3.5 px-4 font-mono font-bold text-[#FF4DB8]">{tx.paymentId}</td>
+                      <td className="py-3.5 px-4 font-medium text-white">{tx.userEmail}</td>
+                      <td className="py-3.5 px-4 font-bold text-[#1FA971]">
                         {tx.amount === 0 ? 'FREE' : formatINR(tx.amount)}
                       </td>
                       <td className="py-3.5 px-4 text-[11px] max-w-[200px] truncate">{tx.paymentMethod}</td>
                       <td className="py-3.5 px-4 font-medium">{tx.durationDays || 30} Days</td>
-                      <td className="py-3.5 px-4 text-[11px] text-slate-400">
+                      <td className="py-3.5 px-4 text-[11px] text-[#91808C]">
                         {new Date(tx.createdAt).toLocaleString()}
                       </td>
                       <td className="py-3.5 px-4">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800 border border-emerald-200">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1FA971]/20 text-[#1FA971] border border-[#1FA971]/35">
                           {tx.status}
                         </span>
                       </td>
@@ -885,27 +885,27 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       {activeTab === 'vouchers' && (
         <div className="space-y-6 animate-in fade-in duration-150">
           {/* Create Voucher Form */}
-          <div className="bg-white p-6 rounded-3xl border border-slate-200">
-            <h3 className="text-sm font-bold text-slate-800 mb-1">Create Promotional Voucher</h3>
-            <p className="text-xs text-slate-500 mb-4">
+          <div className="bg-[#16000D] p-6 rounded-3xl border border-[#452035]">
+            <h3 className="text-sm font-bold text-white mb-1">Create Promotional Voucher</h3>
+            <p className="text-xs text-[#91808C] mb-4">
               Issue voucher codes for marketing campaigns, demo testers, or special discount discounts.
             </p>
 
             <form onSubmit={handleCreateVoucher} className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-end">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Voucher Code</label>
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Voucher Code</label>
                 <input
                   type="text"
                   required
                   placeholder="e.g. FESTIVE2026"
                   value={newVoucherCode}
                   onChange={(e) => setNewVoucherCode(e.target.value.toUpperCase())}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-mono uppercase"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] font-mono uppercase focus:outline-hidden focus:border-[#FF1493]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Discount %</label>
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Discount %</label>
                 <input
                   type="number"
                   min={1}
@@ -913,12 +913,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   required
                   value={newVoucherDiscount}
                   onChange={(e) => setNewVoucherDiscount(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white focus:outline-hidden focus:border-[#FF1493]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">Max Redemptions</label>
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Max Redemptions</label>
                 <input
                   type="number"
                   min={1}
@@ -926,13 +926,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   required
                   value={newVoucherMaxUses}
                   onChange={(e) => setNewVoucherMaxUses(Number(e.target.value))}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white focus:outline-hidden focus:border-[#FF1493]"
                 />
               </div>
 
               <button
                 type="submit"
-                className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-purple-600 hover:bg-purple-700 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+                className="w-full py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-[#E90083] hover:bg-[#FF1493] active:bg-[#C90070] transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               >
                 <Plus className="w-4 h-4" />
                 <span>Create Voucher</span>
@@ -941,10 +941,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
           </div>
 
           {/* Vouchers Table */}
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-[#16000D] rounded-3xl border border-[#452035] overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <table className="w-full text-left text-xs text-[#C8B8C4]">
+                <thead className="bg-[#0B0007] text-[11px] uppercase tracking-wider text-[#91808C] border-b border-[#452035]">
                   <tr>
                     <th className="py-3 px-4">Code</th>
                     <th className="py-3 px-4">Discount</th>
@@ -954,24 +954,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     <th className="py-3 px-4 text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#452035]/60">
                   {vouchersList.map((v) => (
-                    <tr key={v.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3.5 px-4 font-mono font-bold text-purple-700">{v.code}</td>
-                      <td className="py-3.5 px-4 font-semibold text-emerald-600">{v.discountPercent}% OFF</td>
-                      <td className="py-3.5 px-4 font-mono">
+                    <tr key={v.id} className="hover:bg-[#35001F]/35 transition-colors">
+                      <td className="py-3.5 px-4 font-mono font-bold text-[#FF4DB8]">{v.code}</td>
+                      <td className="py-3.5 px-4 font-semibold text-[#1FA971]">{v.discountPercent}% OFF</td>
+                      <td className="py-3.5 px-4 font-mono text-white">
                         {v.currentUses} / {v.maxUses}
                       </td>
                       <td className="py-3.5 px-4">
                         <span
                           className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            v.active ? 'bg-emerald-100 text-emerald-800' : 'bg-slate-100 text-slate-500'
+                            v.active
+                              ? 'bg-[#1FA971]/20 text-[#1FA971] border border-[#1FA971]/35'
+                              : 'bg-[#0B0007] text-[#91808C] border border-[#452035]'
                           }`}
                         >
                           {v.active ? 'Active' : 'Disabled'}
                         </span>
                       </td>
-                      <td className="py-3.5 px-4 text-[11px] text-slate-400">
+                      <td className="py-3.5 px-4 text-[11px] text-[#91808C]">
                         {new Date(v.createdAt).toLocaleDateString()}
                       </td>
                       <td className="py-3.5 px-4 text-right">
@@ -987,7 +989,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                                 active: v.active,
                               })
                             }
-                            className="p-1.5 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 cursor-pointer transition-colors"
+                            className="p-1.5 rounded-lg bg-[#35001F] hover:bg-[#E90083]/25 text-[#FF4DB8] border border-[#452035] cursor-pointer transition-colors"
                             title="Edit Voucher (Code, Discount %, Limits)"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -995,14 +997,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                           <button
                             type="button"
                             onClick={() => handleToggleVoucher(v.id, v.active)}
-                            className="px-2 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 text-[11px] font-semibold cursor-pointer transition-colors"
+                            className="px-2 py-1 rounded-lg bg-[#0B0007] border border-[#452035] text-[#C8B8C4] hover:bg-[#35001F] hover:text-white text-[11px] font-semibold cursor-pointer transition-colors"
                           >
                             {v.active ? 'Disable' : 'Enable'}
                           </button>
                           <button
                             type="button"
                             onClick={() => handleDeleteVoucher(v.id, v.code)}
-                            className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 hover:text-rose-700 cursor-pointer transition-colors"
+                            className="p-1.5 rounded-lg text-[#91808C] hover:bg-[#D9364F]/20 hover:text-[#D9364F] cursor-pointer transition-colors"
                             title="Delete Voucher Permanently"
                           >
                             <Trash2 className="w-3.5 h-3.5" />
@@ -1018,41 +1020,41 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
 
           {/* Edit Voucher Modal Dialog */}
           {editingVoucher && (
-            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs animate-in fade-in duration-150">
-              <div className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl border border-slate-100 relative">
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-xs animate-in fade-in duration-150">
+              <div className="bg-[#16000D] rounded-3xl p-6 w-full max-w-md shadow-2xl shadow-black/60 border border-[#452035] relative">
                 <button
                   type="button"
                   onClick={() => setEditingVoucher(null)}
-                  className="absolute top-4 right-4 p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 cursor-pointer"
+                  className="absolute top-4 right-4 p-2 text-[#91808C] hover:text-white rounded-full hover:bg-[#35001F] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
 
                 <div className="flex items-center gap-2 mb-4">
-                  <div className="w-8 h-8 rounded-xl bg-purple-100 text-purple-700 flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-[#35001F] border border-[#452035] text-[#FF4DB8] flex items-center justify-center">
                     <Tag className="w-4 h-4" />
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">Edit Coupon Voucher</h3>
-                    <p className="text-[11px] text-slate-500">Update code, discount % or usage limits</p>
+                    <h3 className="text-sm font-bold text-white">Edit Coupon Voucher</h3>
+                    <p className="text-[11px] text-[#91808C]">Update code, discount % or usage limits</p>
                   </div>
                 </div>
 
                 <form onSubmit={handleUpdateVoucherSubmit} className="space-y-3.5">
                   <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1">Voucher Code</label>
+                    <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Voucher Code</label>
                     <input
                       type="text"
                       required
                       value={editingVoucher.code}
                       onChange={(e) => setEditingVoucher({ ...editingVoucher, code: e.target.value.toUpperCase() })}
-                      className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono uppercase bg-white focus:ring-2 focus:ring-purple-500"
+                      className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] font-mono uppercase bg-[#12000A] text-white focus:outline-hidden focus:border-[#FF1493]"
                     />
                   </div>
 
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Discount %</label>
+                      <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Discount %</label>
                       <input
                         type="number"
                         min={1}
@@ -1062,13 +1064,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                         onChange={(e) =>
                           setEditingVoucher({ ...editingVoucher, discountPercent: Number(e.target.value) })
                         }
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white"
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white focus:outline-hidden focus:border-[#FF1493]"
                       />
-                      <span className="text-[10px] text-slate-400">100 = 100% Free Pass</span>
+                      <span className="text-[10px] text-[#91808C]">100 = 100% Free Pass</span>
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1">Max Redemptions</label>
+                      <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">Max Redemptions</label>
                       <input
                         type="number"
                         min={1}
@@ -1076,13 +1078,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                         required
                         value={editingVoucher.maxUses}
                         onChange={(e) => setEditingVoucher({ ...editingVoucher, maxUses: Number(e.target.value) })}
-                        className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white"
+                        className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white focus:outline-hidden focus:border-[#FF1493]"
                       />
                     </div>
                   </div>
 
-                  <div className="pt-2 flex items-center justify-between border-t border-slate-100">
-                    <span className="text-xs font-semibold text-slate-700">Voucher Active Status</span>
+                  <div className="pt-2 flex items-center justify-between border-t border-[#452035]">
+                    <span className="text-xs font-semibold text-[#C8B8C4]">Voucher Active Status</span>
                     <label className="relative inline-flex items-center cursor-pointer">
                       <input
                         type="checkbox"
@@ -1090,7 +1092,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                         onChange={(e) => setEditingVoucher({ ...editingVoucher, active: e.target.checked })}
                         className="sr-only peer"
                       />
-                      <div className="w-9 h-5 bg-slate-200 peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-purple-600"></div>
+                      <div className="w-9 h-5 bg-[#0B0007] border border-[#452035] peer-focus:outline-hidden rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-[#452035] after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#E90083]"></div>
                     </label>
                   </div>
 
@@ -1098,13 +1100,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     <button
                       type="button"
                       onClick={() => setEditingVoucher(null)}
-                      className="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
+                      className="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs text-[#C8B8C4] bg-[#0B0007] border border-[#452035] hover:bg-[#35001F] hover:text-white transition-colors cursor-pointer"
                     >
                       Cancel
                     </button>
                     <button
                       type="submit"
-                      className="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-purple-600 hover:bg-purple-700 transition-colors cursor-pointer shadow-sm"
+                      className="flex-1 py-2.5 px-4 rounded-xl font-bold text-xs text-white bg-[#E90083] hover:bg-[#FF1493] transition-colors cursor-pointer shadow-sm"
                     >
                       Save Changes
                     </button>
@@ -1119,24 +1121,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       {/* Tab 5: Document Activity Audit Stream */}
       {activeTab === 'audit' && (
         <div className="space-y-4 animate-in fade-in duration-150">
-          <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-slate-200">
+          <div className="flex items-center justify-between gap-3 bg-[#16000D] p-4 rounded-2xl border border-[#452035]">
             <div className="relative flex-1 max-w-md">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-3" />
+              <Search className="w-4 h-4 text-[#91808C] absolute left-3 top-3" />
               <input
                 type="text"
                 placeholder="Search audit events by file name or tool..."
                 value={searchDocQuery}
                 onChange={(e) => setSearchDocQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200"
+                className="w-full pl-9 pr-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
               />
             </div>
-            <span className="text-xs text-slate-500 font-medium">Total logged: {filteredDocs.length}</span>
+            <span className="text-xs text-[#C8B8C4] font-medium">Total logged: {filteredDocs.length}</span>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-xs">
+          <div className="bg-[#16000D] rounded-3xl border border-[#452035] overflow-hidden shadow-xs">
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-slate-600">
-                <thead className="bg-slate-50 text-[11px] uppercase tracking-wider text-slate-500 border-b border-slate-200">
+              <table className="w-full text-left text-xs text-[#C8B8C4]">
+                <thead className="bg-[#0B0007] text-[11px] uppercase tracking-wider text-[#91808C] border-b border-[#452035]">
                   <tr>
                     <th className="py-3 px-4">Tool Name</th>
                     <th className="py-3 px-4">File Name</th>
@@ -1146,18 +1148,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     <th className="py-3 px-4">Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-[#452035]/60">
                   {filteredDocs.map((doc) => (
-                    <tr key={doc.id} className="hover:bg-slate-50/70 transition-colors">
-                      <td className="py-3 px-4 font-bold text-slate-900">{doc.toolName}</td>
-                      <td className="py-3 px-4 font-mono text-slate-700 truncate max-w-[180px]">{doc.fileName}</td>
-                      <td className="py-3 px-4 text-slate-500">{formatFileSize(doc.fileSize)}</td>
-                      <td className="py-3 px-4 text-slate-600 truncate max-w-[240px]">{doc.resultSummary}</td>
-                      <td className="py-3 px-4 text-[11px] text-slate-400">
+                    <tr key={doc.id} className="hover:bg-[#35001F]/35 transition-colors">
+                      <td className="py-3 px-4 font-bold text-white">{doc.toolName}</td>
+                      <td className="py-3 px-4 font-mono text-[#C8B8C4] truncate max-w-[180px]">{doc.fileName}</td>
+                      <td className="py-3 px-4 text-[#91808C]">{formatFileSize(doc.fileSize)}</td>
+                      <td className="py-3 px-4 text-[#C8B8C4] truncate max-w-[240px]">{doc.resultSummary}</td>
+                      <td className="py-3 px-4 text-[11px] text-[#91808C]">
                         {new Date(doc.timestamp).toLocaleString()}
                       </td>
                       <td className="py-3 px-4">
-                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-100 text-emerald-800">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#1FA971]/20 text-[#1FA971] border border-[#1FA971]/35">
                           {doc.status}
                         </span>
                       </td>
@@ -1172,16 +1174,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
 
       {/* Tab 6: Platform & Gateway Configuration */}
       {activeTab === 'settings' && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-6 max-w-3xl space-y-6 animate-in fade-in duration-150">
+        <div className="bg-[#16000D] rounded-3xl border border-[#452035] p-6 max-w-3xl space-y-6 animate-in fade-in duration-150">
           <div>
-            <h3 className="text-base font-bold text-slate-900">Platform Policies &amp; Gateway Configuration</h3>
-            <p className="text-xs text-slate-500 mt-1">
+            <h3 className="text-base font-bold text-white">Platform Policies &amp; Gateway Configuration</h3>
+            <p className="text-xs text-[#91808C] mt-1">
               Configure free quotas, ZapPay gateway credentials, pricing pass duration, announcement broadcasts, and AI models.
             </p>
           </div>
 
           {settingsSavedMsg && (
-            <div className="p-3.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs font-bold flex items-center gap-2">
+            <div className="p-3.5 rounded-xl bg-[#1FA971]/15 border border-[#1FA971]/40 text-[#1FA971] text-xs font-bold flex items-center gap-2">
               <CheckCircle2 className="w-4 h-4" />
               <span>Settings saved and applied in real time across the platform!</span>
             </div>
@@ -1189,18 +1191,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
 
           <form onSubmit={handleSaveSettings} className="space-y-5">
             {/* Announcement Banner Controls */}
-            <div className="p-4 rounded-2xl bg-amber-50/70 border border-amber-200 space-y-3">
+            <div className="p-4 rounded-2xl bg-[#0B0007] border border-[#452035] space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <Megaphone className="w-4 h-4 text-amber-700" />
-                  <span className="text-xs font-bold text-amber-900">Global Announcement Broadcast</span>
+                  <Megaphone className="w-4 h-4 text-[#FF4DB8]" />
+                  <span className="text-xs font-bold text-white">Global Announcement Broadcast</span>
                 </div>
-                <label className="flex items-center gap-2 text-xs font-bold text-amber-900 cursor-pointer">
+                <label className="flex items-center gap-2 text-xs font-bold text-[#C8B8C4] cursor-pointer">
                   <input
                     type="checkbox"
                     checked={settings.announcementActive}
                     onChange={(e) => setSettings({ ...settings, announcementActive: e.target.checked })}
-                    className="rounded-sm text-purple-600"
+                    className="rounded-sm accent-[#FF1493]"
                   />
                   <span>Active</span>
                 </label>
@@ -1211,14 +1213,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                 value={settings.announcementText}
                 onChange={(e) => setSettings({ ...settings, announcementText: e.target.value })}
                 placeholder="Announcement banner text..."
-                className="w-full px-3 py-2 text-xs rounded-xl border border-amber-300 bg-white focus:ring-2 focus:ring-amber-500"
+                className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white focus:outline-hidden focus:border-[#FF1493]"
               />
             </div>
 
             {/* Quota & Pricing Controls */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                   Free PDF Operations Limit
                 </label>
                 <input
@@ -1230,12 +1232,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     const v = e.target.value === '' ? '' : parseInt(e.target.value, 10);
                     setSettings({ ...settings, freePdfLimit: v as any });
                   }}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white focus:outline-hidden focus:border-[#FF1493]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                   Free AI Queries Limit
                 </label>
                 <input
@@ -1247,12 +1249,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     const v = e.target.value === '' ? '' : parseInt(e.target.value, 10);
                     setSettings({ ...settings, freeAiLimit: v as any });
                   }}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] text-white focus:outline-hidden focus:border-[#FF1493]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                   Pro Price (INR ₹)
                 </label>
                 <input
@@ -1263,12 +1265,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     const v = e.target.value === '' ? '' : parseInt(e.target.value, 10);
                     setSettings({ ...settings, proPriceINR: v as any });
                   }}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold text-purple-700"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] font-bold text-[#FF4DB8] focus:outline-hidden focus:border-[#FF1493]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                   Subscription Duration (Days)
                 </label>
                 <input
@@ -1280,26 +1282,26 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     const v = e.target.value === '' ? '' : parseInt(e.target.value, 10);
                     setSettings({ ...settings, subscriptionDays: v as any });
                   }}
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 font-bold"
+                  className="w-full px-3 py-2 text-xs rounded-xl bg-[#12000A] border border-[#452035] font-bold text-white focus:outline-hidden focus:border-[#FF1493]"
                 />
               </div>
             </div>
 
             {/* ZapPay Gateway & ZapAPI Configuration */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-indigo-50/70 via-blue-50/40 to-slate-50 border-2 border-indigo-200 space-y-4">
+            <div className="p-5 rounded-2xl bg-[#0B0007] border-2 border-[#452035] space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center font-bold shadow-xs">
+                  <div className="w-8 h-8 rounded-xl bg-[#E90083] text-white flex items-center justify-center font-bold shadow-xs">
                     <Zap className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
                       <span>ZapPay Gateway (UPI & Cards)</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 border border-indigo-200">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#35001F] text-[#FF4DB8] border border-[#452035]">
                         Official Gateway
                       </span>
                     </h4>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[#91808C]">
                       Automated UPI collection and instant order verification via ZapAPI
                     </p>
                   </div>
@@ -1308,7 +1310,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   href="https://zappay.shop"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] font-semibold text-indigo-700 hover:underline flex items-center gap-1"
+                  className="text-[11px] font-semibold text-[#FF4DB8] hover:underline flex items-center gap-1"
                 >
                   <span>zappay.shop</span>
                   <ExternalLink className="w-3 h-3" />
@@ -1316,8 +1318,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
               </div>
 
               {/* Direct UPI ID for Instant QR code */}
-              <div className="p-3 bg-white rounded-xl border border-indigo-200">
-                <label className="block text-xs font-bold text-slate-800 mb-1">
+              <div className="p-3 bg-[#16000D] rounded-xl border border-[#452035]">
+                <label className="block text-xs font-bold text-white mb-1">
                   Direct Merchant UPI ID (for instant QR code & mobile payment)
                 </label>
                 <input
@@ -1325,16 +1327,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   value={settings.upiId || '9734076853@fam'}
                   onChange={(e) => setSettings({ ...settings, upiId: e.target.value })}
                   placeholder="9734076853@fam"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 font-mono bg-white focus:ring-2 focus:ring-indigo-500 font-bold text-slate-900"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] font-mono bg-[#12000A] focus:outline-hidden focus:border-[#FF1493] font-bold text-white"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Active UPI ID: <code>9734076853@fam</code>. When users upgrade, this UPI ID is embedded into the QR code and payment intent.
+                <p className="text-[10px] text-[#91808C] mt-1">
+                  Active UPI ID: <code className="text-[#FF4DB8]">9734076853@fam</code>. When users upgrade, this UPI ID is embedded into the QR code and payment intent.
                 </p>
               </div>
 
               {/* ZapPay API Base URL */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                   ZapPay API Base URL
                 </label>
                 <input
@@ -1342,24 +1344,24 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   value={settings.zapPayApiBaseUrl}
                   onChange={(e) => setSettings({ ...settings, zapPayApiBaseUrl: e.target.value })}
                   placeholder="https://zappay-beta.vercel.app"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 font-mono bg-white focus:ring-2 focus:ring-indigo-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] font-mono bg-[#12000A] text-white focus:outline-hidden focus:border-[#FF1493]"
                 />
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Default: <code>https://zappay-beta.vercel.app</code> (ZapAPI Vercel Backend)
+                <p className="text-[10px] text-[#91808C] mt-1">
+                  Default: <code className="text-[#FF4DB8]">https://zappay-beta.vercel.app</code> (ZapAPI Vercel Backend)
                 </p>
               </div>
 
               {/* ZapPay API Key (zap_api / X-ZapAPI-Key) */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-slate-700">
-                    ZapAPI Key (<code className="font-mono text-[10px] text-indigo-700">X-ZapAPI-Key</code> / <code className="font-mono text-[10px] text-indigo-700">zap_api</code>)
+                  <label className="text-xs font-semibold text-[#C8B8C4]">
+                    ZapAPI Key (<code className="font-mono text-[10px] text-[#FF4DB8]">X-ZapAPI-Key</code> / <code className="font-mono text-[10px] text-[#FF4DB8]">zap_api</code>)
                   </label>
-                  <span className="text-[10px] font-medium text-slate-500">
+                  <span className="text-[10px] font-medium text-[#91808C]">
                     {settings.zapPayApiKey ? (
-                      <span className="text-emerald-600 font-bold">✓ Key Configured</span>
+                      <span className="text-[#1FA971] font-bold">✓ Key Configured</span>
                     ) : (
-                      <span className="text-amber-600 font-bold">Paste Key Below</span>
+                      <span className="text-[#FF4DB8] font-bold">Paste Key Below</span>
                     )}
                   </span>
                 </div>
@@ -1369,13 +1371,13 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     value={settings.zapPayApiKey}
                     onChange={(e) => setSettings({ ...settings, zapPayApiKey: e.target.value })}
                     placeholder="Paste your 32-character ZapAPI key here..."
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-indigo-300 font-mono bg-white pr-24 focus:ring-2 focus:ring-indigo-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] font-mono bg-[#12000A] text-white pr-24 focus:outline-hidden focus:border-[#FF1493]"
                   />
                   <div className="absolute right-2 top-2 flex items-center gap-1.5">
                     <button
                       type="button"
                       onClick={() => setShowZapApiKey(!showZapApiKey)}
-                      className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
+                      className="p-1 text-[#91808C] hover:text-white cursor-pointer"
                       title={showZapApiKey ? "Hide Key" : "Show Key"}
                     >
                       {showZapApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
@@ -1384,14 +1386,14 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                       type="button"
                       onClick={handleTestZapPay}
                       disabled={testingZapPay}
-                      className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-indigo-600 text-white hover:bg-indigo-700 transition flex items-center gap-1 disabled:opacity-50 cursor-pointer"
+                      className="px-2 py-0.5 text-[10px] font-bold rounded-lg bg-[#E90083] text-white hover:bg-[#FF1493] transition flex items-center gap-1 disabled:opacity-50 cursor-pointer"
                     >
                       {testingZapPay ? <RefreshCw className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
                       <span>Test Key</span>
                     </button>
                   </div>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-[10px] text-[#91808C] mt-1">
                   Get your ZapAPI key from ZapPay Dashboard -&gt; Developer Portal -&gt; Zap API.
                 </p>
 
@@ -1399,22 +1401,22 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   <div
                     className={`mt-2 p-2.5 rounded-xl text-xs flex items-center justify-between border ${
                       zapTestResult.success
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                        ? 'bg-[#1FA971]/15 text-[#1FA971] border-[#1FA971]/40'
+                        : 'bg-[#D9364F]/15 text-[#D9364F] border-[#D9364F]/40'
                     }`}
                   >
                     <div className="flex items-center gap-2">
                       {zapTestResult.success ? (
-                        <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+                        <CheckCircle2 className="w-4 h-4 text-[#1FA971] shrink-0" />
                       ) : (
-                        <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                        <AlertTriangle className="w-4 h-4 text-[#D9364F] shrink-0" />
                       )}
                       <span className="font-medium text-[11px]">{zapTestResult.message}</span>
                     </div>
                     <button
                       type="button"
                       onClick={() => setZapTestResult(null)}
-                      className="text-slate-400 hover:text-slate-600"
+                      className="text-[#91808C] hover:text-white"
                     >
                       <X className="w-3 h-3" />
                     </button>
@@ -1423,15 +1425,15 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
               </div>
 
               {/* Payment QR Code Manager (Admin Upload OR Auto-Generate) */}
-              <div className="p-4 bg-white rounded-2xl border-2 border-indigo-200 shadow-xs space-y-3">
+              <div className="p-4 bg-[#16000D] rounded-2xl border-2 border-[#452035] shadow-xs space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <div className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold">
+                    <div className="w-7 h-7 rounded-lg bg-[#35001F] text-[#FF4DB8] flex items-center justify-center font-bold border border-[#452035]">
                       <CreditCard className="w-4 h-4" />
                     </div>
                     <div>
-                      <h5 className="text-xs font-bold text-slate-900">Payment QR Scanner Mode</h5>
-                      <p className="text-[10px] text-slate-500">
+                      <h5 className="text-xs font-bold text-white">Payment QR Scanner Mode</h5>
+                      <p className="text-[10px] text-[#91808C]">
                         Scanner appears ONLY if uploaded by admin. If empty, users pay via UPI ID and mobile app.
                       </p>
                     </div>
@@ -1439,8 +1441,8 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   <span
                     className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
                       settings.customQrUrl
-                        ? 'bg-purple-100 text-purple-800 border-purple-200'
-                        : 'bg-slate-100 text-slate-700 border-slate-200'
+                        ? 'bg-[#35001F] text-[#FF4DB8] border-[#FF1493]/50'
+                        : 'bg-[#0B0007] text-[#C8B8C4] border-[#452035]'
                     }`}
                   >
                     {settings.customQrUrl ? 'Scanner Active' : 'No Scanner (UPI ID Only)'}
@@ -1448,16 +1450,16 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                 </div>
 
                 {settings.customQrUrl ? (
-                  <div className="p-3 bg-purple-50/60 rounded-xl border border-purple-200 flex items-center justify-between gap-3">
+                  <div className="p-3 bg-[#0B0007] rounded-xl border border-[#452035] flex items-center justify-between gap-3">
                     <div className="flex items-center gap-3">
                       <img
                         src={settings.customQrUrl}
                         alt="Custom Merchant QR"
-                        className="w-14 h-14 rounded-lg object-contain bg-white border border-purple-200 p-0.5 shadow-xs"
+                        className="w-14 h-14 rounded-lg object-contain bg-white border border-[#452035] p-0.5 shadow-xs"
                       />
                       <div>
-                        <div className="text-xs font-bold text-purple-900">Merchant QR Scanner is Active</div>
-                        <div className="text-[10px] text-purple-700">
+                        <div className="text-xs font-bold text-white">Merchant QR Scanner is Active</div>
+                        <div className="text-[10px] text-[#C8B8C4]">
                           Users will scan this exact QR code in the upgrade modal.
                         </div>
                       </div>
@@ -1466,20 +1468,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                       type="button"
                       onClick={handleRemoveCustomQr}
                       disabled={isUploadingQr}
-                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-white text-rose-600 border border-rose-200 hover:bg-rose-50 transition shrink-0 cursor-pointer"
+                      className="px-3 py-1.5 text-xs font-bold rounded-xl bg-[#16000D] text-[#D9364F] border border-[#D9364F]/40 hover:bg-[#D9364F]/15 transition shrink-0 cursor-pointer"
                     >
                       Remove Scanner
                     </button>
                   </div>
                 ) : (
-                  <div className="p-3 bg-slate-50 rounded-xl border border-slate-200 text-[11px] text-slate-600">
-                    <span className="font-semibold text-slate-800">Scanner Hidden:</span> No QR scanner will be shown to users. Users will pay directly to UPI ID <code>{settings.upiId || '9734076853@fam'}</code> or tap the mobile UPI button. Upload an image below whenever you want a QR scanner to appear.
+                  <div className="p-3 bg-[#0B0007] rounded-xl border border-[#452035] text-[11px] text-[#C8B8C4]">
+                    <span className="font-semibold text-white">Scanner Hidden:</span> No QR scanner will be shown to users. Users will pay directly to UPI ID <code className="text-[#FF4DB8]">{settings.upiId || '9734076853@fam'}</code> or tap the mobile UPI button. Upload an image below whenever you want a QR scanner to appear.
                   </div>
                 )}
 
                 {/* Upload or Change Custom QR */}
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 pt-1">
-                  <label className="flex-1 px-3 py-2 bg-indigo-50 hover:bg-indigo-100 border border-indigo-200 rounded-xl text-indigo-700 text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition">
+                  <label className="flex-1 px-3 py-2 bg-[#35001F] hover:bg-[#35001F]/80 border border-[#452035] hover:border-[#FF1493] rounded-xl text-[#FF4DB8] text-xs font-bold flex items-center justify-center gap-2 cursor-pointer transition">
                     <Plus className="w-3.5 h-3.5" />
                     <span>{settings.customQrUrl ? 'Replace Custom QR Image' : 'Upload Custom Merchant QR Code'}</span>
                     <input
@@ -1491,7 +1493,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     />
                   </label>
                   {isUploadingQr && (
-                    <span className="text-xs text-indigo-600 font-medium flex items-center gap-1 justify-center">
+                    <span className="text-xs text-[#FF4DB8] font-medium flex items-center gap-1 justify-center">
                       <RefreshCw className="w-3.5 h-3.5 animate-spin" /> Saving QR...
                     </span>
                   )}
@@ -1501,12 +1503,12 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   <div
                     className={`p-2 rounded-xl text-[11px] font-medium flex items-center justify-between border ${
                       qrUploadMsg.success
-                        ? 'bg-emerald-50 text-emerald-800 border-emerald-200'
-                        : 'bg-rose-50 text-rose-800 border-rose-200'
+                        ? 'bg-[#1FA971]/15 text-[#1FA971] border-[#1FA971]/40'
+                        : 'bg-[#D9364F]/15 text-[#D9364F] border-[#D9364F]/40'
                     }`}
                   >
                     <span>{qrUploadMsg.message}</span>
-                    <button type="button" onClick={() => setQrUploadMsg(null)} className="text-slate-400">
+                    <button type="button" onClick={() => setQrUploadMsg(null)} className="text-[#91808C] hover:text-white">
                       <X className="w-3 h-3" />
                     </button>
                   </div>
@@ -1515,20 +1517,20 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
             </div>
 
             {/* FreeModel AI Engine (1 Million Free Tokens API) */}
-            <div className="p-5 rounded-2xl bg-gradient-to-br from-purple-50/70 via-indigo-50/40 to-slate-50 border-2 border-purple-200 space-y-4">
+            <div className="p-5 rounded-2xl bg-[#0B0007] border-2 border-[#452035] space-y-4">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-purple-600 text-white flex items-center justify-center font-bold shadow-xs">
+                  <div className="w-8 h-8 rounded-xl bg-[#35001F] border border-[#452035] text-[#FF4DB8] flex items-center justify-center font-bold shadow-xs">
                     <Cpu className="w-4 h-4" />
                   </div>
                   <div>
-                    <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+                    <h4 className="text-sm font-bold text-white flex items-center gap-2">
                       <span>FreeModel AI Engine</span>
-                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#1FA971]/15 text-[#1FA971] border border-[#1FA971]/40">
                         1 Million Free Tokens
                       </span>
                     </h4>
-                    <p className="text-[11px] text-slate-500">
+                    <p className="text-[11px] text-[#91808C]">
                       High-speed OpenAI-compatible API gateway (GPT-4o Mini, DeepSeek, Gemini, Claude, Llama)
                     </p>
                   </div>
@@ -1537,7 +1539,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   href="https://freemodel.in"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-[11px] font-semibold text-purple-700 hover:underline flex items-center gap-1"
+                  className="text-[11px] font-semibold text-[#FF4DB8] hover:underline flex items-center gap-1"
                 >
                   <span>freemodel.in</span>
                   <ExternalLink className="w-3 h-3" />
@@ -1546,7 +1548,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
 
               {/* API Base URL */}
               <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                   API Endpoint Base URL
                 </label>
                 <input
@@ -1554,17 +1556,17 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   value={settings.aiApiBaseUrl}
                   onChange={(e) => setSettings({ ...settings, aiApiBaseUrl: e.target.value })}
                   placeholder="https://freemodel.in/v1"
-                  className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono bg-white focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] font-mono bg-[#12000A] text-white focus:outline-hidden focus:border-[#FF1493]"
                 />
               </div>
 
               {/* FreeModel API Key */}
               <div>
                 <div className="flex items-center justify-between mb-1">
-                  <label className="text-xs font-semibold text-slate-700">
+                  <label className="text-xs font-semibold text-[#C8B8C4]">
                     FreeModel API Key
                   </label>
-                  <span className="text-[10px] text-slate-500">
+                  <span className="text-[10px] text-[#91808C]">
                     {settings.aiApiKey ? 'Key Configured' : 'No Key Set (Using Local Synthesis Engine)'}
                   </span>
                 </div>
@@ -1574,31 +1576,31 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                     value={settings.aiApiKey}
                     onChange={(e) => setSettings({ ...settings, aiApiKey: e.target.value })}
                     placeholder="Paste your FreeModel API key here (e.g. fm-...)"
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 font-mono bg-white pr-10 focus:ring-2 focus:ring-purple-500"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] font-mono bg-[#12000A] text-white pr-10 focus:outline-hidden focus:border-[#FF1493]"
                   />
                   <button
                     type="button"
                     onClick={() => setShowApiKey(!showApiKey)}
-                    className="absolute right-2.5 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                    className="absolute right-2.5 top-2.5 text-[#91808C] hover:text-white cursor-pointer"
                   >
                     {showApiKey ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
-                  Sign up on <a href="https://freemodel.in" target="_blank" rel="noopener noreferrer" className="text-purple-700 underline font-medium">freemodel.in</a> to claim 1,000,000 free tokens. Paste your API key here.
+                <p className="text-[10px] text-[#91808C] mt-1">
+                  Sign up on <a href="https://freemodel.in" target="_blank" rel="noopener noreferrer" className="text-[#FF4DB8] underline font-medium">freemodel.in</a> to claim 1,000,000 free tokens. Paste your API key here.
                 </p>
               </div>
 
               {/* Model Selection */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-end">
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                     Select AI Model
                   </label>
                   <select
                     value={settings.aiModel}
                     onChange={(e) => setSettings({ ...settings, aiModel: e.target.value })}
-                    className="w-full px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-medium"
+                    className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white font-medium focus:outline-hidden focus:border-[#FF1493]"
                   >
                     <option value="gpt-4o-mini">gpt-4o-mini (Default • Ultra Fast &amp; Free)</option>
                     <option value="gpt-4o">gpt-4o (OpenAI Flagship)</option>
@@ -1631,7 +1633,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                 </div>
 
                 <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  <label className="block text-xs font-semibold text-[#C8B8C4] mb-1">
                     Or Type Custom Model ID
                   </label>
                   <div className="flex gap-1.5">
@@ -1640,7 +1642,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                       placeholder="e.g. custom-model-id"
                       value={customModelInput}
                       onChange={(e) => setCustomModelInput(e.target.value)}
-                      className="flex-1 px-3 py-2 text-xs rounded-xl border border-slate-300 bg-white font-mono"
+                      className="flex-1 px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white font-mono focus:outline-hidden focus:border-[#FF1493]"
                     />
                     <button
                       type="button"
@@ -1651,7 +1653,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                           setCustomModelInput('');
                         }
                       }}
-                      className="px-3 py-2 text-xs font-bold rounded-xl bg-slate-900 text-white hover:bg-slate-800 disabled:opacity-40 cursor-pointer"
+                      className="px-3 py-2 text-xs font-bold rounded-xl bg-[#35001F] border border-[#452035] text-white hover:border-[#FF1493] disabled:opacity-40 cursor-pointer"
                     >
                       Use
                     </button>
@@ -1660,10 +1662,10 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
               </div>
 
               {/* Active Model Indicator & Test Button */}
-              <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-purple-100">
+              <div className="pt-2 flex flex-wrap items-center justify-between gap-3 border-t border-[#452035]">
                 <div className="text-xs">
-                  <span className="text-slate-500">Active Model: </span>
-                  <span className="font-mono font-bold text-purple-700 bg-purple-100/70 px-2 py-0.5 rounded-md">
+                  <span className="text-[#91808C]">Active Model: </span>
+                  <span className="font-mono font-bold text-[#FF4DB8] bg-[#35001F] border border-[#452035] px-2 py-0.5 rounded-md">
                     {settings.aiModel || 'gpt-4o-mini'}
                   </span>
                 </div>
@@ -1672,7 +1674,7 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                   type="button"
                   onClick={handleTestAi}
                   disabled={aiTesting}
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white font-bold text-xs shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
+                  className="px-4 py-2 rounded-xl bg-[#E90083] hover:bg-[#FF1493] active:bg-[#C90070] text-white font-bold text-xs shadow-xs transition-colors cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
                 >
                   {aiTesting ? (
                     <>
@@ -1693,19 +1695,19 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
                 <div
                   className={`p-3 rounded-xl text-xs flex items-start gap-2.5 ${
                     aiTestResult.success
-                      ? 'bg-emerald-50 border border-emerald-200 text-emerald-800'
-                      : 'bg-rose-50 border border-rose-200 text-rose-800'
+                      ? 'bg-[#1FA971]/15 border border-[#1FA971]/40 text-[#1FA971]'
+                      : 'bg-[#D9364F]/15 border border-[#D9364F]/40 text-[#D9364F]'
                   }`}
                 >
                   {aiTestResult.success ? (
-                    <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0 mt-0.5" />
+                    <CheckCircle2 className="w-4 h-4 text-[#1FA971] shrink-0 mt-0.5" />
                   ) : (
-                    <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+                    <AlertTriangle className="w-4 h-4 text-[#D9364F] shrink-0 mt-0.5" />
                   )}
                   <div className="flex-1">
                     <p className="font-bold">{aiTestResult.message}</p>
                     {aiTestResult.reply && (
-                      <p className="mt-1 font-mono text-[11px] bg-white/70 p-1.5 rounded-md border border-emerald-200">
+                      <p className="mt-1 font-mono text-[11px] bg-[#12000A] p-1.5 rounded-md border border-[#1FA971]/30 text-white">
                         Response: "{aiTestResult.reply}"
                       </p>
                     )}
@@ -1715,23 +1717,23 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
             </div>
 
             {/* Maintenance Mode */}
-            <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+            <div className="pt-2 border-t border-[#452035] flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-bold text-slate-800">Platform Maintenance Mode</h4>
-                <p className="text-[11px] text-slate-500">Temporarily disables file processing for non-admin users.</p>
+                <h4 className="text-xs font-bold text-white">Platform Maintenance Mode</h4>
+                <p className="text-[11px] text-[#91808C]">Temporarily disables file processing for non-admin users.</p>
               </div>
               <input
                 type="checkbox"
                 checked={settings.maintenanceMode}
                 onChange={(e) => setSettings({ ...settings, maintenanceMode: e.target.checked })}
-                className="w-5 h-5 rounded-md text-purple-600 cursor-pointer"
+                className="w-5 h-5 rounded-md accent-[#FF1493] cursor-pointer"
               />
             </div>
 
             <button
               type="submit"
               disabled={savingSettings}
-              className="py-3 px-6 rounded-xl font-bold text-xs text-white bg-purple-600 hover:bg-purple-700 transition-colors shadow-md cursor-pointer disabled:opacity-50"
+              className="py-3 px-6 rounded-xl font-bold text-xs text-white bg-[#E90083] hover:bg-[#FF1493] active:bg-[#C90070] transition-colors shadow-md cursor-pointer disabled:opacity-50"
             >
               {savingSettings ? 'Saving Policies...' : 'Save & Broadcast Changes'}
             </button>

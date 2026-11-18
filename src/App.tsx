@@ -38,8 +38,8 @@ const AuthModal = lazy(() =>
 );
 
 const WorkspaceFallback = () => (
-  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-[#77717B]">
-    <Loader2 className="w-8 h-8 text-[#E83E8C] animate-spin" />
+  <div className="min-h-[60vh] flex flex-col items-center justify-center gap-3 text-[#C8B8C4]">
+    <Loader2 className="w-8 h-8 text-[#FF1493] animate-spin" />
     <p className="text-xs font-serif font-semibold italic">Loading PDF workspace...</p>
   </div>
 );
@@ -278,13 +278,13 @@ export default function App() {
   const selectedToolConfig = TOOLS_CONFIG.find((t) => t.id === selectedToolId);
 
   return (
-    <div className="min-h-screen bg-[#FFF4F8] flex flex-col font-sans text-[#24212A] antialiased selection:bg-[#E83E8C] selection:text-white">
+    <div className="min-h-screen bg-[#050005] flex flex-col font-sans text-white antialiased selection:bg-[#E90083] selection:text-white">
       {/* Optional Announcement Banner (only if admin sets a non-promo announcement) */}
       {limits.announcementActive &&
         limits.announcementText &&
         !announcementDismissed &&
         !/pro|₹|99|199|offer/i.test(limits.announcementText) && (
-          <div className="bg-gradient-to-r from-[#E83E8C] to-[#C92B72] text-white text-xs sm:text-sm font-medium py-2 px-3 sm:px-4 shadow-sm relative z-50">
+          <div className="bg-gradient-to-r from-[#E90083] to-[#FF1493] text-white text-xs sm:text-sm font-medium py-2 px-3 sm:px-4 shadow-sm shadow-[#FF1493]/20 relative z-50">
             <div className="max-w-7xl mx-auto flex items-center justify-between gap-2">
               <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1 justify-center text-center">
                 <span className="truncate">{limits.announcementText}</span>

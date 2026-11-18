@@ -1,22 +1,31 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" width="100%" height="100%">
   <defs>
     <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#24212A"/>
-      <stop offset="60%" stop-color="#3B1226"/>
-      <stop offset="100%" stop-color="#550B2E"/>
+      <stop offset="0%" stop-color="#050005"/>
+      <stop offset="55%" stop-color="#16000D"/>
+      <stop offset="100%" stop-color="#35001F"/>
     </linearGradient>
-    <linearGradient id="rosePink" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#E83E8C"/>
-      <stop offset="100%" stop-color="#C92B72"/>
+    <linearGradient id="neonPink" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#E90083"/>
+      <stop offset="100%" stop-color="#FF1493"/>
     </linearGradient>
+    <linearGradient id="highlightPink" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#C90070"/>
+      <stop offset="100%" stop-color="#FF4DB8"/>
+    </linearGradient>
+    <radialGradient id="ambientPink" cx="50%" cy="25%" r="60%">
+      <stop offset="0%" stop-color="#FF1493" stop-opacity="0.22"/>
+      <stop offset="100%" stop-color="#050005" stop-opacity="0"/>
+    </radialGradient>
     <filter id="cardShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#000000" flood-opacity="0.4"/>
+      <feDropShadow dx="0" dy="20" stdDeviation="24" flood-color="#000000" flood-opacity="0.65"/>
     </filter>
   </defs>
 
   <rect width="1200" height="630" fill="url(#bgGrad)"/>
+  <rect width="1200" height="630" fill="url(#ambientPink)"/>
 
-  <g opacity="0.06" stroke="#ffffff" stroke-width="1">
+  <g opacity="0.06" stroke="#FF4DB8" stroke-width="1">
     <line x1="0" y1="70" x2="1200" y2="70"/>
     <line x1="0" y1="140" x2="1200" y2="140"/>
     <line x1="0" y1="210" x2="1200" y2="210"/>
@@ -35,78 +44,78 @@
   </g>
 
   <g filter="url(#cardShadow)">
-    <rect x="80" y="55" width="1040" height="520" rx="24" fill="#ffffff"/>
-    <rect x="80" y="55" width="1040" height="56" rx="24" fill="#FFF4F8"/>
-    <rect x="80" y="90" width="1040" height="21" fill="#FFF4F8"/>
-    <line x1="80" y1="111" x2="1120" y2="111" stroke="#FFE3EE" stroke-width="1.5"/>
+    <rect x="80" y="55" width="1040" height="520" rx="24" fill="#16000D" stroke="#452035" stroke-width="1.5"/>
+    <rect x="80" y="55" width="1040" height="56" rx="24" fill="#0B0007"/>
+    <rect x="80" y="90" width="1040" height="21" fill="#0B0007"/>
+    <line x1="80" y1="111" x2="1120" y2="111" stroke="#452035" stroke-width="1.5"/>
 
-    <circle cx="116" cy="83" r="6.5" fill="#E83E8C"/>
-    <circle cx="136" cy="83" r="6.5" fill="#f59e0b"/>
+    <circle cx="116" cy="83" r="6.5" fill="#FF1493"/>
+    <circle cx="136" cy="83" r="6.5" fill="#FF4DB8"/>
     <circle cx="156" cy="83" r="6.5" fill="#1FA971"/>
 
-    <rect x="360" y="68" width="480" height="30" rx="15" fill="#ffffff" stroke="#FDC6DD" stroke-width="1"/>
-    <text x="600" y="88" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#24212A" text-anchor="middle">https://ominipdf.ai.studio/merge-pdf</text>
+    <rect x="360" y="68" width="480" height="30" rx="15" fill="#12000A" stroke="#452035" stroke-width="1"/>
+    <text x="600" y="88" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif" font-size="12" font-weight="600" fill="#C8B8C4" text-anchor="middle">https://ominipdf.ai.studio/merge-pdf</text>
 
-    <rect x="80" y="111" width="220" height="464" rx="0" fill="#FFF4F8"/>
-    <line x1="300" y1="111" x2="300" y2="575" stroke="#FFE3EE" stroke-width="1.5"/>
+    <rect x="80" y="111" width="220" height="464" rx="0" fill="#0B0007"/>
+    <line x1="300" y1="111" x2="300" y2="575" stroke="#452035" stroke-width="1.5"/>
 
-    <circle cx="120" cy="150" r="16" fill="url(#rosePink)"/>
-    <text x="120" y="155" font-family="-apple-system, sans-serif" font-size="11" font-weight="900" fill="#ffffff" text-anchor="middle">PDF</text>
-    <text x="146" y="154" font-family="-apple-system, sans-serif" font-size="15" font-weight="800" fill="#24212A">Omini<tspan fill="#E83E8C">PDF</tspan></text>
+    <circle cx="120" cy="150" r="16" fill="url(#neonPink)"/>
+    <text x="120" y="155" font-family="-apple-system, sans-serif" font-size="11" font-weight="900" fill="#FFFFFF" text-anchor="middle">PDF</text>
+    <text x="146" y="154" font-family="-apple-system, sans-serif" font-size="15" font-weight="800" fill="#FFFFFF">Omini<tspan fill="#FF4DB8">PDF</tspan></text>
 
-    <rect x="96" y="184" width="188" height="34" rx="10" fill="#FFE3EE"/>
-    <text x="114" y="206" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#C92B72">Merge PDF</text>
-    <circle cx="266" cy="201" r="4" fill="#E83E8C"/>
+    <rect x="96" y="184" width="188" height="34" rx="10" fill="#35001F" stroke="#FF1493" stroke-width="1"/>
+    <text x="114" y="206" font-family="-apple-system, sans-serif" font-size="12" font-weight="700" fill="#FFFFFF">Merge PDF</text>
+    <circle cx="266" cy="201" r="4" fill="#FF1493"/>
 
-    <text x="114" y="246" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Split PDF</text>
-    <text x="114" y="284" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Compress PDF</text>
-    <text x="114" y="322" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Protect &amp; Encrypt</text>
-    <text x="114" y="360" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Watermark PDF</text>
-    <text x="114" y="398" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Rotate &amp; Page Numbers</text>
-    <text x="114" y="436" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Remove Pages</text>
-    <text x="114" y="474" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">Image to PDF</text>
-    <text x="114" y="512" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#77717B">PDF to Image</text>
+    <text x="114" y="246" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#C8B8C4">Split PDF</text>
+    <text x="114" y="284" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#C8B8C4">Compress PDF</text>
+    <text x="114" y="322" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#C8B8C4">PDF to Word</text>
+    <text x="114" y="360" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#C8B8C4">Edit &amp; Sign PDF</text>
+    <text x="114" y="398" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#C8B8C4">OCR &amp; Unlock PDF</text>
+    <text x="114" y="436" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#91808C">Protect &amp; Watermark</text>
+    <text x="114" y="474" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#91808C">JPG / PNG to PDF</text>
+    <text x="114" y="512" font-family="-apple-system, sans-serif" font-size="12" font-weight="500" fill="#91808C">PDF to Excel</text>
 
-    <text x="335" y="152" font-family="-apple-system, sans-serif" font-size="20" font-weight="800" fill="#24212A">Merge PDF Documents Online</text>
-    <text x="335" y="174" font-family="-apple-system, sans-serif" font-size="12" font-weight="400" fill="#77717B">Combine multiple files into one single PDF in seconds — 100% Free &amp; Client-Side.</text>
+    <text x="335" y="152" font-family="-apple-system, sans-serif" font-size="20" font-weight="800" fill="#FFFFFF">Merge PDF Documents Online</text>
+    <text x="335" y="174" font-family="-apple-system, sans-serif" font-size="12" font-weight="400" fill="#C8B8C4">Combine multiple files into one single PDF in seconds — 100% Free &amp; Client-Side.</text>
 
-    <rect x="335" y="196" width="460" height="230" rx="18" fill="#FFF4F8" stroke="#E83E8C" stroke-width="2" stroke-dasharray="8 6"/>
+    <rect x="335" y="196" width="460" height="230" rx="18" fill="#0B0007" stroke="#E90083" stroke-width="2" stroke-dasharray="8 6"/>
 
-    <circle cx="565" cy="280" r="32" fill="#FFE3EE"/>
-    <path d="M565 264 L565 294 M553 276 L565 264 L577 276" stroke="#E83E8C" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-    <text x="565" y="336" font-family="-apple-system, sans-serif" font-size="14" font-weight="700" fill="#24212A" text-anchor="middle">Drop your PDF files here</text>
-    <text x="565" y="356" font-family="-apple-system, sans-serif" font-size="11" font-weight="500" fill="#77717B" text-anchor="middle">or click to browse • Instant browser processing</text>
+    <circle cx="565" cy="280" r="32" fill="#35001F" stroke="#FF1493" stroke-width="1"/>
+    <path d="M565 264 L565 294 M553 276 L565 264 L577 276" stroke="#FF4DB8" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <text x="565" y="336" font-family="-apple-system, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">Drop your PDF files here</text>
+    <text x="565" y="356" font-family="-apple-system, sans-serif" font-size="11" font-weight="500" fill="#91808C" text-anchor="middle">or click to browse • Instant browser processing</text>
 
-    <rect x="335" y="446" width="145" height="32" rx="16" fill="#FFF4F8" stroke="#FFE3EE"/>
-    <text x="407" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#24212A" text-anchor="middle">256-bit AES Lock</text>
+    <rect x="335" y="446" width="145" height="32" rx="16" fill="#0B0007" stroke="#452035"/>
+    <text x="407" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#C8B8C4" text-anchor="middle">256-bit AES Lock</text>
 
-    <rect x="490" y="446" width="145" height="32" rx="16" fill="#FFF4F8" stroke="#FFE3EE"/>
-    <text x="562" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#24212A" text-anchor="middle">Unlimited Free</text>
+    <rect x="490" y="446" width="145" height="32" rx="16" fill="#0B0007" stroke="#452035"/>
+    <text x="562" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#C8B8C4" text-anchor="middle">Unlimited Free</text>
 
-    <rect x="645" y="446" width="150" height="32" rx="16" fill="#FFF4F8" stroke="#FFE3EE"/>
-    <text x="720" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#24212A" text-anchor="middle">Zero Watermarks</text>
+    <rect x="645" y="446" width="150" height="32" rx="16" fill="#0B0007" stroke="#452035"/>
+    <text x="720" y="466" font-family="-apple-system, sans-serif" font-size="11" font-weight="600" fill="#C8B8C4" text-anchor="middle">Zero Watermarks</text>
 
-    <rect x="335" y="496" width="460" height="46" rx="14" fill="url(#rosePink)"/>
-    <text x="565" y="525" font-family="-apple-system, sans-serif" font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">Merge &amp; Download Free PDF →</text>
+    <rect x="335" y="496" width="460" height="46" rx="14" fill="url(#neonPink)"/>
+    <text x="565" y="525" font-family="-apple-system, sans-serif" font-size="14" font-weight="700" fill="#FFFFFF" text-anchor="middle">Merge &amp; Download Free PDF →</text>
 
-    <rect x="825" y="135" width="265" height="410" rx="18" fill="#FFF4F8" stroke="#FDC6DD" stroke-width="1.5"/>
-    <rect x="825" y="135" width="265" height="52" rx="18" fill="url(#rosePink)"/>
-    <rect x="825" y="165" width="265" height="22" fill="url(#rosePink)"/>
-    <text x="845" y="168" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" fill="#ffffff">Live PDF Engine Preview</text>
+    <rect x="825" y="135" width="265" height="410" rx="18" fill="#0B0007" stroke="#452035" stroke-width="1.5"/>
+    <rect x="825" y="135" width="265" height="52" rx="18" fill="url(#highlightPink)"/>
+    <rect x="825" y="165" width="265" height="22" fill="url(#highlightPink)"/>
+    <text x="845" y="168" font-family="-apple-system, sans-serif" font-size="13" font-weight="800" fill="#FFFFFF">Live PDF Engine Preview</text>
 
-    <rect x="841" y="202" width="233" height="110" rx="12" fill="#ffffff" stroke="#FFE3EE" stroke-width="1"/>
-    <text x="853" y="224" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#C92B72">Processing Summary:</text>
-    <text x="853" y="246" font-family="-apple-system, sans-serif" font-size="10" font-weight="500" fill="#24212A">• 3 documents merged cleanly</text>
-    <text x="853" y="266" font-family="-apple-system, sans-serif" font-size="10" font-weight="500" fill="#24212A">• 14 total pages preserved</text>
+    <rect x="841" y="202" width="233" height="110" rx="12" fill="#16000D" stroke="#452035" stroke-width="1"/>
+    <text x="853" y="224" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#FF4DB8">Processing Summary:</text>
+    <text x="853" y="246" font-family="-apple-system, sans-serif" font-size="10" font-weight="500" fill="#FFFFFF">• 3 documents merged cleanly</text>
+    <text x="853" y="266" font-family="-apple-system, sans-serif" font-size="10" font-weight="500" fill="#C8B8C4">• 14 total pages preserved</text>
     <text x="853" y="286" font-family="-apple-system, sans-serif" font-size="10" font-weight="500" fill="#1FA971">• 100% Free &amp; Client-Side</text>
 
-    <rect x="841" y="328" width="233" height="110" rx="12" fill="#ffffff" stroke="#FFE3EE" stroke-width="1"/>
-    <text x="853" y="350" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#C92B72">Privacy Guarantee:</text>
-    <text x="853" y="372" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#77717B">Files stay inside your browser.</text>
-    <text x="853" y="390" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#77717B">No paywalls, no daily limits,</text>
-    <text x="853" y="408" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#77717B">instant full-screen live preview.</text>
+    <rect x="841" y="328" width="233" height="110" rx="12" fill="#16000D" stroke="#452035" stroke-width="1"/>
+    <text x="853" y="350" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#FF4DB8">Privacy Guarantee:</text>
+    <text x="853" y="372" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#C8B8C4">Files stay inside your browser.</text>
+    <text x="853" y="390" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#91808C">No paywalls, no daily limits,</text>
+    <text x="853" y="408" font-family="-apple-system, sans-serif" font-size="10" font-weight="400" fill="#91808C">instant full-screen live preview.</text>
 
     <rect x="841" y="456" width="233" height="38" rx="10" fill="#1FA971"/>
-    <text x="957" y="480" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#ffffff" text-anchor="middle">Download Ready • 0.3s</text>
+    <text x="957" y="480" font-family="-apple-system, sans-serif" font-size="11" font-weight="700" fill="#FFFFFF" text-anchor="middle">Download Ready • 0.3s</text>
   </g>
 </svg>

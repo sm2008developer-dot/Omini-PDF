@@ -1,45 +1,61 @@
 @import "tailwindcss";
 
 @theme {
-  --color-primary-pink: #E83E8C;
-  --color-deep-pink: #C92B72;
-  --color-soft-pink: #FFF4F8;
-  --color-light-pink: #FFE3EE;
-  --color-primary-text: #24212A;
-  --color-secondary-text: #77717B;
+  /* Official OminiPDF Dark Neon Pink Palette */
+  --color-bg-primary: #050005;
+  --color-bg-secondary: #0B0007;
+  --color-bg-card: #16000D;
+  --color-surface-elevated: #35001F;
+  --color-primary-pink: #E90083;
+  --color-neon-pink: #FF1493;
+  --color-pink-highlight: #FF4DB8;
+  --color-active-pink: #C90070;
+  --color-deep-pink: #C90070;
+  --color-primary-text: #FFFFFF;
+  --color-secondary-text: #C8B8C4;
+  --color-muted-text: #91808C;
+  --color-border-pink: #452035;
+  --color-input-bg: #12000A;
   --color-success-green: #1FA971;
   --color-error-red: #D9364F;
 
-  /* Rose palette mapped to the brand pink system */
-  --color-rose-50: #FFF4F8;
-  --color-rose-100: #FFE3EE;
-  --color-rose-200: #FDC6DD;
-  --color-rose-300: #FA9BC4;
-  --color-rose-400: #F36AA6;
-  --color-rose-500: #E83E8C;
-  --color-rose-600: #E83E8C;
-  --color-rose-700: #C92B72;
-  --color-rose-800: #A8205E;
-  --color-rose-900: #881C4E;
-  --color-rose-950: #550B2E;
+  /* Rose utility scale mapped cleanly to dark-mode neon pink accents */
+  --color-rose-50: #35001F;
+  --color-rose-100: #452035;
+  --color-rose-200: #6B234A;
+  --color-rose-300: #FF4DB8;
+  --color-rose-400: #FF4DB8;
+  --color-rose-500: #FF1493;
+  --color-rose-600: #E90083;
+  --color-rose-700: #FF4DB8;
+  --color-rose-800: #FF4DB8;
+  --color-rose-900: #FFFFFF;
+  --color-rose-950: #050005;
 }
 
 :root {
-  --primary-pink: #E83E8C;
-  --deep-pink: #C92B72;
-  --soft-pink: #FFF4F8;
-  --light-pink: #FFE3EE;
-  --white: #FFFFFF;
-  --primary-text: #24212A;
-  --secondary-text: #77717B;
+  color-scheme: dark;
+  --bg-primary: #050005;
+  --bg-secondary: #0B0007;
+  --bg-card: #16000D;
+  --surface-elevated: #35001F;
+  --primary-pink: #E90083;
+  --neon-pink: #FF1493;
+  --pink-highlight: #FF4DB8;
+  --active-pink: #C90070;
+  --primary-text: #FFFFFF;
+  --secondary-text: #C8B8C4;
+  --muted-text: #91808C;
+  --border-pink: #452035;
+  --input-bg: #12000A;
   --success-green: #1FA971;
   --error-red: #D9364F;
 }
 
 @layer base {
   body {
-    background-color: #FFF4F8;
-    color: #24212A;
+    background-color: #050005;
+    color: #FFFFFF;
     font-family: 'Lora', Georgia, 'Times New Roman', serif;
     font-style: italic;
     -webkit-font-smoothing: antialiased;
@@ -51,6 +67,7 @@
     font-weight: 800;
     font-style: italic;
     letter-spacing: -0.015em;
+    color: #FFFFFF;
   }
 
   input, textarea, select {
@@ -58,8 +75,14 @@
     font-style: normal;
   }
 
+  select option {
+    background-color: #16000D;
+    color: #FFFFFF;
+  }
+
   input::placeholder, textarea::placeholder {
     font-style: italic;
+    color: #91808C;
   }
 
   code, pre, .font-mono {
@@ -68,23 +91,23 @@
   }
 }
 
-/* Custom smooth scrollbar */
+/* Custom smooth dark scrollbar */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
 ::-webkit-scrollbar-track {
-  background: #FFF4F8;
+  background: #0B0007;
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgba(232, 62, 140, 0.3);
+  background: rgba(233, 0, 131, 0.45);
   border-radius: 9999px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(201, 43, 114, 0.6);
+  background: rgba(255, 20, 147, 0.8);
 }
 
 /* Skip off-screen layout/paint cost on initial load */
