@@ -36,6 +36,8 @@ import {
   Cpu,
   X,
   Zap,
+  BellRing,
+  Send,
 } from 'lucide-react';
 import { User, Transaction, DocumentHistory, api, PlatformLimits } from '../utils/api.js';
 import { formatINR, formatFileSize } from '../utils/pdfLimits.js';
@@ -136,6 +138,29 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsSavedMsg, setSettingsSavedMsg] = useState(false);
 
+  // Web Push Broadcast state
+  const [pushStats, setPushStats] = useState<{
+    subscriberCount: number;
+    recentBroadcasts: Array<{
+      id: string;
+      title: string;
+      body: string;
+      url: string;
+      sentCount: number;
+      failedCount: number;
+      removedExpiredCount: number;
+      sentAt: string;
+    }>;
+  }>({ subscriberCount: 0, recentBroadcasts: [] });
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushBody, setPushBody] = useState('');
+  const [pushUrl, setPushUrl] = useState('/');
+  const [sendingPush, setSendingPush] = useState(false);
+  const [pushBroadcastResult, setPushBroadcastResult] = useState<{
+    success: boolean;
+    message: string;
+  } | null>(null);
+
   useEffect(() => {
     loadAdminData();
   }, []);
@@ -147,16 +172,18 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       if (currentUser?.email) {
         api.setUserEmail(currentUser.email);
       }
-      const [statsRes, usersRes, settingsRes, vouchersRes, docsRes, aiModelsRes] = await Promise.all([
+      const [statsRes, usersRes, settingsRes, vouchersRes, docsRes, aiModelsRes, pushStatsRes] = await Promise.all([
         api.adminGetStats(),
         api.adminGetUsers(),
         api.adminGetSettings(),
         api.adminGetVouchers(),
         api.adminGetDocuments(),
         api.adminGetAiModels().catch(() => ({ models: [], activeModel: 'gpt-4o-mini', isLive: false })),
+        api.adminGetPushStats().catch(() => ({ subscriberCount: 0, recentBroadcasts: [] })),
       ]);
       setStats(statsRes);
       setUsersList(usersRes.users);
+      setPushStats(pushStatsRes);
       const s = settingsRes.settings as any;
       setSettings({
         freePdfLimit: s.freePdfLimit ?? 3,
@@ -195,6 +222,51 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
       setError(msg);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSendPushBroadcast = async () => {
+    if (!pushTitle.trim() || !pushBody.trim()) {
+      setPushBroadcastResult({
+        success: false,
+        message: 'Please enter both a notification title and message.',
+      });
+      return;
+    }
+
+    setSendingPush(true);
+    setPushBroadcastResult(null);
+    try {
+      const res = await api.adminBroadcastPush({
+        title: pushTitle.trim(),
+        body: pushBody.trim(),
+        url: pushUrl.trim() || '/',
+      });
+      const updatedStats = await api.adminGetPushStats().catch(() => null);
+      if (updatedStats) {
+        setPushStats(updatedStats);
+      } else if (res.broadcast) {
+        setPushStats((prev) => ({
+          subscriberCount: res.subscriberCount ?? prev.subscriberCount,
+          recentBroadcasts: [res.broadcast, ...prev.recentBroadcasts].slice(0, 15),
+        }));
+      }
+      setPushBroadcastResult({
+        success: true,
+        message: `Push sent to ${res.broadcast.sentCount} device(s)${
+          res.broadcast.failedCount > 0 ? ` (${res.broadcast.failedCount} failed)` : ''
+        }.`,
+      });
+      setPushTitle('');
+      setPushBody('');
+      setPushUrl('/');
+    } catch (err: unknown) {
+      setPushBroadcastResult({
+        success: false,
+        message: err instanceof Error ? err.message : 'Failed to send push notification.',
+      });
+    } finally {
+      setSendingPush(false);
     }
   };
 
@@ -1188,6 +1260,115 @@ export const AdminPanel: React.FC<AdminPanelProps> = ({ currentUser, onBackToHom
               <span>Settings saved and applied in real time across the platform!</span>
             </div>
           )}
+
+          {/* Web Push Notification Broadcast Panel (sibling card outside settings form) */}
+          <div className="p-4 rounded-2xl bg-[#0B0007] border border-[#452035] space-y-3.5">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <BellRing className="w-4 h-4 text-[#FF1493]" />
+                <span className="text-xs font-bold text-white">Web Push Notification Broadcast</span>
+              </div>
+              <span className="text-[11px] font-bold px-2.5 py-0.5 rounded-full bg-[#35001F] text-[#FF4DB8] border border-[#452035]">
+                {pushStats.subscriberCount} Active Subscriber{pushStats.subscriberCount === 1 ? '' : 's'}
+              </span>
+            </div>
+
+            <p className="text-[11px] text-[#91808C]">
+              Send instant browser &amp; mobile push notifications to all subscribed OminiPDF visitors.
+            </p>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">
+                  Notification Title
+                </label>
+                <input
+                  type="text"
+                  maxLength={120}
+                  value={pushTitle}
+                  onChange={(e) => setPushTitle(e.target.value)}
+                  placeholder="e.g., New Free OCR & Word to PDF Tools Live!"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
+                />
+              </div>
+
+              <div>
+                <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">
+                  Target URL (optional)
+                </label>
+                <input
+                  type="text"
+                  value={pushUrl}
+                  onChange={(e) => setPushUrl(e.target.value)}
+                  placeholder="/merge-pdf or /"
+                  className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493]"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-[11px] font-semibold text-[#C8B8C4] mb-1">
+                Notification Message
+              </label>
+              <textarea
+                rows={2}
+                maxLength={320}
+                value={pushBody}
+                onChange={(e) => setPushBody(e.target.value)}
+                placeholder="Write a concise update for subscribed users..."
+                className="w-full px-3 py-2 text-xs rounded-xl border border-[#452035] bg-[#12000A] text-white placeholder-[#91808C] focus:outline-hidden focus:border-[#FF1493] resize-none"
+              />
+            </div>
+
+            {pushBroadcastResult && (
+              <div
+                className={`p-2.5 rounded-xl text-xs font-semibold border ${
+                  pushBroadcastResult.success
+                    ? 'bg-[#1FA971]/15 border-[#1FA971]/40 text-[#1FA971]'
+                    : 'bg-[#D9364F]/15 border-[#D9364F]/40 text-[#D9364F]'
+                }`}
+              >
+                {pushBroadcastResult.message}
+              </div>
+            )}
+
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-[10px] text-[#91808C]">
+                Expired subscriptions are cleaned up automatically on send.
+              </span>
+              <button
+                type="button"
+                onClick={handleSendPushBroadcast}
+                disabled={sendingPush}
+                className="px-4 py-2 rounded-xl text-xs font-bold text-white bg-[#E90083] hover:bg-[#FF1493] active:bg-[#C90070] transition-colors flex items-center gap-1.5 cursor-pointer disabled:opacity-50 shrink-0"
+              >
+                <Send className="w-3.5 h-3.5" />
+                <span>{sendingPush ? 'Sending...' : 'Send Push Broadcast'}</span>
+              </button>
+            </div>
+
+            {pushStats.recentBroadcasts.length > 0 && (
+              <div className="pt-3 border-t border-[#452035] space-y-1.5">
+                <p className="text-[11px] font-bold text-[#C8B8C4]">Recent Broadcasts</p>
+                <div className="space-y-1.5 max-h-40 overflow-y-auto pr-1">
+                  {pushStats.recentBroadcasts.slice(0, 5).map((item) => (
+                    <div
+                      key={item.id}
+                      className="p-2.5 rounded-xl bg-[#16000D] border border-[#452035] flex items-start justify-between gap-2 text-[11px]"
+                    >
+                      <div className="min-w-0">
+                        <p className="font-semibold text-white truncate">{item.title}</p>
+                        <p className="text-[#91808C] truncate">{item.body}</p>
+                      </div>
+                      <span className="text-[10px] font-bold text-[#1FA971] bg-[#1FA971]/15 border border-[#1FA971]/35 px-2 py-0.5 rounded-full shrink-0">
+                        {item.sentCount} sent
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
 
           <form onSubmit={handleSaveSettings} className="space-y-5">
             {/* Announcement Banner Controls */}

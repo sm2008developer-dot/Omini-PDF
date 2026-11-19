@@ -15,6 +15,7 @@ import zlib from 'zlib';
 import { GoogleGenAI } from '@google/genai';
 import QRCode from 'qrcode';
 import { db, sanitizeUser, UserRecord, VoucherRecord, isAdminEmail, getAdminEmails } from './server/db.js';
+import { pushService } from './server/pushService.js';
 import { DEFAULT_LIMITS } from './src/utils/pdfLimits.js';
 
 dotenv.config();
@@ -53,6 +54,23 @@ app.get('/app-ads.txt', (_req: Request, res: Response) => {
   res.setHeader('Cache-Control', 'public, max-age=300');
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.send('google.com, pub-4298726660310821, DIRECT, f08c47fec0942fa0\n');
+});
+
+// Web Push Service Worker (served fresh with root scope header in dev & prod)
+app.get('/sw.js', (_req: Request, res: Response) => {
+  const publicSwPath = path.resolve(process.cwd(), 'public', 'sw.js');
+  const distSwPath = path.resolve(process.cwd(), 'dist', 'sw.js');
+  const swPath = fs.existsSync(publicSwPath) ? publicSwPath : distSwPath;
+
+  if (!fs.existsSync(swPath)) {
+    res.status(404).type('text/plain').send('Service worker not found.');
+    return;
+  }
+
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.sendFile(swPath);
 });
 
 // Auth Middleware
@@ -1896,6 +1914,93 @@ app.post('/api/admin/ai-test', authenticateToken, requireAdmin, async (req: Auth
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : 'Connection failed';
     return res.status(500).json({ success: false, error: `Failed to reach FreeModel endpoint: ${msg}` });
+  }
+});
+
+// ----------------- Web Push Notification Endpoints -----------------
+
+app.get('/api/push/vapid-public-key', (_req: Request, res: Response) => {
+  res.setHeader('Cache-Control', 'no-store');
+  res.json({
+    publicKey: pushService.getPublicKey(),
+    configured: true,
+  });
+});
+
+app.post('/api/push/subscribe', (req: Request, res: Response) => {
+  try {
+    const { subscription, userAgent } = req.body || {};
+    if (!subscription || typeof subscription !== 'object') {
+      return res.status(400).json({ error: 'Valid push subscription object is required.' });
+    }
+    pushService.upsertSubscription(subscription, userAgent || req.headers['user-agent']);
+    return res.json({ success: true });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Failed to save push subscription.';
+    return res.status(400).json({ error: msg });
+  }
+});
+
+app.post('/api/push/unsubscribe', (req: Request, res: Response) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint || typeof endpoint !== 'string') {
+    return res.status(400).json({ error: 'Subscription endpoint is required.' });
+  }
+  const removed = pushService.removeSubscription(endpoint);
+  return res.json({ success: true, removed });
+});
+
+app.post('/api/push/send-test', async (req: Request, res: Response) => {
+  const { endpoint } = req.body || {};
+  if (!endpoint || typeof endpoint !== 'string') {
+    return res.status(400).json({ error: 'Subscription endpoint is required.' });
+  }
+
+  const result = await pushService.sendToEndpoint(endpoint, {
+    title: 'OminiPDF Notifications Active',
+    body: 'Test push received! You will get updates on new free tools and completed PDF tasks.',
+    url: '/',
+    tag: 'ominipdf-test',
+  });
+
+  if (!result.delivered) {
+    return res.status(result.removed ? 410 : 502).json({
+      success: false,
+      error: result.error || 'Could not deliver test push notification.',
+    });
+  }
+
+  return res.json({ success: true, message: 'Test push notification sent!' });
+});
+
+app.get('/api/admin/push/stats', authenticateToken, requireAdmin, (_req: AuthenticatedRequest, res: Response) => {
+  res.json(pushService.getStats());
+});
+
+app.post('/api/admin/push/broadcast', authenticateToken, requireAdmin, async (req: AuthenticatedRequest, res: Response) => {
+  const { title, body, url } = req.body || {};
+  if (!title || !String(title).trim()) {
+    return res.status(400).json({ error: 'Notification title is required.' });
+  }
+  if (!body || !String(body).trim()) {
+    return res.status(400).json({ error: 'Notification message is required.' });
+  }
+
+  try {
+    const broadcast = await pushService.broadcast({
+      title: String(title).trim(),
+      body: String(body).trim(),
+      url: url ? String(url).trim() : '/',
+    });
+    const stats = pushService.getStats();
+    return res.json({
+      success: true,
+      broadcast,
+      subscriberCount: stats.subscriberCount,
+    });
+  } catch (err: unknown) {
+    const msg = err instanceof Error ? err.message : 'Broadcast failed.';
+    return res.status(500).json({ error: msg });
   }
 });
 

@@ -52,6 +52,7 @@ import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { User, PlatformLimits, api } from '../utils/api.js';
 import { AdsterraAdBanner } from './AdsterraAdBanner.js';
 import { ADSTERRA_BANNERS } from '../utils/adsterra.js';
+import { notifyJobCompleted } from '../utils/pushNotifications.js';
 import {
   mergePdfFiles,
   splitPdfFile,
@@ -805,6 +806,9 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
       }
 
       setResult(output);
+
+      // Optional background tab completion notification (only fires if user opted in & switched tabs)
+      notifyJobCompleted(tool?.name || 'PDF Operation', output.fileName).catch(() => {});
 
       // Save to persistent browser History + in-session file cache for all users
       const inputSummaryName =

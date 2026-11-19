@@ -1,32 +1,37 @@
 {
-  "name": "Omini PDF - 100% Free Online PDF Suite",
-  "short_name": "Omini PDF",
-  "description": "100% free online PDF editor. Merge, split, compress, protect, watermark, rotate, add page numbers, and convert PDFs directly in your browser.",
+  "id": "/",
+  "name": "Omini PDF - 100% Free Online PDF & Photo Suite",
+  "short_name": "OminiPDF",
+  "description": "100% free online PDF & photo editor. Convert, merge, split, compress, edit, sign, OCR, and protect PDFs directly in your browser.",
   "start_url": "/",
+  "scope": "/",
   "display": "standalone",
   "background_color": "#050005",
   "theme_color": "#E90083",
   "icons": [
     {
-      "src": "/logo.png",
-      "sizes": "192x192",
-      "type": "image/png",
-      "purpose": "any maskable"
-    },
-    {
       "src": "/favicon-48x48.png",
       "sizes": "48x48",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/favicon-96x96.png",
       "sizes": "96x96",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
     },
     {
       "src": "/favicon-192x192.png",
       "sizes": "192x192",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
     }
   ]
 }

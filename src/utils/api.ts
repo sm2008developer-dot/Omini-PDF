@@ -497,6 +497,46 @@ class ApiService {
       body: JSON.stringify({ apiKey }),
     });
   }
+
+  async adminGetPushStats(): Promise<{
+    subscriberCount: number;
+    recentBroadcasts: Array<{
+      id: string;
+      title: string;
+      body: string;
+      url: string;
+      sentCount: number;
+      failedCount: number;
+      removedExpiredCount: number;
+      sentAt: string;
+    }>;
+  }> {
+    return this.request('/api/admin/push/stats');
+  }
+
+  async adminBroadcastPush(payload: {
+    title: string;
+    body: string;
+    url?: string;
+  }): Promise<{
+    success: boolean;
+    subscriberCount: number;
+    broadcast: {
+      id: string;
+      title: string;
+      body: string;
+      url: string;
+      sentCount: number;
+      failedCount: number;
+      removedExpiredCount: number;
+      sentAt: string;
+    };
+  }> {
+    return this.request('/api/admin/push/broadcast', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
 }
 
 export const api = new ApiService();

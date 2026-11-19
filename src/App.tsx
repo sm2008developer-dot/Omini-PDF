@@ -29,6 +29,18 @@ import {
   recordAdBlockerDismissal,
   clearAdBlockerDismissal,
 } from './utils/adBlocker.js';
+import {
+  PushStatusSnapshot,
+  registerPushServiceWorker,
+  getPushStatus,
+  subscribeToPushNotifications,
+  unsubscribeFromPushNotifications,
+  getPushPromptDismissedAt,
+  recordPushPromptDismissal,
+  evaluatePushPromptEligibility,
+  getNotifyOnCompletePreference,
+  setNotifyOnCompletePreference,
+} from './utils/pushNotifications.js';
 
 // Code-split heavy workspaces & modals for ultra-fast initial load
 const PdfToolWorkspace = lazy(() =>
@@ -45,6 +57,9 @@ const AuthModal = lazy(() =>
 );
 const AdBlockerModal = lazy(() =>
   import('./components/AdBlockerModal.js').then((m) => ({ default: m.AdBlockerModal }))
+);
+const PushOptInPrompt = lazy(() =>
+  import('./components/PushOptInPrompt.js').then((m) => ({ default: m.PushOptInPrompt }))
 );
 
 const WorkspaceFallback = () => (
@@ -68,6 +83,17 @@ export default function App() {
   const [authRedirectReason, setAuthRedirectReason] = useState<string | undefined>();
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
   const [adBlockerModalOpen, setAdBlockerModalOpen] = useState(false);
+
+  // Web Push Notifications state
+  const [pushStatus, setPushStatus] = useState<PushStatusSnapshot>(() => ({
+    supported: false,
+    permission: 'default',
+    subscribed: false,
+    endpoint: null,
+    notifyOnComplete: getNotifyOnCompletePreference(),
+  }));
+  const [pushBusy, setPushBusy] = useState(false);
+  const [pushPromptOpen, setPushPromptOpen] = useState(false);
 
   const [activePath, setActivePath] = useState<string>(initialRoute.path);
   const previousPathRef = React.useRef<string>(initialRoute.path);
@@ -254,6 +280,83 @@ export default function App() {
     window.location.reload();
   };
 
+  // Lazy Service Worker registration & non-intrusive Push Notification prompt check
+  useEffect(() => {
+    let cancelled = false;
+    const isTestTrigger =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('push-prompt-test') === '1';
+
+    let promptTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const bootstrapPush = async () => {
+      await registerPushServiceWorker();
+      const snapshot = await getPushStatus();
+      if (cancelled) return;
+      setPushStatus(snapshot);
+
+      const eligible = evaluatePushPromptEligibility({
+        supported: snapshot.supported,
+        permission: snapshot.permission,
+        subscribed: snapshot.subscribed,
+        dismissedAtMs: getPushPromptDismissedAt(),
+        isAdminRoute: window.location.pathname.startsWith('/admin'),
+        forceTestTrigger: isTestTrigger,
+      });
+
+      if (eligible) {
+        promptTimer = setTimeout(() => {
+          if (!cancelled) setPushPromptOpen(true);
+        }, isTestTrigger ? 350 : 4500);
+      }
+    };
+
+    const startTimer = setTimeout(() => {
+      bootstrapPush().catch(() => {});
+    }, isTestTrigger ? 100 : 1000);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(startTimer);
+      if (promptTimer) clearTimeout(promptTimer);
+    };
+  }, []);
+
+  const handleEnablePush = async (): Promise<{ success: boolean; message: string }> => {
+    setPushBusy(true);
+    try {
+      const res = await subscribeToPushNotifications();
+      setPushStatus(res.status);
+      if (res.success || res.status.permission === 'denied') {
+        setPushPromptOpen(false);
+      }
+      return { success: res.success, message: res.message };
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleDisablePush = async (): Promise<{ success: boolean; message: string }> => {
+    setPushBusy(true);
+    try {
+      const res = await unsubscribeFromPushNotifications();
+      setPushStatus(res.status);
+      return { success: res.success, message: res.message };
+    } finally {
+      setPushBusy(false);
+    }
+  };
+
+  const handleToggleJobNotify = (enabled: boolean) => {
+    setNotifyOnCompletePreference(enabled);
+    setPushStatus((prev) => ({ ...prev, notifyOnComplete: enabled }));
+  };
+
+  const handleDismissPushPrompt = () => {
+    recordPushPromptDismissal();
+    setPushPromptOpen(false);
+  };
+
   const handleOpenAuth = (mode: 'login' | 'register' = 'login', reason?: string) => {
     setAuthInitialMode(mode);
     setAuthRedirectReason(reason);
@@ -364,6 +467,11 @@ export default function App() {
         onNavigateAdmin={handleNavigateAdmin}
         onLogout={handleLogout}
         currentView={currentView}
+        pushStatus={pushStatus}
+        pushBusy={pushBusy}
+        onEnablePush={handleEnablePush}
+        onDisablePush={handleDisablePush}
+        onToggleJobNotify={handleToggleJobNotify}
       />
 
       {/* Main Content Area */}
@@ -437,6 +545,20 @@ export default function App() {
             isOpen={adBlockerModalOpen}
             onDismiss={handleDismissAdBlockerModal}
             onReload={handleReloadAfterAdBlocker}
+          />
+        </Suspense>
+      )}
+
+      {/* Non-intrusive Floating Web Push Opt-In Prompt */}
+      {pushPromptOpen && !authModalOpen && !adBlockerModalOpen && currentView !== 'admin' && (
+        <Suspense fallback={null}>
+          <PushOptInPrompt
+            isOpen={pushPromptOpen}
+            busy={pushBusy}
+            onAllow={() => {
+              handleEnablePush().catch(() => {});
+            }}
+            onDismiss={handleDismissPushPrompt}
           />
         </Suspense>
       )}

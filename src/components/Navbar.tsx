@@ -17,6 +17,8 @@ import {
 import { User, PlatformLimits } from '../utils/api.js';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { TOOL_PATH_MAP } from '../utils/seoRouter.js';
+import { PushNotificationBell } from './PushNotificationBell.js';
+import { PushStatusSnapshot } from '../utils/pushNotifications.js';
 
 interface NavbarProps {
   user: User | null;
@@ -28,6 +30,11 @@ interface NavbarProps {
   onNavigateAdmin: () => void;
   onLogout: () => void;
   currentView: 'home' | 'tool' | 'dashboard' | 'admin';
+  pushStatus?: PushStatusSnapshot;
+  pushBusy?: boolean;
+  onEnablePush?: () => Promise<{ success: boolean; message: string }>;
+  onDisablePush?: () => Promise<{ success: boolean; message: string }>;
+  onToggleJobNotify?: (enabled: boolean) => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -39,6 +46,11 @@ export const Navbar: React.FC<NavbarProps> = ({
   onNavigateAdmin,
   onLogout,
   currentView,
+  pushStatus,
+  pushBusy = false,
+  onEnablePush,
+  onDisablePush,
+  onToggleJobNotify,
 }) => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toolsDropdownOpen, setToolsDropdownOpen] = useState(false);
@@ -207,6 +219,16 @@ export const Navbar: React.FC<NavbarProps> = ({
             <span className="hidden lg:inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold text-[#1FA971] bg-[#1FA971]/15 border border-[#1FA971]/35">
               Unlimited &amp; Free
             </span>
+
+            {pushStatus && onEnablePush && onDisablePush && onToggleJobNotify && (
+              <PushNotificationBell
+                status={pushStatus}
+                busy={pushBusy}
+                onEnable={onEnablePush}
+                onDisable={onDisablePush}
+                onToggleJobNotify={onToggleJobNotify}
+              />
+            )}
 
             {/* Quick History button on mobile/tablet bar so users find it immediately */}
             <button
