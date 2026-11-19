@@ -50,7 +50,8 @@ import {
 } from 'lucide-react';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { User, PlatformLimits, api } from '../utils/api.js';
-import { AdSenseBanner } from './AdSenseBanner.js';
+import { AdsterraAdBanner } from './AdsterraAdBanner.js';
+import { ADSTERRA_BANNERS } from '../utils/adsterra.js';
 import {
   mergePdfFiles,
   splitPdfFile,
@@ -2882,11 +2883,11 @@ export const PdfToolWorkspace: React.FC<PdfToolWorkspaceProps> = ({
             </div>
           )}
 
-          {/* In-Article Google AdSense Unit */}
-          <AdSenseBanner
-            slotId="7477499834"
-            user={user}
-            layout="in-article"
+          {/* Standardized Adsterra 300x250 Workspace Banner */}
+          <AdsterraAdBanner
+            adKey={ADSTERRA_BANNERS.banner_300x250.key}
+            width={ADSTERRA_BANNERS.banner_300x250.width}
+            height={ADSTERRA_BANNERS.banner_300x250.height}
           />
         </div>
       </div>

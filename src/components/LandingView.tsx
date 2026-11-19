@@ -41,7 +41,8 @@ import {
 import { ToolId, TOOLS_CONFIG } from '../types.js';
 import { TOOL_PATH_MAP } from '../utils/seoRouter.js';
 import { User, PlatformLimits } from '../utils/api.js';
-import { AdSenseBanner } from './AdSenseBanner.js';
+import { AdsterraAdBanner } from './AdsterraAdBanner.js';
+import { ADSTERRA_BANNERS } from '../utils/adsterra.js';
 
 interface LandingViewProps {
   user: User | null;
@@ -239,12 +240,12 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
       </section>
 
-      {/* AdSense Responsive Banner Unit */}
+      {/* Standardized Adsterra 320x50 Top Banner */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <AdSenseBanner
-          slotId="5477575344"
-          user={user}
-          layout="responsive"
+        <AdsterraAdBanner
+          adKey={ADSTERRA_BANNERS.banner_320x50.key}
+          width={ADSTERRA_BANNERS.banner_320x50.width}
+          height={ADSTERRA_BANNERS.banner_320x50.height}
         />
       </div>
 
@@ -463,12 +464,12 @@ export const LandingView: React.FC<LandingViewProps> = ({
         </div>
       </section>
 
-      {/* AdSense Feature/Bottom Banner Unit */}
+      {/* Standardized Adsterra 300x250 Feature Banner */}
       <div className="max-w-4xl mx-auto px-4 sm:px-6">
-        <AdSenseBanner
-          slotId="9309009142"
-          user={user}
-          layout="responsive"
+        <AdsterraAdBanner
+          adKey={ADSTERRA_BANNERS.banner_300x250.key}
+          width={ADSTERRA_BANNERS.banner_300x250.width}
+          height={ADSTERRA_BANNERS.banner_300x250.height}
         />
       </div>
 

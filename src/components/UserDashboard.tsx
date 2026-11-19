@@ -20,7 +20,8 @@ import {
 } from 'lucide-react';
 import { User, PlatformLimits, api } from '../utils/api.js';
 import { ToolId, TOOLS_CONFIG } from '../types.js';
-import { AdSenseBanner } from './AdSenseBanner.js';
+import { AdsterraAdBanner } from './AdsterraAdBanner.js';
+import { ADSTERRA_BANNERS } from '../utils/adsterra.js';
 import {
   LocalHistoryEntry,
   getLocalHistory,
@@ -530,12 +531,11 @@ export const UserDashboard: React.FC<UserDashboardProps> = ({
         </div>
       </div>
 
-      {/* Google AdSense In-feed Native Ad */}
-      <AdSenseBanner
-        slotId="1446830999"
-        layout="in-feed"
-        layoutKey="-f9+4w+7x-eg+3a"
-        user={user}
+      {/* Standardized Adsterra 300x250 Dashboard Banner */}
+      <AdsterraAdBanner
+        adKey={ADSTERRA_BANNERS.banner_300x250.key}
+        width={ADSTERRA_BANNERS.banner_300x250.width}
+        height={ADSTERRA_BANNERS.banner_300x250.height}
       />
 
       {/* Preview Modal for in-session history items */}

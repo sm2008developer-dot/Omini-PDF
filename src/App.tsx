@@ -22,6 +22,13 @@ import {
   recordRecentTool,
   clearRecentTools,
 } from './utils/recentTools.js';
+import {
+  detectAdBlocker,
+  getAdBlockerDismissedAt,
+  shouldShowAdBlockerNotice,
+  recordAdBlockerDismissal,
+  clearAdBlockerDismissal,
+} from './utils/adBlocker.js';
 
 // Code-split heavy workspaces & modals for ultra-fast initial load
 const PdfToolWorkspace = lazy(() =>
@@ -35,6 +42,9 @@ const AdminPanel = lazy(() =>
 );
 const AuthModal = lazy(() =>
   import('./components/AuthModal.js').then((m) => ({ default: m.AuthModal }))
+);
+const AdBlockerModal = lazy(() =>
+  import('./components/AdBlockerModal.js').then((m) => ({ default: m.AdBlockerModal }))
 );
 
 const WorkspaceFallback = () => (
@@ -57,6 +67,7 @@ export default function App() {
   const [authInitialMode, setAuthInitialMode] = useState<'login' | 'register'>('login');
   const [authRedirectReason, setAuthRedirectReason] = useState<string | undefined>();
   const [announcementDismissed, setAnnouncementDismissed] = useState(false);
+  const [adBlockerModalOpen, setAdBlockerModalOpen] = useState(false);
 
   const [activePath, setActivePath] = useState<string>(initialRoute.path);
   const previousPathRef = React.useRef<string>(initialRoute.path);
@@ -203,6 +214,45 @@ export default function App() {
       if (timerHandle !== null) clearTimeout(timerHandle);
     };
   }, []);
+
+  // Polite, non-intrusive ad-blocker check after initial paint (respects 24h dismissal cooldown)
+  useEffect(() => {
+    let cancelled = false;
+    const isTestTrigger =
+      typeof window !== 'undefined' &&
+      new URLSearchParams(window.location.search).get('adblock-test') === '1';
+
+    if (!isTestTrigger && !shouldShowAdBlockerNotice(getAdBlockerDismissedAt())) {
+      return;
+    }
+
+    const delayMs = isTestTrigger ? 300 : 1800;
+    const timer = setTimeout(async () => {
+      try {
+        const blocked = await detectAdBlocker(window.location.pathname);
+        if (!cancelled && blocked) {
+          setAdBlockerModalOpen(true);
+        }
+      } catch {
+        // Never disrupt user experience on detection error
+      }
+    }, delayMs);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, []);
+
+  const handleDismissAdBlockerModal = () => {
+    recordAdBlockerDismissal();
+    setAdBlockerModalOpen(false);
+  };
+
+  const handleReloadAfterAdBlocker = () => {
+    clearAdBlockerDismissal();
+    window.location.reload();
+  };
 
   const handleOpenAuth = (mode: 'login' | 'register' = 'login', reason?: string) => {
     setAuthInitialMode(mode);
@@ -376,6 +426,17 @@ export default function App() {
             onSuccess={handleAuthSuccess}
             initialMode={authInitialMode}
             redirectReason={authRedirectReason}
+          />
+        </Suspense>
+      )}
+
+      {/* Non-intrusive Ad-Blocker Notice Modal */}
+      {adBlockerModalOpen && !authModalOpen && currentView !== 'admin' && (
+        <Suspense fallback={null}>
+          <AdBlockerModal
+            isOpen={adBlockerModalOpen}
+            onDismiss={handleDismissAdBlockerModal}
+            onReload={handleReloadAfterAdBlocker}
           />
         </Suspense>
       )}
